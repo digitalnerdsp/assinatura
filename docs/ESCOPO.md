@@ -212,3 +212,31 @@ A escolha é feita por tenant (`tenant_signing_settings`): provedor, referência
 - Webhook entregue com HMAC e retentativas.
 - Testes automatizados (Pest/PHPUnit) para fluxo de assinatura, expiração, recusa e ordem de assinatura.
 - Checklist LGPD e revisão jurídica concluídos.
+
+## 14. Backlog priorizado (decidido em 09/11/2026)
+
+**Entregue em 09/11/2026** (itens 2 e 4 da lista de ideias; ainda sem teste em produção): lembretes e expiração, webhooks, WhatsApp/SMS, modelos com variáveis,
+posição da assinatura no PDF, signatários em ordem, pastas/etiquetas/busca, painel de saúde, Sentry, backup, limite de PDF,
+teste de carga, repositório privado.
+
+**Guardado para depois**
+
+1. *Obrigatório antes de vender (jurídico e confiança)*
+   - Certificado ICP-Brasil e-CNPJ A1 (hoje o selo é de teste e aparece como "não confiável").
+   - Carimbo de tempo (TSA): configurar `SEALER_TSA_URL`.
+   - Termos de uso, política de privacidade, consentimento e retenção/exclusão de biometria (LGPD); revisão por advogado.
+   - Recuperação de senha e verificação de e-mail.
+   - Documentos em S3 (ou similar) em vez do volume do servidor.
+2. *Monetização e produto*
+   - Planos e cobrança recorrente (Asaas, Stripe ou Mercado Pago), bloqueio por inadimplência.
+   - Marca própria (white label) e domínio personalizado por empresa.
+   - Papéis de usuário (admin, operador, leitor) dentro de cada empresa, com log de auditoria.
+
+**Ainda pendente dentro dos itens entregues**
+
+- Teste de carga: o script k6 existe (`loadtest/`), mas **não foi executado**; precisa de um ambiente de teste.
+- Repositório privado: exige configurar a chave de deploy no Coolify antes de trocar a visibilidade (passo a passo em `docs/DEPLOY.md`).
+- Backup fora do servidor (S3) e teste de restauração.
+- WhatsApp/SMS: só Twilio implementado, sem teste com conta real; o código de verificação (OTP) continua só por e-mail.
+- Posição da assinatura: não está disponível para documentos gerados por modelo; assinatura posicionada só é desenhada em PDFs que o sealer consegue decorar.
+- Webhooks: sem sandbox separado e sem reenvio em lote.

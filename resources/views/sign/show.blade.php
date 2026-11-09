@@ -24,7 +24,10 @@
     </div>
 </div>
 
-@if ($current === 'otp')
+@if ($waiting)
+<div class="alert alert-info border-0 d-flex align-items-center gap-2"><i class="bx bx-time-five fs-4"></i><div>Este documento tem ordem de assinatura. Você será avisado quando for a sua vez; até lá, pode apenas ler o documento.</div></div>
+
+@elseif ($current === 'otp')
 <div class="card radius-10">
     <div class="card-header"><h6 class="mb-0"><i class="bx bx-envelope me-1"></i> Confirme sua identidade</h6></div>
     <div class="card-body">

@@ -13,6 +13,9 @@ use App\Evidence\RequestContext;
 use App\Models\Signer;
 use Illuminate\Support\Facades\Crypt;
 use App\Models\Document;
+use App\Models\Folder;
+use App\Models\Tag;
+use App\Webhooks\WebhookDispatcher;
 use App\Models\Envelope;
 use App\Models\Tenant;
 use App\Models\User;
@@ -22,8 +25,10 @@ use Illuminate\Support\Str;
 
 final class EnvelopeService
 {
-    public function __construct(private readonly EvidenceLogger $evidence)
-    {
+    public function __construct(
+        private readonly EvidenceLogger $evidence,
+        private readonly WebhookDispatcher $webhooks,
+    ) {
     }
 
     /**
@@ -41,6 +46,8 @@ final class EnvelopeService
         ?string $message = null,
         /** @var array{otp?:bool,selfie?:bool,document?:bool,geolocation?:bool} $verifications */
         array $verifications = [],
+        /** @var array{validity_days?:int,reminder_every_days?:int|null,channels?:list<string>,folder_id?:string|null,tags?:list<string>,signature_fields?:list<array>} $options */
+        array $options = [],
     ): Envelope {
         // required_level "advanced" (legado/API) equivale a exigir o código por e-mail.
         $otp = $verifications['otp'] ?? ($requiredLevel === 'advanced');
@@ -52,10 +59,24 @@ final class EnvelopeService
         if (! str_starts_with($pdfContents, '%PDF-')) {
             throw FlowException::because('invalid_document', 'O arquivo enviado não é um PDF válido.');
         }
+        if (strlen($pdfContents) > (int) config('signing.max_pdf_mb') * 1024 * 1024) {
+            throw FlowException::because('document_too_large', 'O PDF excede o limite de '.config('signing.max_pdf_mb').' MB.');
+        }
         if ($signers === []) {
             throw FlowException::because('no_signers', 'Informe ao menos um signatário.');
         }
-        return DB::transaction(function () use ($tenant, $creator, $pdfContents, $filename, $title, $signers, $order, $requiredLevel, $message, $otp, $selfie, $docPhoto, $geolocation) {
+
+        $validity = max(1, min(365, (int) ($options['validity_days'] ?? config('signing.default_validity_days'))));
+        $reminder = array_key_exists('reminder_every_days', $options)
+            ? ($options['reminder_every_days'] === null ? null : max(1, min(30, (int) $options['reminder_every_days'])))
+            : (int) config('signing.default_reminder_days');
+        $channels = array_values(array_intersect($options['channels'] ?? ['email'], ['email', 'whatsapp', 'sms'])) ?: ['email'];
+        $folderId = $options['folder_id'] ?? null;
+        if ($folderId !== null && ! Folder::query()->where('tenant_id', $tenant->getKey())->whereKey($folderId)->exists()) {
+            throw FlowException::because('invalid_folder', 'Pasta inválida.');
+        }
+
+        return DB::transaction(function () use ($tenant, $creator, $pdfContents, $filename, $title, $signers, $order, $requiredLevel, $message, $otp, $selfie, $docPhoto, $geolocation, $validity, $reminder, $channels, $folderId, $options) {
             $path = "tenants/{$tenant->getKey()}/documents/".Str::uuid().'.pdf';
             Storage::disk('local')->put($path, $pdfContents);
 
@@ -81,10 +102,21 @@ final class EnvelopeService
                 'require_document' => $docPhoto,
                 'require_geolocation' => $geolocation,
                 'verification_code' => strtoupper(Str::random(12)),
+                'validity_days' => $validity,
+                'reminder_every_days' => $reminder,
+                'notify_channels' => $channels,
+                'folder_id' => $folderId,
             ]);
 
+            if (! empty($options['tags'])) {
+                $envelope->tags()->sync(
+                    Tag::query()->where('tenant_id', $tenant->getKey())->whereIn('id', $options['tags'])->pluck('id')->all()
+                );
+            }
+
+            $created = [];
             foreach (array_values($signers) as $i => $signer) {
-                $envelope->signers()->create([
+                $created[$i] = $envelope->signers()->create([
                     'name' => $signer['name'],
                     'email' => mb_strtolower($signer['email']),
                     'phone' => $signer['phone'] ?? null,
@@ -92,6 +124,19 @@ final class EnvelopeService
                     'role' => $signer['role'] ?? 'signer',
                     'position' => $signer['position'] ?? $i + 1,
                     'status' => SignerStatus::Pending,
+                ]);
+            }
+
+            // Posição da assinatura no PDF: signer = índice na lista de signatários.
+            foreach ($options['signature_fields'] ?? [] as $field) {
+                if (! isset($created[$field['signer']])) {
+                    continue;
+                }
+                $envelope->signatureFields()->create([
+                    'signer_id' => $created[$field['signer']]->getKey(),
+                    'page' => max(1, (int) $field['page']),
+                    'x' => min(max((float) $field['x'], 0), 1),
+                    'y' => min(max((float) $field['y'], 0), 1),
                 ]);
             }
 
@@ -114,8 +159,10 @@ final class EnvelopeService
      *
      * @return array<string,string>
      */
-    public function send(Envelope $envelope, ?RequestContext $context = null, int $validDays = 30): array
+    public function send(Envelope $envelope, ?RequestContext $context = null, ?int $validDays = null): array
     {
+        $validDays ??= (int) ($envelope->validity_days ?: config('signing.default_validity_days'));
+
         if ($envelope->status !== EnvelopeStatus::Draft) {
             throw FlowException::because('not_draft', 'Somente rascunhos podem ser enviados.');
         }
@@ -132,7 +179,7 @@ final class EnvelopeService
             }
         }
 
-        return DB::transaction(function () use ($envelope, $context, $validDays) {
+        $tokens = DB::transaction(function () use ($envelope, $context, $validDays) {
             $tokens = [];
 
             foreach ($envelope->signers as $signer) {
@@ -154,6 +201,10 @@ final class EnvelopeService
 
             return $tokens;
         });
+
+        $this->webhooks->dispatch($envelope, 'envelope.sent');
+
+        return $tokens;
     }
 
     /**
@@ -185,5 +236,6 @@ final class EnvelopeService
 
         $envelope->update(['status' => EnvelopeStatus::Cancelled]);
         $this->evidence->record($envelope, 'envelope_cancelled', [], null, $context);
+        $this->webhooks->dispatch($envelope, 'envelope.cancelled');
     }
 }

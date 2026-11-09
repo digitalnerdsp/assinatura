@@ -33,7 +33,14 @@ final class EnvelopeController extends Controller
         $data = $request->validate([
             'title' => ['required', 'string', 'max:190'],
             'message' => ['nullable', 'string', 'max:2000'],
-            'document' => ['required', 'file', 'mimes:pdf', 'max:20480'],
+            'document' => ['required', 'file', 'mimes:pdf', 'max:'.((int) config('signing.max_pdf_mb') * 1024)],
+            'validity_days' => ['nullable', 'integer', 'between:1,365'],
+            'reminder_every_days' => ['nullable', 'integer', 'between:1,30'],
+            'channels' => ['nullable', 'array'],
+            'channels.*' => ['in:email,whatsapp,sms'],
+            'folder_id' => ['nullable', 'uuid'],
+            'tags' => ['nullable', 'array', 'max:10'],
+            'tags.*' => ['uuid'],
             'signing_order' => ['nullable', Rule::enum(SigningOrder::class)],
             'required_level' => ['nullable', Rule::in(['simple', 'advanced'])],
             'require_otp' => ['nullable', 'boolean'],
@@ -64,6 +71,13 @@ final class EnvelopeController extends Controller
                     'selfie' => $request->boolean('require_selfie'),
                     'document' => $request->boolean('require_document'),
                     'geolocation' => $request->boolean('require_geolocation'),
+                ], fn ($v) => $v !== null),
+                array_filter([
+                    'validity_days' => $data['validity_days'] ?? null,
+                    'reminder_every_days' => $data['reminder_every_days'] ?? null,
+                    'channels' => $data['channels'] ?? null,
+                    'folder_id' => $data['folder_id'] ?? null,
+                    'tags' => $data['tags'] ?? null,
                 ], fn ($v) => $v !== null),
             );
 
@@ -141,11 +155,8 @@ final class EnvelopeController extends Controller
 
     private function dispatchInvites(Envelope $envelope, Request $request): void
     {
-        $tokens = $this->envelopes->send($envelope, RequestContext::fromRequest($request));
-
-        foreach ($envelope->signers as $signer) {
-            $this->notifier->invite($signer, $tokens[$signer->getKey()]);
-        }
+        $this->envelopes->send($envelope, RequestContext::fromRequest($request));
+        $this->notifier->inviteActive($envelope->fresh()); // paralelo: todos; sequencial: só o primeiro
     }
 
     private function find(Request $request, string $id): Envelope

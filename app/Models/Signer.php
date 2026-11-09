@@ -41,6 +41,8 @@ class Signer extends Model
             'viewed_at' => 'datetime',
             'signed_at' => 'datetime',
             'geolocation_at' => 'datetime',
+            'invited_at' => 'datetime',
+            'last_reminded_at' => 'datetime',
         ];
     }
 

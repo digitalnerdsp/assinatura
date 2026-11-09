@@ -58,6 +58,7 @@ final class SigningController extends Controller
             'token' => $token,
             'steps' => $steps,
             'current' => $pending[0] ?? 'sign',
+            'waiting' => ! $this->signing->isMyTurn($signer),
         ]);
     }
 

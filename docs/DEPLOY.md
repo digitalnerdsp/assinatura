@@ -33,3 +33,58 @@ construídos nem executados** (o ambiente de desenvolvimento não tinha Docker).
 - `SIGNING_ALLOW_LOCAL_TEST=false`.
 - Backups do volume `pgdata` e do volume `documents` (PDFs e documentos selados são prova).
 - Mover documentos para armazenamento S3 compatível.
+
+## Serviços do compose (atualizado)
+
+| Serviço | Função |
+|---|---|
+| `app` | site e API (porta 8080; é o único com domínio) |
+| `worker` | fila: envio de e-mail/WhatsApp, selagem do PDF, entrega de webhooks |
+| `scheduler` | **novo:** `schedule:work` — expira envelopes vencidos (a cada 15 min) e envia lembretes (de hora em hora) |
+| `sealer` | selagem PAdES + carimbo na página + relatório |
+| `backup` | **novo:** a cada 24 h grava `db-AAAAMMDD-HHMMSS.sql.gz` e `documents-….tar.gz` no volume `backups` e apaga o que passar de `BACKUP_RETENTION_DAYS` (padrão 14) |
+| `db` | PostgreSQL 17 |
+
+Sem o `scheduler` rodando, lembretes e expiração automática **não acontecem** (o painel *Plataforma → Saúde do sistema* avisa).
+
+### Variáveis novas (todas opcionais)
+
+| Variável | Para quê |
+|---|---|
+| `SIGNING_MAX_PDF_MB` (20) | limite de tamanho do PDF. Mantenha `PHP_UPLOAD_MAX_FILESIZE` (25M) e `PHP_POST_MAX_SIZE` (30M) acima dele |
+| `MESSAGING_DRIVER` (`log`) | `twilio` ativa WhatsApp/SMS; com `log` as mensagens só vão para o log |
+| `TWILIO_SID`, `TWILIO_TOKEN`, `TWILIO_FROM_SMS`, `TWILIO_FROM_WHATSAPP` | credenciais e números de origem da Twilio. WhatsApp exige número aprovado (ou o sandbox da Twilio para testes) |
+| `SENTRY_LARAVEL_DSN` | liga os alertas de erro. Corpo da requisição, cookies e tokens da URL são removidos antes do envio |
+| `SENTRY_TRACES_SAMPLE_RATE` | desempenho (0 a 1); deixe vazio para não coletar |
+| `BACKUP_RETENTION_DAYS` (14), `BACKUP_INTERVAL_SECONDS` (86400) | rotina do backup |
+| `WEBHOOKS_ALLOW_PRIVATE` (false) | **só desenvolvimento:** permite webhook para localhost/rede interna. Em produção deixe false (proteção contra SSRF) |
+
+### Backup: o que falta fazer fora do servidor
+
+O serviço `backup` protege contra erro de software e exclusão acidental, **não** contra perder o servidor inteiro, porque o
+volume `backups` fica na mesma máquina. Copie-o para fora:
+
+- No Coolify, configure *S3 Backups* para o volume `backups` (ou rode `rclone sync` de um agendamento do Coolify).
+- Teste a restauração pelo menos uma vez:
+
+```bash
+gunzip -c db-AAAAMMDD-HHMMSS.sql.gz | psql -h db -U assinatura_app -d assinatura   # banco vazio
+tar -xzf documents-AAAAMMDD-HHMMSS.tar.gz -C /var/www/html/storage/app            # documentos
+```
+
+- Guarde também o `APP_KEY`: sem ele, os links de assinatura cifrados e as configurações salvas (SMTP) não abrem após a restauração.
+
+### Repositório privado
+
+O repositório contém o template Rocker (licença comercial) e hoje é público. Para torná-lo privado **sem quebrar o deploy**:
+
+1. No Coolify, troque a origem para *Private Repository (with Deploy Key)* (ou GitHub App) e copie a chave pública que ele mostra.
+2. No GitHub: *Settings → Deploy keys → Add deploy key*, cole a chave (somente leitura).
+3. Só então: *Settings → General → Danger Zone → Change visibility → Private*.
+4. Faça um *Redeploy* para confirmar que o Coolify ainda consegue clonar.
+
+Se inverter a ordem, o próximo deploy falha por falta de acesso ao repositório.
+
+### Teste de carga
+
+Veja `loadtest/README.md` (k6). O limite de PDF é conferido no app (`SIGNING_MAX_PDF_MB`) e no PHP/nginx (`PHP_UPLOAD_MAX_FILESIZE`).

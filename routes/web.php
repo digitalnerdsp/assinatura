@@ -26,6 +26,7 @@ Route::middleware(['auth', 'tenant.active', 'super.admin'])->prefix('admin')->na
     Route::put('/clientes/{tenant}', [\App\Http\Controllers\Admin\TenantController::class, 'update'])->name('tenants.update');
     Route::post('/clientes/{tenant}/suspender', [\App\Http\Controllers\Admin\TenantController::class, 'suspend'])->name('tenants.suspend');
     Route::post('/clientes/{tenant}/reativar', [\App\Http\Controllers\Admin\TenantController::class, 'reactivate'])->name('tenants.reactivate');
+    Route::get('/saude', [\App\Http\Controllers\Admin\HealthController::class, 'index'])->name('health');
     Route::get('/selagem', [\App\Http\Controllers\Admin\SealingController::class, 'index'])->name('sealing');
     Route::post('/selagem/teste', [\App\Http\Controllers\Admin\SealingController::class, 'test'])->middleware('throttle:10,1,admin-sealing-test')->name('sealing.test');
     Route::get('/email', [\App\Http\Controllers\Admin\MailController::class, 'edit'])->name('mail');
@@ -51,6 +52,31 @@ Route::middleware(['auth', 'tenant.active'])->group(function () {
     Route::get('/envelopes/{envelope}/original', [EnvelopeController::class, 'original'])->name('envelopes.original');
     Route::get('/envelopes/{envelope}/anexos/{attachment}', [EnvelopeController::class, 'attachment'])->name('envelopes.attachment');
     Route::get('/envelopes/{envelope}/selado', [EnvelopeController::class, 'final'])->name('envelopes.final');
+
+    Route::post('/envelopes/{envelope}/organizar', [EnvelopeController::class, 'organize'])->name('envelopes.organize');
+
+    Route::get('/organizacao', [\App\Http\Controllers\Web\OrganizationController::class, 'index'])->name('organization.index');
+    Route::post('/organizacao/pastas', [\App\Http\Controllers\Web\OrganizationController::class, 'storeFolder'])->name('folders.store');
+    Route::delete('/organizacao/pastas/{folder}', [\App\Http\Controllers\Web\OrganizationController::class, 'destroyFolder'])->name('folders.destroy');
+    Route::post('/organizacao/etiquetas', [\App\Http\Controllers\Web\OrganizationController::class, 'storeTag'])->name('tags.store');
+    Route::delete('/organizacao/etiquetas/{tag}', [\App\Http\Controllers\Web\OrganizationController::class, 'destroyTag'])->name('tags.destroy');
+
+    Route::get('/modelos', [\App\Http\Controllers\Web\TemplateController::class, 'index'])->name('templates.index');
+    Route::get('/modelos/novo', [\App\Http\Controllers\Web\TemplateController::class, 'create'])->name('templates.create');
+    Route::post('/modelos', [\App\Http\Controllers\Web\TemplateController::class, 'store'])->name('templates.store');
+    Route::get('/modelos/{template}', [\App\Http\Controllers\Web\TemplateController::class, 'edit'])->name('templates.edit');
+    Route::put('/modelos/{template}', [\App\Http\Controllers\Web\TemplateController::class, 'update'])->name('templates.update');
+    Route::delete('/modelos/{template}', [\App\Http\Controllers\Web\TemplateController::class, 'destroy'])->name('templates.destroy');
+    Route::get('/modelos/{template}/previa', [\App\Http\Controllers\Web\TemplateController::class, 'preview'])->middleware('throttle:20,1,template-preview')->name('templates.preview');
+    Route::get('/modelos/{template}/usar', [\App\Http\Controllers\Web\TemplateController::class, 'use'])->name('templates.use');
+    Route::post('/modelos/{template}/usar', [\App\Http\Controllers\Web\TemplateController::class, 'generate'])->name('templates.generate');
+
+    Route::get('/webhooks', [\App\Http\Controllers\Web\WebhookController::class, 'index'])->name('webhooks.index');
+    Route::post('/webhooks', [\App\Http\Controllers\Web\WebhookController::class, 'store'])->middleware('throttle:20,1,webhook-create')->name('webhooks.store');
+    Route::post('/webhooks/{endpoint}/alternar', [\App\Http\Controllers\Web\WebhookController::class, 'toggle'])->name('webhooks.toggle');
+    Route::post('/webhooks/{endpoint}/testar', [\App\Http\Controllers\Web\WebhookController::class, 'test'])->middleware('throttle:10,1,webhook-test')->name('webhooks.test');
+    Route::delete('/webhooks/{endpoint}', [\App\Http\Controllers\Web\WebhookController::class, 'destroy'])->name('webhooks.destroy');
+    Route::post('/webhooks/entregas/{delivery}/reenviar', [\App\Http\Controllers\Web\WebhookController::class, 'redeliver'])->name('webhooks.redeliver');
 
     Route::get('/api-keys', [ApiKeyController::class, 'index'])->name('api-keys.index');
     Route::post('/api-keys', [ApiKeyController::class, 'store'])->name('api-keys.store');

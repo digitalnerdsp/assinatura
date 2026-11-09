@@ -28,6 +28,7 @@ final class ReportBuilder
         'document_signed' => 'Documento assinado', 'all_signed' => 'Todas as assinaturas coletadas',
         'signer_refused' => 'Assinatura recusada', 'link_regenerated' => 'Novo link gerado',
         'seal_failed' => 'Falha ao selar', 'envelope_cancelled' => 'Envelope cancelado', 'envelope_expired' => 'Envelope expirado',
+        'reminder_sent' => 'Lembrete enviado',
     ];
 
     /** @return array<string,mixed> */
@@ -47,7 +48,42 @@ final class ReportBuilder
             'generated_at' => $this->at(now()).' (BRT)',
             'signers' => $envelope->signers->map(fn (Signer $s) => $this->signer($s, $events))->values()->all(),
             'events' => $this->events($envelope, $events),
+            'placements' => $this->placements($envelope),
         ];
+    }
+
+    /**
+     * Assinaturas a desenhar nas páginas do documento (só de quem já assinou). Desenho vai em base64 (PNG pequeno);
+     * assinatura digitada vai como texto. Posição em frações da página, origem no topo-esquerda.
+     *
+     * @return list<array<string,mixed>>
+     */
+    private function placements(Envelope $envelope): array
+    {
+        $envelope->loadMissing(['signatureFields', 'signers.signature']);
+        $signers = $envelope->signers->keyBy(fn (Signer $s) => $s->getKey());
+        $out = [];
+
+        foreach ($envelope->signatureFields as $field) {
+            $signer = $signers->get($field->signer_id);
+            $sig = $signer?->signature;
+            if ($signer === null || $sig === null || $signer->signed_at === null) {
+                continue;
+            }
+
+            $drawn = $sig->type === 'drawn';
+            $out[] = [
+                'page' => $field->page,
+                'x' => $field->x, 'y' => $field->y, 'width' => $field->width, 'height' => $field->height,
+                'name' => $signer->name,
+                'signed_at' => $this->at($signer->signed_at),
+                'type' => $sig->type,
+                'image' => $drawn ? substr((string) $sig->data, (int) strpos((string) $sig->data, ',') + 1) : null,
+                'text' => $drawn ? null : $sig->data,
+            ];
+        }
+
+        return $out;
     }
 
     /** @param \Illuminate\Support\Collection<int,EvidenceEvent> $events */

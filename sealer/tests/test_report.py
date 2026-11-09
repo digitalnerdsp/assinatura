@@ -92,3 +92,33 @@ def test_without_report_seals_invisibly(client):
 def test_unreadable_pdf_does_not_break_when_report_requested(client):
     r = seal(client, b"isto nao e pdf")
     assert r.status_code == 500 and "detail" in r.json()
+
+
+# 1x1 PNG preto
+PNG_B64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGD4DwABBAEAHZ7a7QAAAABJRU5ErkJggg=="
+
+
+def test_signature_placements_drawn_on_chosen_pages(client):
+    placements = [
+        {"page": 1, "x": 0.1, "y": 0.8, "width": 0.28, "height": 0.07, "name": "Ana Souza", "signed_at": "09/11/2026 13:48:56",
+         "type": "drawn", "image": PNG_B64, "text": None},
+        {"page": 2, "x": 0.5, "y": 0.5, "width": 0.28, "height": 0.07, "name": "Bruno Lima", "signed_at": "09/11/2026 14:01:00",
+         "type": "typed", "image": None, "text": "Bruno Lima"},
+        {"page": 99, "x": 0.1, "y": 0.1, "width": 0.28, "height": 0.07, "name": "Fora", "signed_at": "x", "type": "typed", "image": None, "text": "Fora"},
+    ]
+    r = seal(client, pdf_pages([A4, A4]), {**REPORT, "placements": placements})
+    assert r.status_code == 200, r.text
+
+    reader = PdfReader(io.BytesIO(base64.b64decode(r.json()["pdf_base64"])))
+    text = [p.extract_text() for p in reader.pages]
+    assert "Ana Souza" in text[0] and "09/11/2026 13:48:56" in text[0]
+    assert "Bruno Lima" in text[1]
+    assert not any("Fora" in t for t in text)  # página inexistente é ignorada
+
+
+def test_placement_with_corrupt_image_falls_back_to_name(client):
+    p = [{"page": 1, "x": 0.1, "y": 0.8, "width": 0.28, "height": 0.07, "name": "Carla Dias", "signed_at": "x",
+          "type": "drawn", "image": "nao-e-uma-imagem", "text": None}]
+    r = seal(client, pdf_pages([A4]), {**REPORT, "placements": p})
+    assert r.status_code == 200, r.text
+    assert "Carla Dias" in PdfReader(io.BytesIO(base64.b64decode(r.json()["pdf_base64"]))).pages[0].extract_text()

@@ -18,6 +18,14 @@ return [
         'timeout' => (int) env('SEALER_TIMEOUT', 60),
     ],
 
+    // Tamanho máximo do PDF enviado (MB). O sealer e o PHP precisam suportar esse valor.
+    'max_pdf_mb' => (int) env('SIGNING_MAX_PDF_MB', 20),
+
+    // Validade padrão do envelope e intervalo padrão de lembretes (dias).
+    'default_validity_days' => (int) env('SIGNING_VALIDITY_DAYS', 30),
+    'default_reminder_days' => (int) env('SIGNING_REMINDER_DAYS', 3),
+    'max_reminders' => 5,
+
     // Alertas de vencimento do certificado (dias).
     'expiry_alert_days' => [30, 15, 7],
 ];

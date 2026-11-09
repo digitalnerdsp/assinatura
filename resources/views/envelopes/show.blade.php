@@ -8,7 +8,7 @@
     'document_signed' => 'Documento assinado', 'all_signed' => 'Todas as assinaturas coletadas', 'signer_refused' => 'Assinatura recusada',
     'selfie_captured' => 'Selfie registrada', 'document_photo_captured' => 'Foto do documento registrada', 'geolocation_captured' => 'Localização registrada',
     'link_regenerated' => 'Novo link gerado', 'envelope_sealed' => 'Documento selado', 'seal_failed' => 'Falha ao selar',
-    'envelope_cancelled' => 'Envelope cancelado', 'envelope_expired' => 'Envelope expirado',
+    'envelope_cancelled' => 'Envelope cancelado', 'envelope_expired' => 'Envelope expirado', 'reminder_sent' => 'Lembrete enviado',
 ])
 <div class="card radius-10">
     <div class="card-body">
@@ -48,7 +48,19 @@
                 <a href="{{ route('verify.show', $envelope->verification_code) }}" target="_blank">página pública</a></div>
             <div class="col-md-4">SHA-256 do original<div class="mono text-body">{{ $envelope->document->sha256 }}</div></div>
             @if ($envelope->final_sha256)<div class="col-md-4">SHA-256 do selado<div class="mono text-body">{{ $envelope->final_sha256 }}</div></div>@endif
+            <div class="col-md-4">Prazo<div class="text-body">{{ $envelope->expires_at ? $envelope->expires_at->timezone('America/Sao_Paulo')->format('d/m/Y H:i') : $envelope->validity_days.' dias após o envio' }}</div></div>
+            <div class="col-md-4">Lembrete<div class="text-body">{{ $envelope->reminder_every_days ? 'a cada '.$envelope->reminder_every_days.' dia(s)' : 'desativado' }}</div></div>
+            <div class="col-md-4">Aviso por<div class="text-body">{{ collect($envelope->channels())->map(fn ($c) => ['email' => 'E-mail', 'whatsapp' => 'WhatsApp', 'sms' => 'SMS', 'manual' => 'Manual (links copiados)'][$c] ?? $c)->implode(', ') }}</div></div>
         </div>
+
+        <form method="post" action="{{ route('envelopes.organize', $envelope) }}" class="row g-2 align-items-end mt-2">
+            @csrf
+            <div class="col-md-4"><label class="form-label small text-secondary mb-1">Pasta</label>
+                <select class="form-select form-select-sm" name="folder_id"><option value="">Sem pasta</option>@foreach ($folders as $f)<option value="{{ $f->id }}" @selected($envelope->folder_id === $f->id)>{{ $f->name }}</option>@endforeach</select></div>
+            <div class="col-md-6"><label class="form-label small text-secondary mb-1">Etiquetas</label><br>
+                @forelse ($allTags as $t)<div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="t_{{ $t->id }}" name="tags[]" value="{{ $t->id }}" @checked($envelope->tags->contains('id', $t->id))><label class="form-check-label" for="t_{{ $t->id }}"><span class="badge bg-{{ $t->color }}">{{ $t->name }}</span></label></div>@empty<span class="small text-secondary">Sem etiquetas.</span>@endforelse</div>
+            <div class="col-md-2"><button class="btn btn-sm btn-outline-primary w-100">Salvar</button></div>
+        </form>
     </div>
 </div>
 
@@ -61,7 +73,7 @@
             @foreach ($envelope->signers as $s)
                 <tr>
                     <td>{{ $s->position }}</td><td>{{ $s->name }}</td><td>{{ $s->email }}</td>
-                    <td>@include('partials.status-badge', ['status' => $s->status->value])@if($s->refused_reason)<div class="small text-secondary">{{ $s->refused_reason }}</div>@endif</td>
+                    <td>@include('partials.status-badge', ['status' => $s->status->value])@if($s->refused_reason)<div class="small text-secondary">{{ $s->refused_reason }}</div>@endif @if ($envelope->signing_order->value === 'sequential' && $envelope->status->isOpenForSigning() && ! in_array($s->status->value, ['signed', 'refused']))<div class="small text-secondary">{{ in_array($s->id, $activeIds) ? 'na vez de assinar' : 'aguardando a vez' }}</div>@endif</td>
                     <td>{{ $s->signed_at?->timezone('America/Sao_Paulo')->format('d/m/Y H:i:s') ?? '—' }}</td>
                 </tr>
             @endforeach
@@ -86,7 +98,7 @@
                         <button type="button" class="btn btn-primary" data-copy="{{ $url }}"><i class="bx bx-copy"></i> Copiar link</button>
                     </div>
                     <div class="d-flex flex-wrap gap-2 mt-2">
-                        <form method="post" action="{{ route('envelopes.resend', [$envelope, $s]) }}">@csrf<button class="btn btn-sm btn-outline-secondary"><i class="bx bx-envelope"></i> Reenviar e-mail</button></form>
+                        <form method="post" action="{{ route('envelopes.resend', [$envelope, $s]) }}">@csrf<button class="btn btn-sm btn-outline-secondary"><i class="bx bx-envelope"></i> Reenviar aviso</button></form>
                         <form method="post" action="{{ route('envelopes.regenerate', [$envelope, $s]) }}" onsubmit="return confirm('Gerar um novo link? O link atual deixará de funcionar.')">@csrf<button class="btn btn-sm btn-outline-secondary"><i class="bx bx-refresh"></i> Gerar novo link</button></form>
                     </div>
                 @else

@@ -11,7 +11,9 @@ use App\Evidence\EvidenceLogger;
 use App\Evidence\RequestContext;
 use App\Http\Controllers\Controller;
 use App\Models\Envelope;
+use App\Models\Folder;
 use App\Models\Signer;
+use App\Models\Tag;
 use App\Notifications\SignerNotifier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -31,18 +33,80 @@ final class EnvelopeController extends Controller
 
     public function index(Request $request): View
     {
-        $envelopes = Envelope::query()
-            ->where('tenant_id', $request->user()->tenant_id)
-            ->withCount('signers')
-            ->latest()
-            ->paginate(20);
+        $tenantId = $request->user()->tenant_id;
+        $filters = $request->validate([
+            'q' => ['nullable', 'string', 'max:100'],
+            'status' => ['nullable', Rule::enum(\App\Enums\EnvelopeStatus::class)],
+            'folder' => ['nullable', 'string', 'max:40'],
+            'tag' => ['nullable', 'uuid'],
+        ]);
 
-        return view('envelopes.index', compact('envelopes'));
+        $envelopes = Envelope::query()
+            ->where('tenant_id', $tenantId)
+            ->with(['tags', 'folder'])
+            ->withCount('signers')
+            ->when($filters['q'] ?? null, function ($query, string $q) {
+                $like = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], mb_strtolower($q)).'%';
+                $query->where(fn ($w) => $w
+                    ->whereRaw('LOWER(title) LIKE ?', [$like])
+                    ->orWhereRaw('LOWER(verification_code) LIKE ?', [$like])
+                    ->orWhereHas('signers', fn ($s) => $s->whereRaw('LOWER(name) LIKE ?', [$like])->orWhereRaw('LOWER(email) LIKE ?', [$like]))
+                    ->orWhereHas('document', fn ($d) => $d->whereRaw('LOWER(name) LIKE ?', [$like])));
+            })
+            ->when($filters['status'] ?? null, fn ($query, string $status) => $query->where('status', $status))
+            ->when($filters['folder'] ?? null, fn ($query, string $folder) => $folder === 'none'
+                ? $query->whereNull('folder_id')
+                : $query->where('folder_id', $folder))
+            ->when($filters['tag'] ?? null, fn ($query, string $tag) => $query->whereHas('tags', fn ($t) => $t->where('tags.id', $tag)))
+            ->latest()
+            ->paginate(20)
+            ->withQueryString();
+
+        return view('envelopes.index', [
+            'envelopes' => $envelopes,
+            'folders' => Folder::query()->where('tenant_id', $tenantId)->orderBy('name')->get(),
+            'tags' => Tag::query()->where('tenant_id', $tenantId)->orderBy('name')->get(),
+            'filters' => $filters,
+        ]);
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
-        return view('envelopes.create');
+        return view('envelopes.create', $this->formData($request));
+    }
+
+    /** @return array<string,mixed> */
+    private function formData(Request $request): array
+    {
+        $tenantId = $request->user()->tenant_id;
+
+        return [
+            'folders' => Folder::query()->where('tenant_id', $tenantId)->orderBy('name')->get(),
+            'tags' => Tag::query()->where('tenant_id', $tenantId)->orderBy('name')->get(),
+        ];
+    }
+
+    /** Organização do envelope: pasta e etiquetas. */
+    public function organize(Request $request, Envelope $envelope): RedirectResponse
+    {
+        $this->owned($request, $envelope);
+        $tenantId = $request->user()->tenant_id;
+
+        $data = $request->validate([
+            'folder_id' => ['nullable', 'uuid'],
+            'tags' => ['nullable', 'array', 'max:10'],
+            'tags.*' => ['uuid'],
+        ]);
+
+        $folderId = $data['folder_id'] ?? null;
+        if ($folderId !== null && ! Folder::query()->where('tenant_id', $tenantId)->whereKey($folderId)->exists()) {
+            return back()->withErrors(['envelope' => 'Pasta inválida.']);
+        }
+
+        $envelope->update(['folder_id' => $folderId]);
+        $envelope->tags()->sync(Tag::query()->where('tenant_id', $tenantId)->whereIn('id', $data['tags'] ?? [])->pluck('id')->all());
+
+        return back()->with('status', 'Organização atualizada.');
     }
 
     public function store(Request $request): RedirectResponse
@@ -50,8 +114,20 @@ final class EnvelopeController extends Controller
         $data = $request->validate([
             'title' => ['required', 'string', 'max:190'],
             'message' => ['nullable', 'string', 'max:2000'],
-            'document' => ['required', 'file', 'mimes:pdf', 'max:20480'],
+            'document' => ['required', 'file', 'mimes:pdf', 'max:'.((int) config('signing.max_pdf_mb') * 1024)],
             'signing_order' => ['required', Rule::enum(SigningOrder::class)],
+            'validity_days' => ['nullable', 'integer', 'between:1,365'],
+            'reminder_every_days' => ['nullable', 'string', 'in:off,1,2,3,5,7,10,14'],
+            'channels' => ['nullable', 'array'],
+            'channels.*' => ['in:email,whatsapp,sms'],
+            'folder_id' => ['nullable', 'uuid'],
+            'tags' => ['nullable', 'array', 'max:10'],
+            'tags.*' => ['uuid'],
+            'signature_fields' => ['nullable', 'array', 'max:60'],
+            'signature_fields.*.signer' => ['required', 'integer', 'min:0', 'max:19'],
+            'signature_fields.*.page' => ['required', 'integer', 'min:1', 'max:2000'],
+            'signature_fields.*.x' => ['required', 'numeric', 'between:0,1'],
+            'signature_fields.*.y' => ['required', 'numeric', 'between:0,1'],
             'require_otp' => ['nullable', 'boolean'],
             'require_selfie' => ['nullable', 'boolean'],
             'require_document' => ['nullable', 'boolean'],
@@ -80,6 +156,14 @@ final class EnvelopeController extends Controller
                     'document' => $request->boolean('require_document'),
                     'geolocation' => $request->boolean('require_geolocation'),
                 ],
+                [
+                    'validity_days' => $data['validity_days'] ?? null,
+                    'reminder_every_days' => ($data['reminder_every_days'] ?? '3') === 'off' ? null : (int) ($data['reminder_every_days'] ?? 3),
+                    'channels' => $data['channels'] ?? ['email'],
+                    'folder_id' => $data['folder_id'] ?? null,
+                    'tags' => $data['tags'] ?? [],
+                    'signature_fields' => array_values($data['signature_fields'] ?? []),
+                ],
             );
         } catch (FlowException $e) {
             return back()->withInput()->withErrors(['document' => $e->getMessage()]);
@@ -91,9 +175,13 @@ final class EnvelopeController extends Controller
     public function show(Request $request, Envelope $envelope): View
     {
         $this->owned($request, $envelope);
-        $envelope->load(['signers.signature', 'signers.attachments', 'document']);
+        $envelope->load(['signers.signature', 'signers.attachments', 'document', 'tags', 'folder', 'signatureFields']);
+        $tenantId = $request->user()->tenant_id;
 
         return view('envelopes.show', [
+            'folders' => Folder::query()->where('tenant_id', $tenantId)->orderBy('name')->get(),
+            'allTags' => Tag::query()->where('tenant_id', $tenantId)->orderBy('name')->get(),
+            'activeIds' => $envelope->status->isOpenForSigning() ? $envelope->activeSigners()->pluck('id')->all() : [],
             'envelope' => $envelope,
             'events' => $envelope->evidenceEvents()->get(),
             'intact' => $this->evidence->isIntact($envelope),
@@ -111,24 +199,25 @@ final class EnvelopeController extends Controller
         }
 
         if ($request->boolean('skip_email')) {
+            // Envio manual: o sistema não avisa ninguém sozinho (nem o próximo da fila, nem lembretes).
+            $envelope->update(['notify_channels' => ['manual'], 'reminder_every_days' => null]);
+
             return back()->with('status', 'Envelope liberado para assinatura. Copie o link de cada signatário abaixo e envie como preferir.');
         }
 
-        $failed = [];
-        foreach ($envelope->signers as $signer) {
-            if (! $this->notifier->invite($signer, $tokens[$signer->getKey()])) {
-                $failed[] = $signer->email;
-            }
-        }
+        // Paralelo: todos; sequencial: só o primeiro grupo (os demais são avisados na sua vez).
+        $failed = $this->notifier->inviteActive($envelope->fresh());
 
         if ($failed !== []) {
             return back()->withErrors([
-                'envelope' => 'O envelope foi liberado, mas o e-mail não pôde ser enviado para: '.implode(', ', $failed)
-                    .'. Copie o link de cada signatário abaixo e envie manualmente (ou confira a configuração de e-mail com o administrador).',
+                'envelope' => 'O envelope foi liberado, mas o aviso não pôde ser enviado para: '.implode(', ', $failed)
+                    .'. Copie o link de cada signatário abaixo e envie manualmente (ou confira e-mail/telefone e a configuração de envio com o administrador).',
             ]);
         }
 
-        return back()->with('status', 'Convites enviados.');
+        return back()->with('status', $envelope->signing_order === SigningOrder::Sequential
+            ? 'Convite enviado ao primeiro signatário. Os próximos serão avisados na vez deles.'
+            : 'Convites enviados.');
     }
 
     /** Reenfileira a selagem de um envelope preso em "Selando" (ex.: serviço de selagem estava fora do ar). */
@@ -155,11 +244,15 @@ final class EnvelopeController extends Controller
             return back()->withErrors(['envelope' => 'Não há link ativo para reenviar. Gere um novo link.']);
         }
 
+        if (! $envelope->activeSigners()->contains(fn (Signer $s) => $s->getKey() === $signer->getKey())) {
+            return back()->withErrors(['envelope' => 'Este signatário ainda não está na vez de assinar (ou já respondeu).']);
+        }
+
         $token = basename($url);
 
         return $this->notifier->invite($signer, $token)
-            ? back()->with('status', 'E-mail reenviado para '.$signer->email.'.')
-            : back()->withErrors(['envelope' => 'Não foi possível enviar o e-mail. Copie o link e envie manualmente.']);
+            ? back()->with('status', 'Aviso reenviado para '.$signer->name.'.')
+            : back()->withErrors(['envelope' => 'Não foi possível enviar o aviso. Copie o link e envie manualmente.']);
     }
 
     public function regenerate(Request $request, Envelope $envelope, Signer $signer): RedirectResponse

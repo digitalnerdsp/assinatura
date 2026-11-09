@@ -11,6 +11,7 @@ use App\Signing\Data\SealRequest;
 use App\Signing\ReportBuilder;
 use App\Signing\Exceptions\SigningException;
 use App\Signing\SigningManager;
+use App\Webhooks\WebhookDispatcher;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Storage;
@@ -32,9 +33,10 @@ final class SealEnvelope implements ShouldQueue
     {
     }
 
-    public function handle(SigningManager $manager, EvidenceLogger $evidence, ?ReportBuilder $reports = null): void
+    public function handle(SigningManager $manager, EvidenceLogger $evidence, ?ReportBuilder $reports = null, ?WebhookDispatcher $webhooks = null): void
     {
         $reports ??= new ReportBuilder();
+        $webhooks ??= app(WebhookDispatcher::class);
         $envelope = Envelope::query()->with(['document', 'tenant.signingSetting'])->findOrFail($this->envelopeId);
 
         if ($envelope->status !== EnvelopeStatus::Sealing) {
@@ -75,5 +77,7 @@ final class SealEnvelope implements ShouldQueue
             'report_attached' => $sealed->decorated,
             'final_sha256' => $sealed->sha256,
         ]);
+
+        $webhooks->dispatch($envelope->fresh(), 'envelope.completed');
     }
 }

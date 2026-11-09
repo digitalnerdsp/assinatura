@@ -33,6 +33,17 @@ x-app-env: &app-env
   SEALER_URL: http://sealer:8080
   SEALER_TOKEN: ${SEALER_TOKEN:?defina SEALER_TOKEN}
   SUPER_ADMIN_EMAILS: ${SUPER_ADMIN_EMAILS:-}
+  SIGNING_MAX_PDF_MB: ${SIGNING_MAX_PDF_MB:-20}
+  PHP_UPLOAD_MAX_FILESIZE: ${PHP_UPLOAD_MAX_FILESIZE:-25M}   # >= SIGNING_MAX_PDF_MB
+  PHP_POST_MAX_SIZE: ${PHP_POST_MAX_SIZE:-30M}
+  MESSAGING_DRIVER: ${MESSAGING_DRIVER:-log}              # log | twilio (WhatsApp/SMS)
+  TWILIO_SID: ${TWILIO_SID:-}
+  TWILIO_TOKEN: ${TWILIO_TOKEN:-}
+  TWILIO_FROM_SMS: ${TWILIO_FROM_SMS:-}
+  TWILIO_FROM_WHATSAPP: ${TWILIO_FROM_WHATSAPP:-}
+  SENTRY_LARAVEL_DSN: ${SENTRY_LARAVEL_DSN:-}
+  SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+  BACKUP_PATH: /backups
 
 services:
   app:
@@ -42,6 +53,7 @@ services:
       AUTORUN_ENABLED: "true"        # roda as migrations ao subir
     volumes:
       - documents:/var/www/html/storage/app
+      - backups:/backups:ro
     depends_on:
       db:
         condition: service_healthy
@@ -60,6 +72,53 @@ services:
       AUTORUN_ENABLED: "false"
     volumes:
       - documents:/var/www/html/storage/app
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Agendador: expira envelopes vencidos e envia lembretes (php artisan schedule:work roda a cada minuto).
+  scheduler:
+    build: .
+    command: ["php", "/var/www/html/artisan", "schedule:work"]
+    environment:
+      <<: *app-env
+      AUTORUN_ENABLED: "false"
+    volumes:
+      - documents:/var/www/html/storage/app
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Backup diário do banco (pg_dump comprimido) e dos documentos; mantém os últimos BACKUP_RETENTION_DAYS dias.
+  # Copie o volume "backups" para fora do servidor (S3/Coolify Backups) — veja docs/DEPLOY.md.
+  backup:
+    image: postgres:17
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          ts=$$(date -u +%Y%m%d-%H%M%S)
+          # grava em arquivo (não em pipe) para detectar falha do pg_dump
+          if pg_dump -h db -U "$$PGUSER" -d "$$PGDATABASE" -f /backups/db-$$ts.sql.tmp && gzip -f /backups/db-$$ts.sql.tmp && mv /backups/db-$$ts.sql.tmp.gz /backups/db-$$ts.sql.gz; then
+            echo "backup do banco ok: db-$$ts.sql.gz"
+          else
+            rm -f /backups/db-$$ts.sql.tmp /backups/db-$$ts.sql.tmp.gz; echo "FALHA no backup do banco" >&2
+          fi
+          tar -czf /backups/documents-$$ts.tar.gz -C /documents . && echo "backup dos documentos ok" || echo "FALHA no backup dos documentos" >&2
+          find /backups -type f \( -name "db-*.sql.gz" -o -name "documents-*.tar.gz" \) -mtime +$${BACKUP_RETENTION_DAYS:-14} -delete
+          sleep $${BACKUP_INTERVAL_SECONDS:-86400}
+        done
+    environment:
+      PGUSER: ${DB_USERNAME:-assinatura_app}
+      PGPASSWORD: ${DB_PASSWORD:?defina DB_PASSWORD}
+      PGDATABASE: ${DB_DATABASE:-assinatura}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+    volumes:
+      - backups:/backups
+      - documents:/documents:ro
     depends_on:
       db:
         condition: service_healthy
@@ -94,3 +153,4 @@ services:
 volumes:
   pgdata:
   documents:
+  backups:

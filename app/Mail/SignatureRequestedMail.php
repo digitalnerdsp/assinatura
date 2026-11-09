@@ -11,13 +11,13 @@ use Illuminate\Mail\Mailables\Envelope;
 
 final class SignatureRequestedMail extends Mailable
 {
-    public function __construct(public readonly Signer $signer, public readonly string $url)
+    public function __construct(public readonly Signer $signer, public readonly string $url, public readonly bool $reminder = false)
     {
     }
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: 'Documento para assinar: '.$this->signer->envelope->title);
+        return new Envelope(subject: ($this->reminder ? 'Lembrete: ' : '').'Documento para assinar: '.$this->signer->envelope->title);
     }
 
     public function content(): Content

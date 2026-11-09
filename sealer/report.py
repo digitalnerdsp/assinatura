@@ -11,6 +11,7 @@ report = {
 """
 from __future__ import annotations
 
+import base64
 import io
 from xml.sax.saxutils import escape
 
@@ -20,6 +21,7 @@ from qrcode.constants import ERROR_CORRECT_L, ERROR_CORRECT_M
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 from reportlab.platypus import KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
@@ -77,6 +79,57 @@ def _footer_overlay(width: float, height: float, code: str, url: str) -> PdfRead
         if c.stringWidth(line, "Helvetica", 6.5) <= available:
             c.drawString(22, 13, line)
             break
+    c.save()
+    buf.seek(0)
+
+    return PdfReader(buf)
+
+
+def _placement_overlay(width: float, height: float, placements: list[dict]) -> PdfReader:
+    """Desenha as assinaturas dos signatários nas posições escolhidas (frações da página, origem no topo)."""
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf, pagesize=(width, height))
+
+    for p in placements:
+        bw, bh = float(p["width"]) * width, float(p["height"]) * height
+        x0 = float(p["x"]) * width
+        y0 = height - float(p["y"]) * height - bh  # y do PDF cresce para cima
+
+        c.setStrokeColor(colors.HexColor("#9aa6c4"))
+        c.setLineWidth(0.5)
+        c.setFillColor(colors.white)
+        c.roundRect(x0, y0, bw, bh, 2, stroke=1, fill=1)
+
+        caption_h = 8.5
+        area_h = bh - caption_h - 3
+        drew = False
+        if p.get("image"):
+            try:
+                raw = base64.b64decode(p["image"], validate=False)
+                img = ImageReader(io.BytesIO(raw))
+                iw, ih = img.getSize()
+                scale = min((bw - 6) / iw, area_h / ih)
+                c.drawImage(img, x0 + (bw - iw * scale) / 2, y0 + caption_h + 2 + (area_h - ih * scale) / 2,
+                            iw * scale, ih * scale, mask="auto")
+                drew = True
+            except Exception:  # imagem corrompida: cai para o nome digitado
+                drew = False
+        if not drew:
+            text = str(p.get("text") or p.get("name") or "")[:60]
+            size = min(16.0, area_h * 0.7)
+            while size > 6 and c.stringWidth(text, "Times-Italic", size) > bw - 8:
+                size -= 0.5
+            c.setFillColor(colors.HexColor("#1f2a5a"))
+            c.setFont("Times-Italic", size)
+            c.drawCentredString(x0 + bw / 2, y0 + caption_h + 2 + (area_h - size) / 2 + size * 0.2, text)
+
+        c.setFillColor(GREY)
+        c.setFont("Helvetica", 5.5)
+        caption = f"{p.get('name', '')} · {p.get('signed_at', '')}"
+        while len(caption) > 8 and c.stringWidth(caption, "Helvetica", 5.5) > bw - 6:
+            caption = caption[:-2]
+        c.drawString(x0 + 3, y0 + 2.5, caption)
+
     c.save()
     buf.seek(0)
 
@@ -205,9 +258,15 @@ def decorate(pdf: bytes, report: dict) -> bytes:
 
     # pypdf 7: as páginas precisam pertencer ao escritor antes de receber o carimbo.
     writer = PdfWriter(clone_from=reader)
-    for page in writer.pages:
+    by_page: dict[int, list[dict]] = {}
+    for p in report.get("placements") or []:
+        by_page.setdefault(int(p["page"]) - 1, []).append(p)
+
+    for index, page in enumerate(writer.pages):
         w, h = float(page.mediabox.width), float(page.mediabox.height)
         page.merge_page(_footer_overlay(w, h, code, url).pages[0])
+        if index in by_page:  # posições fora do documento são ignoradas
+            page.merge_page(_placement_overlay(w, h, by_page[index]).pages[0])
 
     writer.append(PdfReader(io.BytesIO(_report_pdf(report))))
 

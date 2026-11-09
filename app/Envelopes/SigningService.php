@@ -14,6 +14,8 @@ use App\Jobs\SealEnvelope;
 use App\Models\Envelope;
 use App\Models\Signer;
 use App\Models\SignerAttachment;
+use App\Notifications\SignerNotifier;
+use App\Webhooks\WebhookDispatcher;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -23,8 +25,18 @@ final class SigningService
     private const OTP_TTL_MINUTES = 10;
     private const OTP_MAX_ATTEMPTS = 5;
 
-    public function __construct(private readonly EvidenceLogger $evidence)
+    public function __construct(
+        private readonly EvidenceLogger $evidence,
+        private readonly WebhookDispatcher $webhooks,
+        private readonly LifecycleService $lifecycle,
+        private readonly SignerNotifier $notifier,
+    ) {
+    }
+
+    /** Em envelopes sequenciais, é a vez deste signatário? (Em paralelo, sempre.) */
+    public function isMyTurn(Signer $signer): bool
     {
+        return $signer->envelope->activeSigners()->contains(fn (Signer $s) => $s->getKey() === $signer->getKey());
     }
 
     public function findByToken(string $token): Signer
@@ -44,11 +56,16 @@ final class SigningService
     {
         $this->assertOpen($signer);
 
-        if ($signer->status === SignerStatus::Pending) {
+        $first = $signer->status === SignerStatus::Pending;
+        if ($first) {
             $signer->update(['status' => SignerStatus::Viewed, 'viewed_at' => now()]);
         }
 
         $this->evidence->record($signer->envelope, 'document_viewed', [], $signer, $context);
+
+        if ($first) {
+            $this->webhooks->dispatch($signer->envelope, 'signer.viewed', $signer);
+        }
     }
 
     /** Gera o OTP e devolve o código em texto puro para o notificador entregar (e-mail/SMS/WhatsApp). */
@@ -165,8 +182,12 @@ final class SigningService
             return false;
         });
 
+        $this->webhooks->dispatch($envelope, 'signer.signed', $signer->fresh());
+
         if ($allSigned) {
             SealEnvelope::dispatch($envelope->getKey())->afterCommit();
+        } elseif ($envelope->signing_order === SigningOrder::Sequential) {
+            $this->notifier->inviteActive($envelope); // avisa o próximo da fila
         }
     }
 
@@ -273,16 +294,15 @@ final class SigningService
             $signer->envelope->update(['status' => EnvelopeStatus::Refused]);
             $this->evidence->record($signer->envelope, 'signer_refused', ['reason' => $reason], $signer, $context);
         });
+
+        $this->webhooks->dispatch($signer->envelope, 'signer.refused', $signer->fresh());
     }
 
     private function assertOpen(Signer $signer): void
     {
         $envelope = $signer->envelope;
 
-        if ($envelope->expires_at !== null && $envelope->expires_at->isPast() && $envelope->status->isOpenForSigning()) {
-            $envelope->update(['status' => EnvelopeStatus::Expired]);
-            $this->evidence->record($envelope, 'envelope_expired', []);
-        }
+        $this->lifecycle->expire($envelope);
 
         if (! $envelope->status->isOpenForSigning()) {
             throw FlowException::because('envelope_closed', 'Este documento não está mais disponível para assinatura.');

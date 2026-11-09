@@ -35,6 +35,11 @@ class Tenant extends Model
         return $this->hasOne(TenantSigningSetting::class);
     }
 
+    public function webhookEndpoints(): HasMany
+    {
+        return $this->hasMany(WebhookEndpoint::class);
+    }
+
     public function envelopes(): HasMany
     {
         return $this->hasMany(Envelope::class);
