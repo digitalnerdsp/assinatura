@@ -15,6 +15,13 @@ final readonly class SealRequest
         public bool $timestamp = true,
         /** Incorpora cadeia/OCSP/CRL (PAdES-LT) para validação de longo prazo. */
         public bool $longTermValidation = true,
+        /**
+         * Dados para o carimbo visível e a página de relatório de assinaturas (ver App\Signing\ReportBuilder).
+         * Vazio = sela sem decorar o PDF.
+         *
+         * @var array<string,mixed>
+         */
+        public array $report = [],
     ) {
     }
 }

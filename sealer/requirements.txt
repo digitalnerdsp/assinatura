@@ -5,3 +5,5 @@ pyhanko==0.25.1
 pyhanko-certvalidator==0.26.8
 cryptography>=43,<46
 requests>=2.32
+reportlab==5.1.0
+pypdf==7.0.0

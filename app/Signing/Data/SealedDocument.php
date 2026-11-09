@@ -15,6 +15,8 @@ final readonly class SealedDocument
         public CertificateInfo $certificate,
         public DateTimeImmutable $sealedAt,
         public bool $timestamped,
+        /** false se o serviço não conseguiu carimbar/anexar o relatório (o PDF foi selado mesmo assim). */
+        public bool $decorated = true,
     ) {
     }
 }

@@ -10,6 +10,7 @@ import base64
 import hmac
 import io
 import json
+import logging
 import os
 from datetime import datetime, timedelta, timezone
 
@@ -27,9 +28,12 @@ from pyhanko.pdf_utils.misc import PdfReadError
 from pyhanko.pdf_utils.reader import PdfFileReader
 from pyhanko.pdf_utils.writer import copy_into_new_writer
 from pyhanko.sign import signers, timestamps
-from pyhanko.sign.fields import SigSeedSubFilter
+from pyhanko.sign.fields import SigFieldSpec, SigSeedSubFilter
+from pyhanko.stamp import TextStampStyle
 from pyhanko.sign.signers.pdf_signer import PdfSignatureMetadata, PdfSigner
 from pydantic import BaseModel
+
+from report import SEAL_BOX, decorate
 
 TOKEN = os.environ.get("SEALER_TOKEN", "")
 TSA_URL = os.environ.get("SEALER_TSA_URL", "")  # ACT ICP-Brasil / RFC 3161
@@ -198,13 +202,38 @@ def seal(pdf: UploadFile = File(...), metadata: str = Form(...)) -> dict:
     )
 
     data = pdf.file.read()
+
+    # Carimbo visível em cada página + relatório de assinaturas (opcional). Se o PDF não puder ser
+    # decorado (ex.: protegido por senha), sela mesmo assim e avisa em "decorated": false.
+    decorated, decorate_error = False, None
+    if meta.get("report"):
+        try:
+            data = decorate(data, meta["report"])
+            decorated = True
+        except Exception as exc:  # noqa: BLE001
+            decorate_error = f"{type(exc).__name__}: {exc}"
+            logging.getLogger("sealer").warning("não foi possível carimbar o PDF: %s", decorate_error)
+
+    signer_kwargs = {}
+    if decorated:
+        # Selo digital visível no espaço reservado do rodapé da última página (a do relatório).
+        signer_kwargs = {
+            "new_field_spec": SigFieldSpec(sig_field_name="SeloPlataforma", on_page=-1, box=SEAL_BOX),
+            "stamp_style": TextStampStyle(
+                stamp_text="Selo digital da plataforma\nAssinado por: %(signer)s\nData: %(ts)s",
+                border_width=1,
+            ),
+        }
+
     writer = open_for_signing(data)
     out = io.BytesIO()
-    PdfSigner(signature_meta, signer=signer, timestamper=timestamper).sign_pdf(writer, output=out)
+    PdfSigner(signature_meta, signer=signer, timestamper=timestamper, **signer_kwargs).sign_pdf(writer, output=out)
 
     return {
         "pdf_base64": base64.b64encode(out.getvalue()).decode(),
         "sealed_at": datetime.now(timezone.utc).isoformat(),
         "timestamped": timestamper is not None,
         "certificate": info,
+        "decorated": decorated,
+        "decorate_error": decorate_error,
     }

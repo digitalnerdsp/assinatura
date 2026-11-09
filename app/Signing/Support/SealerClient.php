@@ -49,6 +49,7 @@ final class SealerClient
                         'location' => $request->location,
                         'timestamp' => $request->timestamp,
                         'ltv' => $request->longTermValidation,
+                        'report' => $request->report ?: null,
                     ], JSON_THROW_ON_ERROR),
                 ]);
         } catch (ConnectionException $e) {
@@ -75,6 +76,7 @@ final class SealerClient
             certificate: CertificateInfo::fromArray((array) $response->json('certificate')),
             sealedAt: new DateTimeImmutable((string) $response->json('sealed_at')),
             timestamped: (bool) $response->json('timestamped'),
+            decorated: (bool) $response->json('decorated', true),
         );
     }
 

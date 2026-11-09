@@ -8,6 +8,7 @@ use App\Enums\EnvelopeStatus;
 use App\Evidence\EvidenceLogger;
 use App\Models\Envelope;
 use App\Signing\Data\SealRequest;
+use App\Signing\ReportBuilder;
 use App\Signing\Exceptions\SigningException;
 use App\Signing\SigningManager;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -31,8 +32,9 @@ final class SealEnvelope implements ShouldQueue
     {
     }
 
-    public function handle(SigningManager $manager, EvidenceLogger $evidence): void
+    public function handle(SigningManager $manager, EvidenceLogger $evidence, ?ReportBuilder $reports = null): void
     {
+        $reports ??= new ReportBuilder();
         $envelope = Envelope::query()->with(['document', 'tenant.signingSetting'])->findOrFail($this->envelopeId);
 
         if ($envelope->status !== EnvelopeStatus::Sealing) {
@@ -42,7 +44,10 @@ final class SealEnvelope implements ShouldQueue
         $original = Storage::disk('local')->get($envelope->document->storage_path);
 
         try {
-            $sealed = $manager->seal($envelope->tenant->signingSetting, new SealRequest($original));
+            $sealed = $manager->seal(
+                $envelope->tenant->signingSetting,
+                new SealRequest($original, report: $reports->build($envelope)),
+            );
         } catch (SigningException $e) {
             $evidence->record($envelope, 'seal_failed', ['error' => $e->getMessage()]);
 
@@ -67,6 +72,7 @@ final class SealEnvelope implements ShouldQueue
             'certificate_serial' => $sealed->certificate->serial,
             'icp_brasil' => $sealed->certificate->icpBrasil,
             'timestamped' => $sealed->timestamped,
+            'report_attached' => $sealed->decorated,
             'final_sha256' => $sealed->sha256,
         ]);
     }
