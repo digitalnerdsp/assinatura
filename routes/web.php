@@ -35,7 +35,8 @@ Route::middleware(['auth', 'tenant.active', 'super.admin'])->prefix('admin')->na
 });
 
 Route::middleware(['auth', 'tenant.active'])->group(function () {
-    Route::get('/painel', [EnvelopeController::class, 'dashboard'])->name('dashboard');
+    Route::get('/painel', [\App\Http\Controllers\Web\DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/envelopes', [EnvelopeController::class, 'index'])->name('envelopes.index');
 
     Route::get('/envelopes/novo', [EnvelopeController::class, 'create'])->name('envelopes.create');
     Route::post('/envelopes', [EnvelopeController::class, 'store'])->name('envelopes.store');

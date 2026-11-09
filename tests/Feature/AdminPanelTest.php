@@ -34,11 +34,11 @@ it('o painel admin só abre para super admins (404 para os demais)', function ()
 it('super admin vê métricas, lista e detalha clientes', function () {
     $tenant = Tenant::create(['name' => 'Empresa Alfa']);
     userFor($tenant, 'alfa@ex.com');
-    $admin = userFor(Tenant::create(['name' => 'Plataforma']), 'admin@plataforma.com');
+    $admin = userFor(Tenant::create(['name' => 'Operadora Interna']), 'admin@plataforma.com');
 
-    $this->actingAs($admin)->get('/admin')->assertOk()->assertSee('Administração da plataforma');
+    $this->actingAs($admin)->get('/admin')->assertOk()->assertSee('Clientes mais ativos no mês');
     $this->get('/admin/clientes')->assertOk()->assertSee('Empresa Alfa');
-    $this->get('/admin/clientes?q=alfa')->assertOk()->assertSee('Empresa Alfa')->assertDontSee('Plataforma');
+    $this->get('/admin/clientes?q=alfa')->assertOk()->assertSee('Empresa Alfa')->assertDontSee('Operadora Interna');
     $this->get("/admin/clientes/{$tenant->id}")->assertOk()->assertSee('alfa@ex.com');
     $this->get('/admin/configuracoes')->assertOk();
 });
@@ -48,7 +48,7 @@ it('suspender um cliente bloqueia usuários, API e novos envios', function () {
     $tenant = Tenant::create(['name' => 'Cliente']);
     $user = userFor($tenant, 'cliente@ex.com');
     [, $plain] = App\Models\ApiKey::issue($tenant, 'k');
-    $admin = userFor(Tenant::create(['name' => 'Plataforma']), 'admin@plataforma.com');
+    $admin = userFor(Tenant::create(['name' => 'Operadora Interna']), 'admin@plataforma.com');
 
     $envelope = app(EnvelopeService::class)->create($tenant, null, "%PDF-1.4\n%%EOF\n", 'a.pdf', 'T', [['name' => 'A', 'email' => 'a@a.com']]);
 
@@ -83,7 +83,7 @@ it('aplica o limite mensal de envelopes do plano', function () {
 
 it('admin altera plano e limite do cliente', function () {
     $tenant = Tenant::create(['name' => 'Cliente']);
-    $admin = userFor(Tenant::create(['name' => 'Plataforma']), 'admin@plataforma.com');
+    $admin = userFor(Tenant::create(['name' => 'Operadora Interna']), 'admin@plataforma.com');
 
     $this->actingAs($admin)->put("/admin/clientes/{$tenant->id}", ['plan' => 'pro', 'monthly_envelope_limit' => 500, 'admin_notes' => 'VIP'])
         ->assertRedirect();
@@ -95,7 +95,7 @@ it('admin altera plano e limite do cliente', function () {
 });
 
 it('fechar os cadastros bloqueia /cadastro mas mantém o login', function () {
-    $admin = userFor(Tenant::create(['name' => 'Plataforma']), 'admin@plataforma.com');
+    $admin = userFor(Tenant::create(['name' => 'Operadora Interna']), 'admin@plataforma.com');
 
     $this->actingAs($admin)->put('/admin/configuracoes', [])->assertRedirect();
     expect(Setting::registrationOpen())->toBeFalse();

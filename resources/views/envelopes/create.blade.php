@@ -1,70 +1,89 @@
 @extends('layouts.app')
 @section('title', 'Novo envelope')
+@section('section', 'Assinaturas')
 @section('content')
-<h1>Novo envelope</h1>
-<form method="post" action="{{ route('envelopes.store') }}" enctype="multipart/form-data" id="form">
+<form method="post" action="{{ route('envelopes.store') }}" enctype="multipart/form-data">
     @csrf
-    <div class="card">
-        <h2>Documento</h2>
-        <label for="title">Título</label>
-        <input id="title" type="text" name="title" value="{{ old('title') }}" required>
-        <label for="document">PDF (até 20 MB)</label>
-        <input id="document" type="file" name="document" accept="application/pdf" required>
-        <label for="message">Mensagem aos signatários (opcional)</label>
-        <textarea id="message" name="message" rows="3">{{ old('message') }}</textarea>
-        <div class="row">
-            <div>
-                <label for="signing_order">Ordem de assinatura</label>
-                <select id="signing_order" name="signing_order">
-                    <option value="parallel" @selected(old('signing_order') === 'parallel')>Todos ao mesmo tempo</option>
-                    <option value="sequential" @selected(old('signing_order') === 'sequential')>Um após o outro (na ordem abaixo)</option>
-                </select>
+    <div class="row">
+        <div class="col-12 col-xl-7">
+            <div class="card radius-10">
+                <div class="card-header"><h6 class="mb-0"><i class="bx bx-file me-1"></i> Documento</h6></div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Título</label>
+                        <input id="title" type="text" class="form-control" name="title" value="{{ old('title') }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="document" class="form-label">PDF (até 20 MB)</label>
+                        <input id="document" type="file" class="form-control" name="document" accept="application/pdf" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="message" class="form-label">Mensagem aos signatários <span class="text-secondary">(opcional)</span></label>
+                        <textarea id="message" class="form-control" name="message" rows="3">{{ old('message') }}</textarea>
+                    </div>
+                    <label for="signing_order" class="form-label">Ordem de assinatura</label>
+                    <select id="signing_order" class="form-select" name="signing_order">
+                        <option value="parallel" @selected(old('signing_order') === 'parallel')>Todos ao mesmo tempo</option>
+                        <option value="sequential" @selected(old('signing_order') === 'sequential')>Um após o outro (na ordem abaixo)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="card radius-10">
+                <div class="card-header d-flex align-items-center"><h6 class="mb-0"><i class="bx bx-group me-1"></i> Signatários</h6>
+                    <button type="button" class="btn btn-sm btn-outline-primary ms-auto" id="add"><i class="bx bx-plus"></i> Adicionar</button></div>
+                <div class="card-body" id="signers">
+                    @php($rows = old('signers', [['name' => '', 'email' => '']]))
+                    @foreach ($rows as $i => $s)
+                        <div class="border rounded p-3 mb-3 signer-row">
+                            <div class="row g-2">
+                                <div class="col-md-6"><label class="form-label">Nome</label><input type="text" class="form-control" name="signers[{{ $i }}][name]" value="{{ $s['name'] ?? '' }}" required></div>
+                                <div class="col-md-6"><label class="form-label">E-mail</label><input type="email" class="form-control" name="signers[{{ $i }}][email]" value="{{ $s['email'] ?? '' }}" required></div>
+                                <div class="col-md-6"><label class="form-label">CPF <span class="text-secondary">(opcional)</span></label><input type="text" class="form-control" name="signers[{{ $i }}][cpf]" value="{{ $s['cpf'] ?? '' }}"></div>
+                                <div class="col-md-6"><label class="form-label">Telefone <span class="text-secondary">(opcional)</span></label><input type="text" class="form-control" name="signers[{{ $i }}][phone]" value="{{ $s['phone'] ?? '' }}"></div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
             </div>
         </div>
-        <label>Verificação de identidade do signatário</label>
-        <p class="muted" style="margin-top:0">Sem nenhuma opção marcada, vale só o link enviado por e-mail (assinatura simples). Com qualquer verificação, a assinatura é registrada como avançada.</p>
-        <label style="font-weight:400"><input type="checkbox" name="require_otp" value="1" @checked(old('require_otp'))> Código de confirmação por e-mail</label>
-        <label style="font-weight:400"><input type="checkbox" name="require_selfie" value="1" @checked(old('require_selfie'))> Selfie (câmera)</label>
-        <label style="font-weight:400"><input type="checkbox" name="require_document" value="1" @checked(old('require_document'))> Foto do documento (RG/CNH)</label>
-        <label style="font-weight:400"><input type="checkbox" name="require_geolocation" value="1" @checked(old('require_geolocation'))> Localização (GPS)</label>
-    </div>
 
-    <div class="card">
-        <h2>Signatários</h2>
-        <div id="signers">
-            @php($rows = old('signers', [['name' => '', 'email' => '']]))
-            @foreach ($rows as $i => $s)
-                <div class="signer">
-                    <div class="row">
-                        <div><label>Nome</label><input type="text" name="signers[{{ $i }}][name]" value="{{ $s['name'] ?? '' }}" required></div>
-                        <div><label>E-mail</label><input type="email" name="signers[{{ $i }}][email]" value="{{ $s['email'] ?? '' }}" required></div>
-                    </div>
-                    <div class="row">
-                        <div><label>CPF (opcional)</label><input type="text" name="signers[{{ $i }}][cpf]" value="{{ $s['cpf'] ?? '' }}"></div>
-                        <div><label>Telefone (opcional)</label><input type="text" name="signers[{{ $i }}][phone]" value="{{ $s['phone'] ?? '' }}"></div>
-                    </div>
+        <div class="col-12 col-xl-5">
+            <div class="card radius-10">
+                <div class="card-header"><h6 class="mb-0"><i class="bx bx-shield-quarter me-1"></i> Verificação de identidade</h6></div>
+                <div class="card-body">
+                    <p class="text-secondary">Sem nenhuma opção marcada vale só o link por e-mail (assinatura simples). Com qualquer verificação, a assinatura é registrada como avançada.</p>
+                    @foreach ([
+                        'require_otp' => ['bx-envelope', 'Código de confirmação por e-mail'],
+                        'require_selfie' => ['bx-camera', 'Selfie (câmera)'],
+                        'require_document' => ['bx-id-card', 'Foto do documento (RG/CNH)'],
+                        'require_geolocation' => ['bx-map-pin', 'Localização (GPS)'],
+                    ] as $name => [$icon, $label])
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" role="switch" id="{{ $name }}" name="{{ $name }}" value="1" @checked(old($name))>
+                            <label class="form-check-label" for="{{ $name }}"><i class="bx {{ $icon }} me-1"></i>{{ $label }}</label>
+                        </div>
+                    @endforeach
                 </div>
-            @endforeach
+            </div>
+            <button class="btn btn-primary w-100 btn-lg"><i class="bx bx-check"></i> Criar envelope</button>
         </div>
-        <button type="button" class="btn ghost sm" id="add">+ Adicionar signatário</button>
     </div>
-
-    <button class="btn">Criar envelope</button>
 </form>
-<script>
-(function () {
-    const wrap = document.getElementById('signers');
-    document.getElementById('add').addEventListener('click', function () {
-        const i = wrap.children.length;
-        const div = document.createElement('div');
-        div.className = 'signer';
-        div.innerHTML =
-            '<div class="row"><div><label>Nome</label><input type="text" name="signers[' + i + '][name]" required></div>' +
-            '<div><label>E-mail</label><input type="email" name="signers[' + i + '][email]" required></div></div>' +
-            '<div class="row"><div><label>CPF (opcional)</label><input type="text" name="signers[' + i + '][cpf]"></div>' +
-            '<div><label>Telefone (opcional)</label><input type="text" name="signers[' + i + '][phone]"></div></div>';
-        wrap.appendChild(div);
-    });
-})();
-</script>
 @endsection
+
+@push('scripts')
+<script>
+document.getElementById('add').addEventListener('click', function () {
+    const wrap = document.getElementById('signers'), i = wrap.querySelectorAll('.signer-row').length;
+    const d = document.createElement('div');
+    d.className = 'border rounded p-3 mb-3 signer-row';
+    d.innerHTML = '<div class="row g-2">' +
+        '<div class="col-md-6"><label class="form-label">Nome</label><input type="text" class="form-control" name="signers[' + i + '][name]" required></div>' +
+        '<div class="col-md-6"><label class="form-label">E-mail</label><input type="email" class="form-control" name="signers[' + i + '][email]" required></div>' +
+        '<div class="col-md-6"><label class="form-label">CPF <span class="text-secondary">(opcional)</span></label><input type="text" class="form-control" name="signers[' + i + '][cpf]"></div>' +
+        '<div class="col-md-6"><label class="form-label">Telefone <span class="text-secondary">(opcional)</span></label><input type="text" class="form-control" name="signers[' + i + '][phone]"></div></div>';
+    wrap.appendChild(d);
+});
+</script>
+@endpush

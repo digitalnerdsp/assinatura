@@ -29,7 +29,7 @@ final class EnvelopeController extends Controller
     ) {
     }
 
-    public function dashboard(Request $request): View
+    public function index(Request $request): View
     {
         $envelopes = Envelope::query()
             ->where('tenant_id', $request->user()->tenant_id)

@@ -1,74 +1,70 @@
-@extends('layouts.app')
+@extends('layouts.public')
 @section('title', $envelope->title)
-@section('width', 'sign')
 @section('content')
-<style>
-.steps{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px;padding:0;list-style:none}
-.steps li{flex:1 1 120px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:.9rem;background:var(--card);color:var(--muted)}
-.steps li.done{border-color:#0f8a4b;color:#0a5c32;background:#d8f3e4}
-.steps li.current{border-color:var(--brand);color:var(--ink);font-weight:700;box-shadow:0 0 0 2px var(--brand) inset}
-.tabs{display:flex;gap:8px;margin-bottom:12px}
-.tabs button{flex:1;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit;cursor:pointer}
-.tabs button[aria-selected=true]{border-color:var(--brand);box-shadow:0 0 0 2px var(--brand) inset;font-weight:700}
-video.cam,img.shot{width:100%;max-height:60vh;border-radius:8px;background:#000;object-fit:cover}
-.preview{font:italic 2.2rem/1.2 "Brush Script MT","Segoe Script","Snell Roundhand",cursive;padding:14px;border:1px dashed var(--muted);border-radius:8px;background:#fff;color:#111;min-height:70px;word-break:break-word}
-</style>
+<div class="mb-3">
+    <h4 class="mb-1">{{ $envelope->title }}</h4>
+    <p class="text-secondary mb-0">Olá, <strong>{{ $signer->name }}</strong>. Para assinar: 1) leia o documento, 2) conclua as etapas abaixo, 3) assine.</p>
+</div>
 
-<h1>{{ $envelope->title }}</h1>
-<p class="muted">Olá, <strong>{{ $signer->name }}</strong>. Para assinar: 1) leia o documento, 2) conclua as etapas abaixo, 3) assine.</p>
-
-<ol class="steps" aria-label="Etapas">
+<ol class="steps-wizard" aria-label="Etapas">
     @foreach ($steps as $i => $s)
         <li class="{{ $s['done'] ? 'done' : ($s['key'] === $current ? 'current' : '') }}">
-            {{ $s['done'] ? '✓' : $i + 1 }} · {{ $s['label'] }}
+            @if ($s['done'])<i class="bx bx-check"></i>@else{{ $i + 1 }}@endif · {{ $s['label'] }}
         </li>
     @endforeach
 </ol>
 
-@if ($envelope->message)<div class="card">{{ $envelope->message }}</div>@endif
+@if ($envelope->message)<div class="alert alert-secondary border-0">{{ $envelope->message }}</div>@endif
 
-<div class="card">
-    <h2>Documento</h2>
-    <iframe class="pdf" src="{{ route('sign.pdf', $token) }}" title="Documento"></iframe>
-    <p class="muted">Não consegue ver? <a href="{{ route('sign.pdf', $token) }}" target="_blank" rel="noopener">Abrir em nova aba</a></p>
+<div class="card radius-10">
+    <div class="card-header"><h6 class="mb-0"><i class="bx bx-file me-1"></i> Documento</h6></div>
+    <div class="card-body">
+        <iframe class="pdf" src="{{ route('sign.pdf', $token) }}" title="Documento"></iframe>
+        <p class="text-secondary small mt-2 mb-0">Não consegue ver? <a href="{{ route('sign.pdf', $token) }}" target="_blank" rel="noopener">Abrir em nova aba</a></p>
+    </div>
 </div>
 
 @if ($current === 'otp')
-<div class="card">
-    <h2>Confirme sua identidade</h2>
-    <p>Enviaremos um código de 6 dígitos para o seu e-mail.</p>
-    <form method="post" action="{{ route('sign.otp', $token) }}">@csrf <button class="btn ghost">Enviar código</button></form>
-    <form method="post" action="{{ route('sign.otp.verify', $token) }}" style="margin-top:12px">
-        @csrf
-        <label for="code">Código recebido</label>
-        <input id="code" type="text" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required>
-        <p><button class="btn">Confirmar código</button></p>
-    </form>
+<div class="card radius-10">
+    <div class="card-header"><h6 class="mb-0"><i class="bx bx-envelope me-1"></i> Confirme sua identidade</h6></div>
+    <div class="card-body">
+        <p>Enviaremos um código de 6 dígitos para o seu e-mail.</p>
+        <form method="post" action="{{ route('sign.otp', $token) }}" class="mb-3">@csrf <button class="btn btn-outline-primary">Enviar código</button></form>
+        <form method="post" action="{{ route('sign.otp.verify', $token) }}">
+            @csrf
+            <label for="code" class="form-label">Código recebido</label>
+            <input id="code" type="text" class="form-control form-control-lg text-center mb-3" style="max-width:240px;letter-spacing:.4em" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required>
+            <button class="btn btn-primary">Confirmar código</button>
+        </form>
+    </div>
 </div>
 
 @elseif ($current === 'selfie')
-<div class="card">
-    <h2>Tire uma selfie</h2>
-    <p class="muted">Posicione seu rosto no centro, com boa iluminação e sem óculos escuros ou boné.</p>
-    <video class="cam" id="cam" autoplay playsinline muted hidden></video>
-    <img class="shot" id="shot" alt="Sua selfie" hidden>
-    <canvas id="cv" hidden></canvas>
-    <p id="camerr" class="err" hidden>Não foi possível usar a câmera. Permita o acesso no navegador ou envie uma foto abaixo.</p>
-    <form method="post" action="{{ route('sign.selfie', $token) }}" id="selfieform">
-        @csrf
-        <input type="hidden" name="image" id="image">
-        <input type="hidden" name="source" id="source" value="camera">
-        <p>
-            <button type="button" class="btn" id="open">Abrir câmera</button>
-            <button type="button" class="btn" id="snap" hidden>Tirar foto</button>
-            <button type="button" class="btn ghost" id="retake" hidden>Tirar outra</button>
-            <button class="btn" id="send" hidden>Usar esta foto</button>
-        </p>
-        <details id="fallback" hidden><summary>Enviar uma foto do aparelho</summary>
-            <input type="file" accept="image/*" capture="user" id="file">
-        </details>
-    </form>
+<div class="card radius-10">
+    <div class="card-header"><h6 class="mb-0"><i class="bx bx-camera me-1"></i> Tire uma selfie</h6></div>
+    <div class="card-body">
+        <p class="text-secondary">Posicione seu rosto no centro, com boa iluminação e sem óculos escuros ou boné.</p>
+        <video class="cam" id="cam" autoplay playsinline muted hidden></video>
+        <img class="shot" id="shot" alt="Sua selfie" hidden>
+        <canvas id="cv" hidden></canvas>
+        <div id="camerr" class="alert alert-warning border-0 mt-2" hidden>Não foi possível usar a câmera. Permita o acesso no navegador ou envie uma foto abaixo.</div>
+        <form method="post" action="{{ route('sign.selfie', $token) }}" id="selfieform" class="mt-3">
+            @csrf
+            <input type="hidden" name="image" id="image">
+            <input type="hidden" name="source" id="source" value="camera">
+            <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="btn btn-primary" id="open"><i class="bx bx-camera"></i> Abrir câmera</button>
+                <button type="button" class="btn btn-primary" id="snap" hidden><i class="bx bx-aperture"></i> Tirar foto</button>
+                <button type="button" class="btn btn-outline-secondary" id="retake" hidden>Tirar outra</button>
+                <button class="btn btn-success" id="send" hidden><i class="bx bx-check"></i> Usar esta foto</button>
+            </div>
+            <details id="fallback" class="mt-3" hidden><summary>Enviar uma foto do aparelho</summary>
+                <input type="file" class="form-control mt-2" accept="image/*" capture="user" id="file">
+            </details>
+        </form>
+    </div>
 </div>
+@push('scripts')
 <script>
 (function () {
     const $ = id => document.getElementById(id);
@@ -97,36 +93,44 @@ video.cam,img.shot{width:100%;max-height:60vh;border-radius:8px;background:#000;
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { show($('open'), false); show($('camerr'), true); show($('fallback'), true); }
 })();
 </script>
+@endpush
 
 @elseif ($current === 'document')
-<div class="card">
-    <h2>Foto do documento</h2>
-    <p class="muted">Fotografe a frente do seu RG ou CNH, em local iluminado, com todos os dados legíveis e sem cortes.</p>
-    <form method="post" action="{{ route('sign.document', $token) }}" enctype="multipart/form-data">
-        @csrf
-        <input type="file" name="image" accept="image/*" capture="environment" required id="docfile">
-        <img class="shot" id="docprev" alt="Prévia" hidden style="margin-top:12px">
-        <p><button class="btn">Enviar documento</button></p>
-    </form>
+<div class="card radius-10">
+    <div class="card-header"><h6 class="mb-0"><i class="bx bx-id-card me-1"></i> Foto do documento</h6></div>
+    <div class="card-body">
+        <p class="text-secondary">Fotografe a frente do seu RG ou CNH, em local iluminado, com todos os dados legíveis e sem cortes.</p>
+        <form method="post" action="{{ route('sign.document', $token) }}" enctype="multipart/form-data">
+            @csrf
+            <input type="file" class="form-control" name="image" accept="image/*" capture="environment" required id="docfile">
+            <img class="shot mt-3" id="docprev" alt="Prévia" hidden>
+            <button class="btn btn-primary mt-3">Enviar documento</button>
+        </form>
+    </div>
 </div>
+@push('scripts')
 <script>
 document.getElementById('docfile').addEventListener('change', function (e) {
     const f = e.target.files[0]; if (!f) return;
     const p = document.getElementById('docprev'); p.src = URL.createObjectURL(f); p.hidden = false;
 });
 </script>
+@endpush
 
 @elseif ($current === 'geolocation')
-<div class="card">
-    <h2>Compartilhe sua localização</h2>
-    <p class="muted">Registramos sua localização aproximada como parte da prova de assinatura. Ela não é compartilhada com terceiros.</p>
-    <p id="georr" class="err" hidden>Não foi possível obter a localização. Permita o acesso no navegador e tente novamente.</p>
-    <form method="post" action="{{ route('sign.geolocation', $token) }}" id="geoform">
-        @csrf
-        <input type="hidden" name="lat" id="lat"><input type="hidden" name="lng" id="lng"><input type="hidden" name="accuracy" id="acc">
-        <button type="button" class="btn" id="geobtn">Permitir localização</button>
-    </form>
+<div class="card radius-10">
+    <div class="card-header"><h6 class="mb-0"><i class="bx bx-map-pin me-1"></i> Compartilhe sua localização</h6></div>
+    <div class="card-body">
+        <p class="text-secondary">Registramos sua localização aproximada como parte da prova de assinatura. Ela não é compartilhada com terceiros.</p>
+        <div id="georr" class="alert alert-warning border-0" hidden>Não foi possível obter a localização. Permita o acesso no navegador e tente novamente.</div>
+        <form method="post" action="{{ route('sign.geolocation', $token) }}" id="geoform">
+            @csrf
+            <input type="hidden" name="lat" id="lat"><input type="hidden" name="lng" id="lng"><input type="hidden" name="accuracy" id="acc">
+            <button type="button" class="btn btn-primary" id="geobtn"><i class="bx bx-current-location"></i> Permitir localização</button>
+        </form>
+    </div>
 </div>
+@push('scripts')
 <script>
 document.getElementById('geobtn').addEventListener('click', function () {
     const err = document.getElementById('georr');
@@ -139,46 +143,53 @@ document.getElementById('geobtn').addEventListener('click', function () {
     }, function () { err.hidden = false; }, { enableHighAccuracy: true, timeout: 15000 });
 });
 </script>
+@endpush
 
 @else
-<div class="card">
-    <h2>Assinar</h2>
-    <form method="post" action="{{ route('sign.submit', $token) }}" id="signform">
-        @csrf
-        <input type="hidden" name="type" id="type" value="drawn">
-        <div class="tabs" role="tablist">
-            <button type="button" role="tab" id="tab-drawn" aria-selected="true">✍️ Desenhar</button>
-            <button type="button" role="tab" id="tab-typed" aria-selected="false">⌨️ Digitar</button>
-        </div>
-
-        <div id="pane-drawn">
-            <p class="muted" style="margin-top:0">Desenhe sua assinatura com o dedo ou o mouse.</p>
-            <canvas class="pad" id="pad"></canvas>
-            <input type="hidden" name="drawn" id="drawn">
-            <button type="button" class="btn ghost sm" id="clear">Limpar</button>
-        </div>
-        <div id="pane-typed" hidden>
-            <label for="typed">Digite seu nome</label>
-            <input type="text" name="typed" id="typed" value="{{ old('typed', $signer->name) }}" maxlength="150" disabled>
-            <div class="preview" id="preview" aria-hidden="true">{{ $signer->name }}</div>
-        </div>
-
-        <label style="margin-top:16px;font-weight:400"><input type="checkbox" name="terms" value="1" required>
-            Li o documento e concordo em assinar eletronicamente. Declaro que meus dados de acesso (IP, data e hora, dispositivo) e as
-            verificações realizadas serão registrados como prova desta assinatura.</label>
-        <p><button class="btn" id="submit">Assinar documento</button></p>
-    </form>
-</div>
-<div class="card">
-    <details><summary>Recusar assinatura</summary>
-        <form method="post" action="{{ route('sign.refuse', $token) }}">
+<div class="card radius-10">
+    <div class="card-header"><h6 class="mb-0"><i class="bx bx-pen me-1"></i> Assinar</h6></div>
+    <div class="card-body">
+        <form method="post" action="{{ route('sign.submit', $token) }}" id="signform">
             @csrf
-            <label for="reason">Motivo</label>
-            <textarea id="reason" name="reason" rows="3" required></textarea>
-            <p><button class="btn danger sm">Recusar</button></p>
+            <input type="hidden" name="type" id="type" value="drawn">
+            <ul class="nav nav-pills nav-fill mb-3" role="tablist">
+                <li class="nav-item"><button type="button" class="nav-link active" id="tab-drawn"><i class="bx bx-edit-alt"></i> Desenhar</button></li>
+                <li class="nav-item"><button type="button" class="nav-link" id="tab-typed"><i class="bx bx-text"></i> Digitar</button></li>
+            </ul>
+
+            <div id="pane-drawn">
+                <p class="text-secondary mt-0">Desenhe sua assinatura com o dedo ou o mouse.</p>
+                <canvas class="pad" id="pad"></canvas>
+                <input type="hidden" name="drawn" id="drawn">
+                <button type="button" class="btn btn-sm btn-outline-secondary mt-2" id="clear">Limpar</button>
+            </div>
+            <div id="pane-typed" hidden>
+                <label for="typed" class="form-label">Digite seu nome</label>
+                <input type="text" class="form-control mb-3" name="typed" id="typed" value="{{ old('typed', $signer->name) }}" maxlength="150" disabled>
+                <div class="sign-preview" id="preview" aria-hidden="true">{{ $signer->name }}</div>
+            </div>
+
+            <div class="form-check mt-4">
+                <input class="form-check-input" type="checkbox" name="terms" value="1" id="terms" required>
+                <label class="form-check-label" for="terms">Li o documento e concordo em assinar eletronicamente. Declaro que meus dados de acesso (IP, data e hora, dispositivo) e as verificações realizadas serão registrados como prova desta assinatura.</label>
+            </div>
+            <button class="btn btn-primary btn-lg w-100 mt-3" id="submit"><i class="bx bx-check-shield"></i> Assinar documento</button>
         </form>
-    </details>
+    </div>
 </div>
+<div class="card radius-10">
+    <div class="card-body">
+        <details><summary class="text-danger">Recusar assinatura</summary>
+            <form method="post" action="{{ route('sign.refuse', $token) }}" class="mt-3">
+                @csrf
+                <label for="reason" class="form-label">Motivo</label>
+                <textarea id="reason" class="form-control" name="reason" rows="3" required></textarea>
+                <button class="btn btn-sm btn-danger mt-2">Recusar</button>
+            </form>
+        </details>
+    </div>
+</div>
+@push('scripts')
 <script>
 (function () {
     const $ = id => document.getElementById(id);
@@ -198,7 +209,7 @@ document.getElementById('geobtn').addEventListener('click', function () {
     function tab(t) {
         const d = t === 'drawn'; type.value = t;
         $('pane-drawn').hidden = !d; $('pane-typed').hidden = d; $('typed').disabled = d;
-        $('tab-drawn').setAttribute('aria-selected', d); $('tab-typed').setAttribute('aria-selected', !d);
+        $('tab-drawn').classList.toggle('active', d); $('tab-typed').classList.toggle('active', !d);
         if (d && !sized) size();
     }
     $('tab-drawn').addEventListener('click', () => tab('drawn'));
@@ -210,5 +221,6 @@ document.getElementById('geobtn').addEventListener('click', function () {
     size();
 })();
 </script>
+@endpush
 @endif
 @endsection
