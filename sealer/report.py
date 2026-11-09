@@ -14,10 +14,9 @@ from __future__ import annotations
 import io
 from xml.sax.saxutils import escape
 
+import qrcode
 from pypdf import PdfReader, PdfWriter
-from reportlab.graphics import renderPDF
-from reportlab.graphics.barcode import qr
-from reportlab.graphics.shapes import Drawing
+from qrcode.constants import ERROR_CORRECT_L, ERROR_CORRECT_M
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
@@ -33,30 +32,50 @@ GREY = colors.HexColor("#555555")
 LIGHT = colors.HexColor("#f1f4fb")
 
 
-def _qr_drawing(url: str, size: float) -> Drawing:
-    widget = qr.QrCodeWidget(url)
-    x0, y0, x1, y1 = widget.getBounds()
-    d = Drawing(size, size, transform=[size / (x1 - x0), 0, 0, size / (y1 - y0), 0, 0])
-    d.add(widget)
-    return d
+def _draw_qr(c: canvas.Canvas, url: str, x: float, y: float, size: float, quiet: int = 2, ecc: int = ERROR_CORRECT_L) -> None:
+    """Desenha o QR como retângulos sólidos (sem contorno), com zona de silêncio branca.
+
+    Módulos vizinhos na mesma linha são unidos para não aparecerem "costuras" em alguns visualizadores.
+    Correção de erro baixa (L) = menos módulos = quadradinhos maiores e mais fáceis de ler na tela.
+    """
+    q = qrcode.QRCode(error_correction=ecc, border=0, box_size=1)
+    q.add_data(url)
+    q.make(fit=True)
+    matrix = q.get_matrix()
+    n = len(matrix)
+    total = n + 2 * quiet
+    mod = size / total
+
+    c.setFillColor(colors.white)
+    c.rect(x, y, size, size, stroke=0, fill=1)
+    c.setFillColor(colors.black)
+    for r, row in enumerate(matrix):
+        col = 0
+        while col < n:
+            if not row[col]:
+                col += 1
+                continue
+            start = col
+            while col < n and row[col]:
+                col += 1
+            # linha 0 fica no topo; +0.2 de sobreposição vertical evita frestas entre linhas
+            c.rect(x + (quiet + start) * mod, y + (total - quiet - r - 1) * mod - 0.2, (col - start) * mod, mod + 0.2, stroke=0, fill=1)
 
 
 def _footer_overlay(width: float, height: float, code: str, url: str) -> PdfReader:
     buf = io.BytesIO()
     c = canvas.Canvas(buf, pagesize=(width, height))
-    qr_size, margin = 34, 22
+    qr_size, margin = 66, 12
 
-    c.setFillColor(colors.white)
-    c.rect(width - margin - qr_size - 2, 8, qr_size + 4, qr_size + 4, stroke=0, fill=1)
-    renderPDF.draw(_qr_drawing(url, qr_size), c, width - margin - qr_size, 10)
+    _draw_qr(c, url, width - margin - qr_size, 6, qr_size)
 
     c.setFillColor(GREY)
     c.setFont("Helvetica", 6.5)
-    available = width - 2 * margin - qr_size - 8  # não deixa o texto encostar no QR em páginas estreitas
-    c.drawString(margin, 22, "Documento assinado eletronicamente")
+    available = width - margin - 22 - qr_size - 8  # não deixa o texto encostar no QR em páginas estreitas
+    c.drawString(22, 22, "Documento assinado eletronicamente")
     for line in (f"Código de verificação {code}  |  {url}", f"Código de verificação {code}", code):
         if c.stringWidth(line, "Helvetica", 6.5) <= available:
-            c.drawString(margin, 13, line)
+            c.drawString(22, 13, line)
             break
     c.save()
     buf.seek(0)
@@ -83,7 +102,7 @@ def _p(text: object, style: ParagraphStyle) -> Paragraph:
 
 def _kv_table(rows: list[tuple[str, object, bool]], st: dict[str, ParagraphStyle], widths=(120, 395)) -> Table:
     data = [[_p(k, st["label"]), _p(v, st["mono"] if mono else st["cell"])] for k, v, mono in rows]
-    t = Table(data, colWidths=widths)
+    t = Table(data, colWidths=widths, hAlign="LEFT")
     t.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("LINEBELOW", (0, 0), (-1, -1), 0.25, colors.HexColor("#d9deea")),
@@ -112,7 +131,7 @@ def _report_pdf(report: dict) -> bytes:
         ("SHA-256 do original", report.get("document_sha256"), True),
         ("Hash final da trilha", report.get("chain_hash"), True),
         ("Gerado em", report.get("generated_at"), False),
-    ], st))
+    ], st, widths=(105, 292)))  # deixa ~110 pt livres à direita para o QR grande
 
     el.append(Paragraph("Signatários", st["h2"]))
     for s in report.get("signers", []):
@@ -162,7 +181,17 @@ def _report_pdf(report: dict) -> bytes:
         c.setFillColor(GREY)
         c.drawRightString(A4[0] - 40, A4[1] - 24, f"Relatório de assinaturas  |  página {c.getPageNumber()}")
 
-    doc.build(el, onFirstPage=on_page, onLaterPages=on_page)
+    def on_first_page(c, d):
+        on_page(c, d)
+        # QR grande (fácil de ler na tela do computador) no canto superior direito, ao lado dos dados.
+        size = 104
+        x, y = A4[0] - 40 - size, A4[1] - 40 - 24 - size
+        _draw_qr(c, str(report.get("url", "")), x, y, size, quiet=3, ecc=ERROR_CORRECT_M)
+        c.setFont("Helvetica", 7)
+        c.setFillColor(GREY)
+        c.drawCentredString(x + size / 2, y - 9, "Aponte a câmera para verificar")
+
+    doc.build(el, onFirstPage=on_first_page, onLaterPages=on_page)
 
     return buf.getvalue()
 
