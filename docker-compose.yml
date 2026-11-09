@@ -1,0 +1,95 @@
+# Deploy no Coolify: Resource -> Docker Compose (build pack) apontando para este repositório.
+# Defina as variáveis abaixo na aba Environment Variables do Coolify (veja docs/DEPLOY.md).
+# Associe o domínio ao serviço "app" (porta 8080).
+
+x-app-env: &app-env
+  APP_NAME: ${APP_NAME:-Assinaturas}
+  APP_ENV: production
+  APP_DEBUG: "false"
+  APP_KEY: ${APP_KEY:?defina APP_KEY}
+  APP_URL: ${APP_URL:?defina APP_URL}
+  APP_LOCALE: pt_BR
+  APP_FALLBACK_LOCALE: pt_BR
+  LOG_CHANNEL: stderr
+  DB_CONNECTION: pgsql
+  DB_HOST: db
+  DB_PORT: "5432"
+  DB_DATABASE: ${DB_DATABASE:-assinatura}
+  DB_USERNAME: ${DB_USERNAME:-assinatura_app}
+  DB_PASSWORD: ${DB_PASSWORD:?defina DB_PASSWORD}
+  SESSION_DRIVER: database
+  SESSION_SECURE_COOKIE: "true"
+  QUEUE_CONNECTION: database
+  CACHE_STORE: database
+  MAIL_MAILER: ${MAIL_MAILER:-log}
+  MAIL_HOST: ${MAIL_HOST:-}
+  MAIL_PORT: ${MAIL_PORT:-587}
+  MAIL_USERNAME: ${MAIL_USERNAME:-}
+  MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+  MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-nao-responda@example.com}
+  MAIL_FROM_NAME: ${APP_NAME:-Assinaturas}
+  SIGNING_PLATFORM_PROVIDER: ${SIGNING_PLATFORM_PROVIDER:-local_test}
+  SIGNING_ALLOW_LOCAL_TEST: ${SIGNING_ALLOW_LOCAL_TEST:-false}
+  SEALER_URL: http://sealer:8080
+  SEALER_TOKEN: ${SEALER_TOKEN:?defina SEALER_TOKEN}
+
+services:
+  app:
+    build: .
+    environment:
+      <<: *app-env
+      AUTORUN_ENABLED: "true"        # roda as migrations ao subir
+    volumes:
+      - documents:/var/www/html/storage/app
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/up"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  worker:
+    build: .
+    command: ["php", "/var/www/html/artisan", "queue:work", "--tries=5", "--max-time=3600", "--sleep=3"]
+    environment:
+      <<: *app-env
+      AUTORUN_ENABLED: "false"
+    volumes:
+      - documents:/var/www/html/storage/app
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  sealer:
+    build: ./sealer
+    environment:
+      SEALER_TOKEN: ${SEALER_TOKEN:?defina SEALER_TOKEN}
+      SEALER_ALLOW_TEST: ${SIGNING_ALLOW_LOCAL_TEST:-false}
+      SEALER_TSA_URL: ${SEALER_TSA_URL:-}
+    restart: unless-stopped
+    # sem "ports": só acessível pela rede interna do compose
+
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-assinatura}
+      POSTGRES_USER: ${DB_USERNAME:-assinatura_app}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?defina DB_PASSWORD}
+      TZ: UTC
+      PGTZ: UTC
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  documents:
