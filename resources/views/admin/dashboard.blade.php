@@ -3,7 +3,7 @@
 @section('content')
 @php($mb = fn ($b) => $b >= 1073741824 ? round($b / 1073741824, 2).' GB' : round($b / 1048576, 1).' MB')
 <h1>Administração da plataforma</h1>
-<p><a href="{{ route('admin.tenants.index') }}">Clientes</a> · <a href="{{ route('admin.settings') }}">Configurações</a></p>
+<p><a href="{{ route('admin.tenants.index') }}">Clientes</a> · <a href="{{ route('admin.mail') }}">E-mail (SMTP)</a> · <a href="{{ route('admin.settings') }}">Configurações</a></p>
 
 <div class="row">
     <div class="card"><div class="muted">Clientes</div><h1 style="margin:0">{{ $tenants }}</h1><div class="muted">{{ $tenantsNew30 }} novos em 30 dias · {{ $tenantsSuspended }} suspensos</div></div>

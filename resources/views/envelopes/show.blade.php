@@ -6,6 +6,7 @@
     'otp_sent' => 'Código enviado', 'otp_failed' => 'Código incorreto', 'otp_verified' => 'Código confirmado',
     'document_signed' => 'Documento assinado', 'all_signed' => 'Todas as assinaturas coletadas', 'signer_refused' => 'Assinatura recusada',
     'selfie_captured' => 'Selfie registrada', 'document_photo_captured' => 'Foto do documento registrada', 'geolocation_captured' => 'Localização registrada',
+    'link_regenerated' => 'Novo link gerado',
     'envelope_sealed' => 'Documento selado', 'seal_failed' => 'Falha ao selar', 'envelope_cancelled' => 'Envelope cancelado', 'envelope_expired' => 'Envelope expirado',
 ])
 <div class="row" style="align-items:center;margin-bottom:8px">
@@ -17,7 +18,11 @@
         <a class="btn ghost sm" href="{{ route('envelopes.original', $envelope) }}">Baixar original</a>
         @if ($envelope->final_path)<a class="btn sm" href="{{ route('envelopes.final', $envelope) }}">Baixar PDF selado</a>@endif
         @if ($envelope->status->value === 'draft')
-            <form method="post" action="{{ route('envelopes.send', $envelope) }}">@csrf<button class="btn sm">Enviar para assinatura</button></form>
+            <form method="post" action="{{ route('envelopes.send', $envelope) }}" class="row" style="align-items:center">
+                @csrf
+                <label style="font-weight:400;margin:0;flex:1 1 260px"><input type="checkbox" name="skip_email" value="1"> Não enviar e-mail (vou copiar e enviar os links)</label>
+                <button class="btn sm" style="flex:0 0 auto">Liberar para assinatura</button>
+            </form>
         @endif
         @if (in_array($envelope->status->value, ['draft', 'sent', 'in_progress']))
             <form method="post" action="{{ route('envelopes.cancel', $envelope) }}" onsubmit="return confirm('Cancelar este envelope?')">@csrf<button class="btn danger sm">Cancelar</button></form>
@@ -44,6 +49,41 @@
         </tbody>
     </table>
 </div>
+
+@if ($envelope->status->isOpenForSigning())
+<div class="card">
+    <h2>Links de assinatura</h2>
+    <p class="muted">Cada link é pessoal: quem o abre assina em nome daquele signatário. Envie cada um só para a pessoa certa.</p>
+    @foreach ($envelope->signers as $s)
+        @continue(in_array($s->status->value, ['signed', 'refused']))
+        @php($url = $s->signUrl())
+        <div class="signer">
+            <strong>{{ $s->name }}</strong> <span class="muted">· {{ $s->email }}</span>
+            @if ($url)
+                <div class="row" style="margin-top:8px;align-items:center">
+                    <input type="text" readonly value="{{ $url }}" onclick="this.select()" style="flex:1 1 320px" aria-label="Link de {{ $s->name }}">
+                    <button type="button" class="btn sm" style="flex:0 0 auto" data-copy="{{ $url }}">Copiar link</button>
+                    <form method="post" action="{{ route('envelopes.resend', [$envelope, $s]) }}" style="flex:0 0 auto">@csrf<button class="btn ghost sm">Reenviar e-mail</button></form>
+                    <form method="post" action="{{ route('envelopes.regenerate', [$envelope, $s]) }}" style="flex:0 0 auto" onsubmit="return confirm('Gerar um novo link? O link atual deixará de funcionar.')">@csrf<button class="btn ghost sm">Gerar novo link</button></form>
+                </div>
+            @else
+                <p class="muted">Link indisponível para este envelope (enviado antes deste recurso).</p>
+                <form method="post" action="{{ route('envelopes.regenerate', [$envelope, $s]) }}">@csrf<button class="btn ghost sm">Gerar link</button></form>
+            @endif
+        </div>
+    @endforeach
+</div>
+<script>
+document.querySelectorAll('[data-copy]').forEach(function (b) {
+    b.addEventListener('click', async function () {
+        const url = b.dataset.copy, old = b.textContent;
+        try { await navigator.clipboard.writeText(url); }
+        catch (e) { const i = b.parentNode.querySelector('input'); i.select(); document.execCommand('copy'); }
+        b.textContent = 'Copiado ✓'; setTimeout(() => b.textContent = old, 1800);
+    });
+});
+</script>
+@endif
 
 @if ($envelope->require_selfie || $envelope->require_document || $envelope->require_geolocation)
 <div class="card">

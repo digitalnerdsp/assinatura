@@ -16,7 +16,21 @@ class Signer extends Model
 
     protected $guarded = [];
 
-    protected $hidden = ['token_hash', 'otp_hash'];
+    protected $hidden = ['token_hash', 'otp_hash', 'token_encrypted'];
+
+    /** Link público de assinatura, se o token ainda estiver disponível (envelopes antigos não têm). */
+    public function signUrl(): ?string
+    {
+        if ($this->token_encrypted === null) {
+            return null;
+        }
+
+        try {
+            return route('sign.show', ['token' => \Illuminate\Support\Facades\Crypt::decryptString($this->token_encrypted)]);
+        } catch (\Illuminate\Contracts\Encryption\DecryptException) {
+            return null; // APP_KEY mudou
+        }
+    }
 
     protected function casts(): array
     {

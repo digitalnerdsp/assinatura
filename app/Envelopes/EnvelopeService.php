@@ -10,6 +10,8 @@ use App\Enums\SigningOrder;
 use App\Envelopes\Exceptions\FlowException;
 use App\Evidence\EvidenceLogger;
 use App\Evidence\RequestContext;
+use App\Models\Signer;
+use Illuminate\Support\Facades\Crypt;
 use App\Models\Document;
 use App\Models\Envelope;
 use App\Models\Tenant;
@@ -135,7 +137,10 @@ final class EnvelopeService
 
             foreach ($envelope->signers as $signer) {
                 $plain = Str::random(48);
-                $signer->update(['token_hash' => hash('sha256', $plain)]);
+                $signer->update([
+                    'token_hash' => hash('sha256', $plain),
+                    'token_encrypted' => Crypt::encryptString($plain),
+                ]);
                 $tokens[$signer->getKey()] = $plain;
             }
 
@@ -149,6 +154,27 @@ final class EnvelopeService
 
             return $tokens;
         });
+    }
+
+    /**
+     * Gera um link novo para o signatário (o anterior deixa de funcionar). Retorna o token em texto puro.
+     */
+    public function regenerateLink(Signer $signer, ?RequestContext $context = null): string
+    {
+        $envelope = $signer->envelope;
+
+        if (! $envelope->status->isOpenForSigning()) {
+            throw FlowException::because('envelope_closed', 'Só é possível gerar link de envelopes em andamento.');
+        }
+        if (in_array($signer->status, [SignerStatus::Signed, SignerStatus::Refused], true)) {
+            throw FlowException::because('signer_done', 'Este signatário já respondeu.');
+        }
+
+        $plain = Str::random(48);
+        $signer->update(['token_hash' => hash('sha256', $plain), 'token_encrypted' => Crypt::encryptString($plain)]);
+        $this->evidence->record($envelope, 'link_regenerated', [], $signer, $context);
+
+        return $plain;
     }
 
     public function cancel(Envelope $envelope, ?RequestContext $context = null): void

@@ -19,6 +19,7 @@
 @endauth
 <main class="@yield('width')">
     @if (session('status'))<div class="ok">{{ session('status') }}</div>@endif
+    @if (session('warning'))<div class="err">{{ session('warning') }}</div>@endif
     @if ($errors->any())<div class="err">@foreach ($errors->all() as $e)<div>{{ $e }}</div>@endforeach</div>@endif
     @yield('content')
 </main>

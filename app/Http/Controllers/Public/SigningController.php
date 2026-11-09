@@ -134,7 +134,11 @@ final class SigningController extends Controller
     {
         return $this->guard($token, function (Signer $signer) use ($request, $token) {
             $code = $this->signing->requestOtp($signer, 'email', RequestContext::fromRequest($request));
-            $this->notifier->otp($signer, $code);
+            if (! $this->notifier->otp($signer, $code)) {
+                return redirect()->route('sign.show', $token)->withErrors([
+                    'flow' => 'Não foi possível enviar o código por e-mail agora. Avise quem enviou o documento.',
+                ]);
+            }
 
             return redirect()->route('sign.show', $token)->with('status', 'Enviamos um código para '.$this->mask($signer->email).'.');
         });

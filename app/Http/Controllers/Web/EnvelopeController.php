@@ -11,6 +11,7 @@ use App\Evidence\EvidenceLogger;
 use App\Evidence\RequestContext;
 use App\Http\Controllers\Controller;
 use App\Models\Envelope;
+use App\Models\Signer;
 use App\Notifications\SignerNotifier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -109,11 +110,56 @@ final class EnvelopeController extends Controller
             return back()->withErrors(['envelope' => $e->getMessage()]);
         }
 
+        if ($request->boolean('skip_email')) {
+            return back()->with('status', 'Envelope liberado para assinatura. Copie o link de cada signatário abaixo e envie como preferir.');
+        }
+
+        $failed = [];
         foreach ($envelope->signers as $signer) {
-            $this->notifier->invite($signer, $tokens[$signer->getKey()]);
+            if (! $this->notifier->invite($signer, $tokens[$signer->getKey()])) {
+                $failed[] = $signer->email;
+            }
+        }
+
+        if ($failed !== []) {
+            return back()->withErrors([
+                'envelope' => 'O envelope foi liberado, mas o e-mail não pôde ser enviado para: '.implode(', ', $failed)
+                    .'. Copie o link de cada signatário abaixo e envie manualmente (ou confira a configuração de e-mail com o administrador).',
+            ]);
         }
 
         return back()->with('status', 'Convites enviados.');
+    }
+
+    public function resend(Request $request, Envelope $envelope, Signer $signer): RedirectResponse
+    {
+        $this->owned($request, $envelope);
+        abort_unless($signer->envelope_id === $envelope->getKey(), 404);
+
+        $url = $signer->signUrl();
+        if (! $envelope->status->isOpenForSigning() || $url === null) {
+            return back()->withErrors(['envelope' => 'Não há link ativo para reenviar. Gere um novo link.']);
+        }
+
+        $token = basename($url);
+
+        return $this->notifier->invite($signer, $token)
+            ? back()->with('status', 'E-mail reenviado para '.$signer->email.'.')
+            : back()->withErrors(['envelope' => 'Não foi possível enviar o e-mail. Copie o link e envie manualmente.']);
+    }
+
+    public function regenerate(Request $request, Envelope $envelope, Signer $signer): RedirectResponse
+    {
+        $this->owned($request, $envelope);
+        abort_unless($signer->envelope_id === $envelope->getKey(), 404);
+
+        try {
+            $this->envelopes->regenerateLink($signer, RequestContext::fromRequest($request));
+        } catch (FlowException $e) {
+            return back()->withErrors(['envelope' => $e->getMessage()]);
+        }
+
+        return back()->with('status', 'Novo link gerado para '.$signer->name.'. O link anterior deixou de funcionar.');
     }
 
     public function cancel(Request $request, Envelope $envelope): RedirectResponse

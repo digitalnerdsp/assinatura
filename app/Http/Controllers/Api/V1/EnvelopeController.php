@@ -187,6 +187,7 @@ final class EnvelopeController extends Controller
                 'position' => $s->position,
                 'status' => $s->status->value,
                 'signed_at' => $s->signed_at?->toIso8601String(),
+                'sign_url' => $e->status->isOpenForSigning() ? $s->signUrl() : null,
             ])->all(),
         ];
     }

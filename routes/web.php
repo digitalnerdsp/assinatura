@@ -26,6 +26,10 @@ Route::middleware(['auth', 'tenant.active', 'super.admin'])->prefix('admin')->na
     Route::put('/clientes/{tenant}', [\App\Http\Controllers\Admin\TenantController::class, 'update'])->name('tenants.update');
     Route::post('/clientes/{tenant}/suspender', [\App\Http\Controllers\Admin\TenantController::class, 'suspend'])->name('tenants.suspend');
     Route::post('/clientes/{tenant}/reativar', [\App\Http\Controllers\Admin\TenantController::class, 'reactivate'])->name('tenants.reactivate');
+    Route::get('/email', [\App\Http\Controllers\Admin\MailController::class, 'edit'])->name('mail');
+    Route::put('/email', [\App\Http\Controllers\Admin\MailController::class, 'update'])->name('mail.update');
+    Route::post('/email/teste', [\App\Http\Controllers\Admin\MailController::class, 'test'])->middleware('throttle:10,1,admin-mail-test')->name('mail.test');
+    Route::delete('/email', [\App\Http\Controllers\Admin\MailController::class, 'reset'])->name('mail.reset');
     Route::get('/configuracoes', [\App\Http\Controllers\Admin\SettingsController::class, 'edit'])->name('settings');
     Route::put('/configuracoes', [\App\Http\Controllers\Admin\SettingsController::class, 'update'])->name('settings.update');
 });
@@ -37,6 +41,8 @@ Route::middleware(['auth', 'tenant.active'])->group(function () {
     Route::post('/envelopes', [EnvelopeController::class, 'store'])->name('envelopes.store');
     Route::get('/envelopes/{envelope}', [EnvelopeController::class, 'show'])->name('envelopes.show');
     Route::post('/envelopes/{envelope}/enviar', [EnvelopeController::class, 'send'])->name('envelopes.send');
+    Route::post('/envelopes/{envelope}/signatarios/{signer}/reenviar', [EnvelopeController::class, 'resend'])->name('envelopes.resend');
+    Route::post('/envelopes/{envelope}/signatarios/{signer}/novo-link', [EnvelopeController::class, 'regenerate'])->name('envelopes.regenerate');
     Route::post('/envelopes/{envelope}/cancelar', [EnvelopeController::class, 'cancel'])->name('envelopes.cancel');
     Route::get('/envelopes/{envelope}/original', [EnvelopeController::class, 'original'])->name('envelopes.original');
     Route::get('/envelopes/{envelope}/anexos/{attachment}', [EnvelopeController::class, 'attachment'])->name('envelopes.attachment');
