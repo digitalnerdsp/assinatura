@@ -13,12 +13,13 @@ import json
 import os
 from datetime import datetime, timedelta, timezone
 
+from asn1crypto import keys as asn1_keys
 from asn1crypto import x509 as asn1_x509
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives.serialization import pkcs12
 from cryptography.x509.oid import NameOID
+from pyhanko_certvalidator.registry import SimpleCertificateStore
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse
 from pyhanko.pdf_utils.incremental_writer import IncrementalPdfFileWriter
@@ -67,8 +68,20 @@ def _build_self_signed() -> signers.SimpleSigner:
         .not_valid_before(now - timedelta(days=1)).not_valid_after(now + timedelta(days=365))
         .sign(key, hashes.SHA256())
     )
-    blob = pkcs12.serialize_key_and_certificates(b"teste", key, cert, None, serialization.NoEncryption())
-    return signers.SimpleSigner.load_pkcs12_data(blob)
+    # Monta o SimpleSigner direto (a versão do pyHanko do container não tem load_pkcs12_data).
+    signing_cert = asn1_x509.Certificate.load(cert.public_bytes(serialization.Encoding.DER))
+    signing_key = asn1_keys.PrivateKeyInfo.load(
+        key.private_bytes(
+            serialization.Encoding.DER,
+            serialization.PrivateFormat.PKCS8,
+            serialization.NoEncryption(),
+        )
+    )
+    return signers.SimpleSigner(
+        signing_cert=signing_cert,
+        signing_key=signing_key,
+        cert_registry=SimpleCertificateStore(),
+    )
 
 
 def _pkcs12_from_ref(secret_ref: str) -> signers.SimpleSigner:
