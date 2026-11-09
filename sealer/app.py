@@ -141,7 +141,9 @@ def certificate(req: CertRequest) -> dict:
 
 
 @app.post("/v1/seal", dependencies=[Depends(auth)])
-async def seal(pdf: UploadFile = File(...), metadata: str = Form(...)) -> dict:
+def seal(pdf: UploadFile = File(...), metadata: str = Form(...)) -> dict:
+    # "def" (não "async def"): o FastAPI roda em thread própria, e o pyHanko usa asyncio.run()
+    # por dentro, que não pode ser chamado de dentro de um laço de eventos já em execução.
     meta = json.loads(metadata)
     signer = load_signer(meta["credential"])
     info = cert_info(signer)
@@ -164,7 +166,7 @@ async def seal(pdf: UploadFile = File(...), metadata: str = Form(...)) -> dict:
         md_algorithm="sha256",
     )
 
-    data = await pdf.read()
+    data = pdf.file.read()
     writer = IncrementalPdfFileWriter(io.BytesIO(data))
     out = io.BytesIO()
     PdfSigner(signature_meta, signer=signer, timestamper=timestamper).sign_pdf(writer, output=out)
