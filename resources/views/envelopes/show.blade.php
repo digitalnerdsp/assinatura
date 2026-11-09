@@ -5,6 +5,7 @@
     'envelope_created' => 'Envelope criado', 'envelope_sent' => 'Convites enviados', 'document_viewed' => 'Documento visualizado',
     'otp_sent' => 'Código enviado', 'otp_failed' => 'Código incorreto', 'otp_verified' => 'Código confirmado',
     'document_signed' => 'Documento assinado', 'all_signed' => 'Todas as assinaturas coletadas', 'signer_refused' => 'Assinatura recusada',
+    'selfie_captured' => 'Selfie registrada', 'document_photo_captured' => 'Foto do documento registrada', 'geolocation_captured' => 'Localização registrada',
     'envelope_sealed' => 'Documento selado', 'seal_failed' => 'Falha ao selar', 'envelope_cancelled' => 'Envelope cancelado', 'envelope_expired' => 'Envelope expirado',
 ])
 <div class="row" style="align-items:center;margin-bottom:8px">
@@ -43,6 +44,35 @@
         </tbody>
     </table>
 </div>
+
+@if ($envelope->require_selfie || $envelope->require_document || $envelope->require_geolocation)
+<div class="card">
+    <h2>Provas de identidade</h2>
+    @foreach ($envelope->signers as $s)
+        @php($geo = $events->where('type', 'geolocation_captured')->firstWhere('signer_id', $s->id))
+        @if ($s->attachments->isNotEmpty() || $geo)
+        <div class="signer">
+            <strong>{{ $s->name }}</strong>
+            <div class="row" style="margin-top:8px">
+                @foreach ($s->attachments as $att)
+                    <div>
+                        <div class="muted">{{ $att->kind === 'selfie' ? 'Selfie' : 'Documento' }} · {{ $att->source === 'camera' ? 'câmera' : 'upload' }}</div>
+                        <a href="{{ route('envelopes.attachment', [$envelope, $att]) }}" target="_blank" rel="noopener">
+                            <img src="{{ route('envelopes.attachment', [$envelope, $att]) }}" alt="{{ $att->kind }}" style="max-width:100%;max-height:220px;border-radius:8px">
+                        </a>
+                        <div class="mono">{{ $att->sha256 }}</div>
+                    </div>
+                @endforeach
+            </div>
+            @if ($geo)
+                <p class="muted">Localização: {{ $geo->payload['lat'] }}, {{ $geo->payload['lng'] }} (±{{ $geo->payload['accuracy_m'] ?? '?' }} m)
+                    · <a target="_blank" rel="noopener" href="https://www.openstreetmap.org/?mlat={{ $geo->payload['lat'] }}&mlon={{ $geo->payload['lng'] }}#map=17/{{ $geo->payload['lat'] }}/{{ $geo->payload['lng'] }}">ver no mapa</a></p>
+            @endif
+        </div>
+        @endif
+    @endforeach
+</div>
+@endif
 
 <div class="card">
     <h2>Trilha de auditoria

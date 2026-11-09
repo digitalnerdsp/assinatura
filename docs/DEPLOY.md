@@ -15,6 +15,7 @@ construídos nem executados** (o ambiente de desenvolvimento não tinha Docker).
 | `APP_URL` | `https://seu-dominio` |
 | `DB_PASSWORD` | senha forte para o Postgres |
 | `SEALER_TOKEN` | string aleatória longa (compartilhada entre app e sealer) |
+| `SUPER_ADMIN_EMAILS` | e-mail(s) com acesso a `/admin`. **Cadastre a conta antes** de colocar o e-mail aqui; não há verificação de e-mail no cadastro |
 | `SIGNING_ALLOW_LOCAL_TEST` | `true` **somente em teste** (certificado autoassinado, sem validade jurídica) |
 | `MAIL_MAILER`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS` | SMTP real; com `log` os e-mails só aparecem nos logs |
 

@@ -13,7 +13,9 @@ use App\Evidence\RequestContext;
 use App\Jobs\SealEnvelope;
 use App\Models\Envelope;
 use App\Models\Signer;
+use App\Models\SignerAttachment;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 /** Fluxo do signatário: abrir link → OTP → assinar/recusar. */
 final class SigningService
@@ -106,10 +108,17 @@ final class SigningService
         }
 
         $envelope = $signer->envelope;
-        $needsOtp = $envelope->required_level !== 'simple';
 
-        if ($needsOtp && $signer->otp_verified_at === null) {
-            throw FlowException::because('otp_required', 'Confirme o código de verificação antes de assinar.');
+        $pending = $this->pendingSteps($signer);
+        if ($pending !== []) {
+            $messages = [
+                'otp' => 'Confirme o código de verificação antes de assinar.',
+                'selfie' => 'Tire sua selfie antes de assinar.',
+                'document' => 'Envie a foto do seu documento antes de assinar.',
+                'geolocation' => 'Permita o compartilhamento da localização antes de assinar.',
+            ];
+
+            throw FlowException::because($pending[0].'_required', $messages[$pending[0]]);
         }
 
         $this->assertMyTurn($signer, $envelope);
@@ -122,7 +131,7 @@ final class SigningService
             }
 
             $now = now();
-            $level = $signer->otp_verified_at !== null ? 'advanced' : 'simple';
+            $level = $envelope->required_level; // 'advanced' só se houve verificação adicional (já validada acima)
 
             $fresh->signature()->create([
                 'type' => $type,
@@ -159,6 +168,100 @@ final class SigningService
         if ($allSigned) {
             SealEnvelope::dispatch($envelope->getKey())->afterCommit();
         }
+    }
+
+    /**
+     * Etapas de verificação exigidas pelo envelope que o signatário ainda não cumpriu,
+     * na ordem em que são apresentadas.
+     *
+     * @return list<'otp'|'selfie'|'document'|'geolocation'>
+     */
+    public function pendingSteps(Signer $signer): array
+    {
+        $envelope = $signer->envelope;
+        $signer->loadMissing('attachments');
+        $pending = [];
+
+        if ($envelope->require_otp && $signer->otp_verified_at === null) {
+            $pending[] = 'otp';
+        }
+        if ($envelope->require_selfie && $signer->attachment(SignerAttachment::SELFIE) === null) {
+            $pending[] = 'selfie';
+        }
+        if ($envelope->require_document && $signer->attachment(SignerAttachment::DOCUMENT) === null) {
+            $pending[] = 'document';
+        }
+        if ($envelope->require_geolocation && $signer->geolocation_at === null) {
+            $pending[] = 'geolocation';
+        }
+
+        return $pending;
+    }
+
+    /** Selfie capturada na tela. $binary = bytes da imagem (JPEG/PNG/WebP). */
+    public function submitSelfie(Signer $signer, string $binary, string $source = 'camera', ?RequestContext $context = null): void
+    {
+        $this->storeImage($signer, SignerAttachment::SELFIE, $binary, $source, 'selfie_captured', $context);
+    }
+
+    /** Foto do documento de identificação (RG/CNH). */
+    public function submitDocument(Signer $signer, string $binary, string $source = 'upload', ?RequestContext $context = null): void
+    {
+        $this->storeImage($signer, SignerAttachment::DOCUMENT, $binary, $source, 'document_photo_captured', $context);
+    }
+
+    public function recordGeolocation(Signer $signer, float $lat, float $lng, ?float $accuracy, ?RequestContext $context = null): void
+    {
+        $this->assertOpen($signer);
+
+        if ($lat < -90 || $lat > 90 || $lng < -180 || $lng > 180) {
+            throw FlowException::because('invalid_geolocation', 'Localização inválida.');
+        }
+
+        $signer->update(['geolocation_at' => now()]);
+        $this->evidence->record($signer->envelope, 'geolocation_captured', [
+            'lat' => round($lat, 6),
+            'lng' => round($lng, 6),
+            'accuracy_m' => $accuracy === null ? null : round($accuracy, 1),
+        ], $signer, $context);
+    }
+
+    private function storeImage(Signer $signer, string $kind, string $binary, string $source, string $event, ?RequestContext $context): void
+    {
+        $this->assertOpen($signer);
+
+        if (strlen($binary) > 5 * 1024 * 1024) {
+            throw FlowException::because('image_too_large', 'A imagem é grande demais (máx. 5 MB).');
+        }
+
+        $info = @getimagesizefromstring($binary);
+        $extensions = [IMAGETYPE_JPEG => 'jpg', IMAGETYPE_PNG => 'png', IMAGETYPE_WEBP => 'webp'];
+
+        if ($info === false || ! isset($extensions[$info[2]])) {
+            throw FlowException::because('invalid_image', 'Envie uma imagem JPG, PNG ou WebP.');
+        }
+        if ($info[0] < 200 || $info[1] < 200) {
+            throw FlowException::because('image_too_small', 'A imagem tem resolução muito baixa.');
+        }
+
+        $envelope = $signer->envelope;
+        $sha = hash('sha256', $binary);
+        $path = "tenants/{$envelope->tenant_id}/signers/{$signer->getKey()}/{$kind}-".substr($sha, 0, 16).'.'.$extensions[$info[2]];
+        Storage::disk('local')->put($path, $binary);
+
+        DB::transaction(function () use ($signer, $kind, $path, $info, $binary, $sha, $source, $event, $context, $envelope) {
+            SignerAttachment::query()->updateOrCreate(
+                ['signer_id' => $signer->getKey(), 'kind' => $kind],
+                ['path' => $path, 'mime' => $info['mime'], 'size' => strlen($binary), 'sha256' => $sha, 'source' => $source],
+            );
+
+            $this->evidence->record($envelope, $event, [
+                'sha256' => $sha, 'size' => strlen($binary), 'mime' => $info['mime'],
+                'width' => $info[0], 'height' => $info[1], 'source' => $source,
+            ], $signer, $context);
+        });
+
+        $signer->unsetRelation('attachments');
     }
 
     public function refuse(Signer $signer, string $reason, ?RequestContext $context = null): void

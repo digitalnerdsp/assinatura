@@ -37,18 +37,23 @@ final class EnvelopeService
         SigningOrder $order = SigningOrder::Parallel,
         string $requiredLevel = 'simple',
         ?string $message = null,
+        /** @var array{otp?:bool,selfie?:bool,document?:bool,geolocation?:bool} $verifications */
+        array $verifications = [],
     ): Envelope {
+        // required_level "advanced" (legado/API) equivale a exigir o código por e-mail.
+        $otp = $verifications['otp'] ?? ($requiredLevel === 'advanced');
+        $selfie = (bool) ($verifications['selfie'] ?? false);
+        $docPhoto = (bool) ($verifications['document'] ?? false);
+        $geolocation = (bool) ($verifications['geolocation'] ?? false);
+        $requiredLevel = ($otp || $selfie || $docPhoto) ? 'advanced' : 'simple';
+
         if (! str_starts_with($pdfContents, '%PDF-')) {
             throw FlowException::because('invalid_document', 'O arquivo enviado não é um PDF válido.');
         }
         if ($signers === []) {
             throw FlowException::because('no_signers', 'Informe ao menos um signatário.');
         }
-        if (! in_array($requiredLevel, ['simple', 'advanced'], true)) {
-            throw FlowException::because('unsupported_level', 'Nível de assinatura ainda não suportado.');
-        }
-
-        return DB::transaction(function () use ($tenant, $creator, $pdfContents, $filename, $title, $signers, $order, $requiredLevel, $message) {
+        return DB::transaction(function () use ($tenant, $creator, $pdfContents, $filename, $title, $signers, $order, $requiredLevel, $message, $otp, $selfie, $docPhoto, $geolocation) {
             $path = "tenants/{$tenant->getKey()}/documents/".Str::uuid().'.pdf';
             Storage::disk('local')->put($path, $pdfContents);
 
@@ -69,6 +74,10 @@ final class EnvelopeService
                 'status' => EnvelopeStatus::Draft,
                 'signing_order' => $order,
                 'required_level' => $requiredLevel,
+                'require_otp' => $otp,
+                'require_selfie' => $selfie,
+                'require_document' => $docPhoto,
+                'require_geolocation' => $geolocation,
                 'verification_code' => strtoupper(Str::random(12)),
             ]);
 
@@ -88,6 +97,9 @@ final class EnvelopeService
                 'document_sha256' => $document->sha256,
                 'signers' => count($signers),
                 'required_level' => $requiredLevel,
+                'verifications' => array_keys(array_filter([
+                    'otp' => $otp, 'selfie' => $selfie, 'document' => $docPhoto, 'geolocation' => $geolocation,
+                ])),
             ]);
 
             return $envelope;
@@ -104,6 +116,18 @@ final class EnvelopeService
     {
         if ($envelope->status !== EnvelopeStatus::Draft) {
             throw FlowException::because('not_draft', 'Somente rascunhos podem ser enviados.');
+        }
+
+        $tenant = $envelope->tenant;
+        if ($tenant->isSuspended()) {
+            throw FlowException::because('tenant_suspended', 'Esta conta está suspensa. Entre em contato com o suporte.');
+        }
+
+        if ($tenant->monthly_envelope_limit !== null) {
+            $used = Envelope::query()->where('tenant_id', $tenant->getKey())->where('sent_at', '>=', now()->startOfMonth())->count();
+            if ($used >= $tenant->monthly_envelope_limit) {
+                throw FlowException::because('quota_exceeded', 'Limite mensal de envelopes do plano atingido.');
+            }
         }
 
         return DB::transaction(function () use ($envelope, $context, $validDays) {

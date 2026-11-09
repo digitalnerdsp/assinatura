@@ -26,6 +26,10 @@ class Envelope extends Model
             'expires_at' => 'datetime',
             'completed_at' => 'datetime',
             'sealed_at' => 'datetime',
+            'require_otp' => 'boolean',
+            'require_selfie' => 'boolean',
+            'require_document' => 'boolean',
+            'require_geolocation' => 'boolean',
         ];
     }
 

@@ -20,14 +20,13 @@
                     <option value="sequential" @selected(old('signing_order') === 'sequential')>Um após o outro (na ordem abaixo)</option>
                 </select>
             </div>
-            <div>
-                <label for="required_level">Verificação do signatário</label>
-                <select id="required_level" name="required_level">
-                    <option value="simple" @selected(old('required_level') === 'simple')>Simples (link por e-mail)</option>
-                    <option value="advanced" @selected(old('required_level') === 'advanced')>Avançada (link + código por e-mail)</option>
-                </select>
-            </div>
         </div>
+        <label>Verificação de identidade do signatário</label>
+        <p class="muted" style="margin-top:0">Sem nenhuma opção marcada, vale só o link enviado por e-mail (assinatura simples). Com qualquer verificação, a assinatura é registrada como avançada.</p>
+        <label style="font-weight:400"><input type="checkbox" name="require_otp" value="1" @checked(old('require_otp'))> Código de confirmação por e-mail</label>
+        <label style="font-weight:400"><input type="checkbox" name="require_selfie" value="1" @checked(old('require_selfie'))> Selfie (câmera)</label>
+        <label style="font-weight:400"><input type="checkbox" name="require_document" value="1" @checked(old('require_document'))> Foto do documento (RG/CNH)</label>
+        <label style="font-weight:400"><input type="checkbox" name="require_geolocation" value="1" @checked(old('require_geolocation'))> Localização (GPS)</label>
     </div>
 
     <div class="card">

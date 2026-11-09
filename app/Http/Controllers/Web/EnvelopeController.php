@@ -51,7 +51,10 @@ final class EnvelopeController extends Controller
             'message' => ['nullable', 'string', 'max:2000'],
             'document' => ['required', 'file', 'mimes:pdf', 'max:20480'],
             'signing_order' => ['required', Rule::enum(SigningOrder::class)],
-            'required_level' => ['required', Rule::in(['simple', 'advanced'])],
+            'require_otp' => ['nullable', 'boolean'],
+            'require_selfie' => ['nullable', 'boolean'],
+            'require_document' => ['nullable', 'boolean'],
+            'require_geolocation' => ['nullable', 'boolean'],
             'signers' => ['required', 'array', 'min:1', 'max:20'],
             'signers.*.name' => ['required', 'string', 'max:150'],
             'signers.*.email' => ['required', 'email', 'max:190'],
@@ -68,8 +71,14 @@ final class EnvelopeController extends Controller
                 $data['title'],
                 array_values($data['signers']),
                 SigningOrder::from($data['signing_order']),
-                $data['required_level'],
+                'simple',
                 $data['message'] ?? null,
+                [
+                    'otp' => $request->boolean('require_otp'),
+                    'selfie' => $request->boolean('require_selfie'),
+                    'document' => $request->boolean('require_document'),
+                    'geolocation' => $request->boolean('require_geolocation'),
+                ],
             );
         } catch (FlowException $e) {
             return back()->withInput()->withErrors(['document' => $e->getMessage()]);
@@ -81,7 +90,7 @@ final class EnvelopeController extends Controller
     public function show(Request $request, Envelope $envelope): View
     {
         $this->owned($request, $envelope);
-        $envelope->load(['signers.signature', 'document']);
+        $envelope->load(['signers.signature', 'signers.attachments', 'document']);
 
         return view('envelopes.show', [
             'envelope' => $envelope,
@@ -133,6 +142,19 @@ final class EnvelopeController extends Controller
         abort_if($envelope->final_path === null, 404);
 
         return Storage::disk('local')->download($envelope->final_path, 'assinado-'.$envelope->document->name);
+    }
+
+    public function attachment(Request $request, Envelope $envelope, \App\Models\SignerAttachment $attachment): \Illuminate\Http\Response
+    {
+        $this->owned($request, $envelope);
+        abort_unless($attachment->signer->envelope_id === $envelope->getKey(), 404);
+
+        return response(Storage::disk('local')->get($attachment->path), 200, [
+            'Content-Type' => $attachment->mime,
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'private, no-store',
+            'Content-Disposition' => 'inline',
+        ]);
     }
 
     private function owned(Request $request, Envelope $envelope): void

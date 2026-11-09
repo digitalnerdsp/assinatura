@@ -17,6 +17,11 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
+    public function isSuperAdmin(): bool
+    {
+        return in_array(mb_strtolower($this->email), config('platform.super_admins', []), true);
+    }
+
     public function tenant(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(Tenant::class);

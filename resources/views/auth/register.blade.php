@@ -4,6 +4,9 @@
 @section('content')
 <div class="card">
     <h1>Criar conta</h1>
+    @unless ($open)
+        <div class="err">Os cadastros estão fechados no momento. Se você já tem conta, <a href="{{ route('login') }}">entre aqui</a>.</div>
+    @endunless
     <form method="post" action="{{ route('register') }}">
         @csrf
         <label for="company">Empresa</label>
@@ -16,7 +19,7 @@
         <input id="password" type="password" name="password" required minlength="10" autocomplete="new-password">
         <label for="password_confirmation">Confirmar senha</label>
         <input id="password_confirmation" type="password" name="password_confirmation" required autocomplete="new-password">
-        <p><button class="btn">Criar conta</button></p>
+        <p><button class="btn" @disabled(! $open)>Criar conta</button></p>
     </form>
     <p class="muted">Já tem conta? <a href="{{ route('login') }}">Entrar</a></p>
 </div>

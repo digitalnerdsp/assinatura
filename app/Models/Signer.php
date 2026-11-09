@@ -26,12 +26,23 @@ class Signer extends Model
             'otp_verified_at' => 'datetime',
             'viewed_at' => 'datetime',
             'signed_at' => 'datetime',
+            'geolocation_at' => 'datetime',
         ];
     }
 
     public function envelope(): BelongsTo
     {
         return $this->belongsTo(Envelope::class);
+    }
+
+    public function attachments(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(SignerAttachment::class);
+    }
+
+    public function attachment(string $kind): ?SignerAttachment
+    {
+        return $this->attachments->firstWhere('kind', $kind);
     }
 
     public function signature(): HasOne

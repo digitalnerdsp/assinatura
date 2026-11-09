@@ -36,6 +36,10 @@ final class EnvelopeController extends Controller
             'document' => ['required', 'file', 'mimes:pdf', 'max:20480'],
             'signing_order' => ['nullable', Rule::enum(SigningOrder::class)],
             'required_level' => ['nullable', Rule::in(['simple', 'advanced'])],
+            'require_otp' => ['nullable', 'boolean'],
+            'require_selfie' => ['nullable', 'boolean'],
+            'require_document' => ['nullable', 'boolean'],
+            'require_geolocation' => ['nullable', 'boolean'],
             'send' => ['nullable', 'boolean'],
             'signers' => ['required', 'array', 'min:1', 'max:20'],
             'signers.*.name' => ['required', 'string', 'max:150'],
@@ -55,6 +59,12 @@ final class EnvelopeController extends Controller
                 SigningOrder::from($data['signing_order'] ?? 'parallel'),
                 $data['required_level'] ?? 'simple',
                 $data['message'] ?? null,
+                array_filter([
+                    'otp' => $request->has('require_otp') ? $request->boolean('require_otp') : null,
+                    'selfie' => $request->boolean('require_selfie'),
+                    'document' => $request->boolean('require_document'),
+                    'geolocation' => $request->boolean('require_geolocation'),
+                ], fn ($v) => $v !== null),
             );
 
             if ($request->boolean('send')) {
@@ -160,6 +170,10 @@ final class EnvelopeController extends Controller
             'status' => $e->status->value,
             'signing_order' => $e->signing_order->value,
             'required_level' => $e->required_level,
+            'verifications' => [
+                'otp' => $e->require_otp, 'selfie' => $e->require_selfie,
+                'document' => $e->require_document, 'geolocation' => $e->require_geolocation,
+            ],
             'verification_code' => $e->verification_code,
             'verification_url' => route('verify.show', $e->verification_code),
             'sent_at' => $e->sent_at?->toIso8601String(),

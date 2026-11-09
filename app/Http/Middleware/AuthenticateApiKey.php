@@ -24,6 +24,10 @@ final class AuthenticateApiKey
             return response()->json(['error' => 'unauthorized', 'message' => 'Chave de API inválida.'], 401);
         }
 
+        if ($key->tenant->isSuspended()) {
+            return response()->json(['error' => 'tenant_suspended', 'message' => 'Conta suspensa.'], 403);
+        }
+
         $key->forceFill(['last_used_at' => now()])->save();
         $request->attributes->set('tenant', $key->tenant);
 

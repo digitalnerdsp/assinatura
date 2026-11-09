@@ -12,6 +12,7 @@
         <a class="brand" href="{{ route('dashboard') }}">{{ config('app.name') }}</a>
         <a href="{{ route('envelopes.create') }}">Novo envelope</a>
         <a href="{{ route('api-keys.index') }}">API</a>
+        @if (auth()->user()->isSuperAdmin())<a href="{{ route('admin.dashboard') }}">Admin</a>@endif
         <span class="muted">{{ auth()->user()->name }}</span>
         <form method="post" action="{{ route('logout') }}">@csrf <button class="btn ghost sm">Sair</button></form>
     </div></header>

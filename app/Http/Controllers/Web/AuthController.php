@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Models\Setting;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -17,11 +18,13 @@ final class AuthController extends Controller
 {
     public function showRegister(): View
     {
-        return view('auth.register');
+        return view('auth.register', ['open' => Setting::registrationOpen()]);
     }
 
     public function register(Request $request): RedirectResponse
     {
+        abort_unless(Setting::registrationOpen(), 403, 'Os cadastros estão fechados no momento.');
+
         $data = $request->validate([
             'company' => ['required', 'string', 'max:150'],
             'name' => ['required', 'string', 'max:150'],

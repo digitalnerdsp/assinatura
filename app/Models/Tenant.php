@@ -15,6 +15,21 @@ class Tenant extends Model
 
     protected $guarded = [];
 
+    protected function casts(): array
+    {
+        return ['suspended_at' => 'datetime'];
+    }
+
+    public function isSuspended(): bool
+    {
+        return $this->suspended_at !== null;
+    }
+
+    public function users(): HasMany
+    {
+        return $this->hasMany(User::class);
+    }
+
     public function signingSetting(): HasOne
     {
         return $this->hasOne(TenantSigningSetting::class);

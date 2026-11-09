@@ -14,7 +14,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->alias(['api.key' => AuthenticateApiKey::class]);
+        $middleware->alias([
+            'api.key' => AuthenticateApiKey::class,
+            'super.admin' => \App\Http\Middleware\EnsureSuperAdmin::class,
+            'tenant.active' => \App\Http\Middleware\EnsureTenantActive::class,
+        ]);
 
         // Atrás do proxy do Coolify (Traefik): sem isto request->ip() devolve o IP do proxy
         // e a trilha de evidências gravaria o IP errado. Não exponha o contêiner direto à internet.

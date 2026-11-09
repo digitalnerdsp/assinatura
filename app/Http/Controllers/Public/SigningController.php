@@ -34,12 +34,87 @@ final class SigningController extends Controller
 
         $this->signing->view($signer, RequestContext::fromRequest($request));
 
+        $envelope = $signer->envelope;
+        $pending = $this->signing->pendingSteps($signer);
+
+        // Etapas na ordem de exibição, cada uma com o estado (feita / atual / aguardando).
+        $labels = [
+            'otp' => 'Código por e-mail',
+            'selfie' => 'Selfie',
+            'document' => 'Foto do documento',
+            'geolocation' => 'Localização',
+        ];
+        $steps = [];
+        foreach ($labels as $key => $label) {
+            if ($envelope->{'require_'.$key}) {
+                $steps[] = ['key' => $key, 'label' => $label, 'done' => ! in_array($key, $pending, true)];
+            }
+        }
+        $steps[] = ['key' => 'sign', 'label' => 'Assinar', 'done' => false];
+
         return view('sign.show', [
             'signer' => $signer,
-            'envelope' => $signer->envelope,
+            'envelope' => $envelope,
             'token' => $token,
-            'needsOtp' => $signer->envelope->required_level !== 'simple',
+            'steps' => $steps,
+            'current' => $pending[0] ?? 'sign',
         ]);
+    }
+
+    public function selfie(Request $request, string $token): RedirectResponse|View
+    {
+        $data = $request->validate([
+            'image' => ['required', 'string', 'max:8000000', 'starts_with:data:image/'],
+            'source' => ['nullable', 'in:camera,upload'],
+        ]);
+
+        return $this->guard($token, function (Signer $signer) use ($request, $token, $data) {
+            $binary = base64_decode(substr($data['image'], (int) strpos($data['image'], ',') + 1), true);
+            if ($binary === false) {
+                throw FlowException::because('invalid_image', 'Imagem inválida.');
+            }
+
+            $this->signing->submitSelfie($signer, $binary, $data['source'] ?? 'camera', RequestContext::fromRequest($request));
+
+            return redirect()->route('sign.show', $token)->with('status', 'Selfie registrada.');
+        });
+    }
+
+    public function document(Request $request, string $token): RedirectResponse|View
+    {
+        $request->validate(['image' => ['required', 'file', 'image', 'max:5120']]);
+
+        return $this->guard($token, function (Signer $signer) use ($request, $token) {
+            $this->signing->submitDocument(
+                $signer,
+                (string) file_get_contents($request->file('image')->getRealPath()),
+                'upload',
+                RequestContext::fromRequest($request),
+            );
+
+            return redirect()->route('sign.show', $token)->with('status', 'Foto do documento recebida.');
+        });
+    }
+
+    public function geolocation(Request $request, string $token): RedirectResponse|View
+    {
+        $data = $request->validate([
+            'lat' => ['required', 'numeric', 'between:-90,90'],
+            'lng' => ['required', 'numeric', 'between:-180,180'],
+            'accuracy' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        return $this->guard($token, function (Signer $signer) use ($request, $token, $data) {
+            $this->signing->recordGeolocation(
+                $signer,
+                (float) $data['lat'],
+                (float) $data['lng'],
+                isset($data['accuracy']) ? (float) $data['accuracy'] : null,
+                RequestContext::fromRequest($request),
+            );
+
+            return redirect()->route('sign.show', $token)->with('status', 'Localização registrada.');
+        });
     }
 
     public function pdf(string $token): Response

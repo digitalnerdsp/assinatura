@@ -32,7 +32,8 @@ function registerUser(string $email = 'dono@acme.com', string $company = 'ACME')
 function createEnvelopeViaWeb(string $level = 'simple'): Envelope
 {
     test()->post('/envelopes', [
-        'title' => 'Contrato de serviço', 'document' => pdfFile(), 'signing_order' => 'parallel', 'required_level' => $level,
+        'title' => 'Contrato de serviço', 'document' => pdfFile(), 'signing_order' => 'parallel',
+        'require_otp' => $level === 'advanced' ? 1 : 0,
         'signers' => [['name' => 'Ana', 'email' => 'ana@ex.com'], ['name' => 'Beto', 'email' => 'beto@ex.com']],
     ])->assertSessionHasNoErrors()->assertRedirect();
 
