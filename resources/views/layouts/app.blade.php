@@ -30,6 +30,7 @@
                 <li class="menu-label">Plataforma</li>
                 <li class="{{ $item('admin.dashboard') }}"><a href="{{ route('admin.dashboard') }}"><div class="parent-icon"><i class="bx bx-line-chart"></i></div><div class="menu-title">Visão geral</div></a></li>
                 <li class="{{ $item('admin.tenants.*') }}"><a href="{{ route('admin.tenants.index') }}"><div class="parent-icon"><i class="bx bx-buildings"></i></div><div class="menu-title">Clientes</div></a></li>
+                <li class="{{ $item('admin.sealing*') }}"><a href="{{ route('admin.sealing') }}"><div class="parent-icon"><i class="bx bx-shield-quarter"></i></div><div class="menu-title">Selagem do PDF</div></a></li>
                 <li class="{{ $item('admin.mail*') }}"><a href="{{ route('admin.mail') }}"><div class="parent-icon"><i class="bx bx-envelope"></i></div><div class="menu-title">E-mail (SMTP)</div></a></li>
                 <li class="{{ $item('admin.settings*') }}"><a href="{{ route('admin.settings') }}"><div class="parent-icon"><i class="bx bx-cog"></i></div><div class="menu-title">Configurações</div></a></li>
             @endif

@@ -19,7 +19,8 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.serialization import pkcs12
 from cryptography.x509.oid import NameOID
-from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
+from fastapi.responses import JSONResponse
 from pyhanko.pdf_utils.incremental_writer import IncrementalPdfFileWriter
 from pyhanko.sign import signers, timestamps
 from pyhanko.sign.fields import SigSeedSubFilter
@@ -39,10 +40,23 @@ def auth(authorization: str = Header(default="")) -> None:
         raise HTTPException(status_code=401, detail="unauthorized")
 
 
+_TEST_SIGNER: signers.SimpleSigner | None = None
+
+
 def _self_signed() -> signers.SimpleSigner:
-    """Certificado autoassinado de teste. SEM validade ICP-Brasil."""
+    """Certificado autoassinado de teste (gerado uma vez por processo). SEM validade ICP-Brasil."""
+    global _TEST_SIGNER
     if not ALLOW_TEST:
-        raise HTTPException(status_code=403, detail="test certificate disabled")
+        raise HTTPException(
+            status_code=403,
+            detail="certificado de teste desabilitado: defina SIGNING_ALLOW_LOCAL_TEST=true (apenas em testes)",
+        )
+    if _TEST_SIGNER is None:
+        _TEST_SIGNER = _build_self_signed()
+    return _TEST_SIGNER
+
+
+def _build_self_signed() -> signers.SimpleSigner:
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Selo de Teste (sem validade juridica)")])
     now = datetime.now(timezone.utc)
@@ -92,6 +106,15 @@ def cert_info(signer: signers.SimpleSigner) -> dict:
 
 class CertRequest(BaseModel):
     credential: dict
+
+
+@app.exception_handler(Exception)
+async def unhandled(_request: Request, exc: Exception) -> JSONResponse:
+    """Devolve o motivo real do erro (o Laravel mostra na trilha de auditoria e no painel admin)."""
+    import logging
+
+    logging.getLogger("sealer").exception("erro não tratado")
+    return JSONResponse(status_code=500, content={"detail": f"{type(exc).__name__}: {exc}"})
 
 
 @app.get("/health")

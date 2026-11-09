@@ -131,6 +131,20 @@ final class EnvelopeController extends Controller
         return back()->with('status', 'Convites enviados.');
     }
 
+    /** Reenfileira a selagem de um envelope preso em "Selando" (ex.: serviço de selagem estava fora do ar). */
+    public function reseal(Request $request, Envelope $envelope): RedirectResponse
+    {
+        $this->owned($request, $envelope);
+
+        if ($envelope->status !== \App\Enums\EnvelopeStatus::Sealing) {
+            return back()->withErrors(['envelope' => 'Este envelope não está aguardando selagem.']);
+        }
+
+        \App\Jobs\SealEnvelope::dispatch($envelope->getKey());
+
+        return back()->with('status', 'Selagem reenfileirada. Atualize a página em alguns segundos.');
+    }
+
     public function resend(Request $request, Envelope $envelope, Signer $signer): RedirectResponse
     {
         $this->owned($request, $envelope);

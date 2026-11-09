@@ -52,7 +52,7 @@ final class SealerClient
                     ], JSON_THROW_ON_ERROR),
                 ]);
         } catch (ConnectionException $e) {
-            throw new SigningException('Serviço de selagem indisponível.', 0, $e);
+            throw new SigningException('Serviço de selagem indisponível: '.$this->short($e->getMessage()), 0, $e);
         }
 
         if ($response->status() === 409) {
@@ -60,7 +60,7 @@ final class SealerClient
         }
 
         if ($response->failed()) {
-            throw new SigningException('Falha ao selar o PDF (HTTP '.$response->status().').');
+            throw new SigningException('Falha ao selar o PDF (HTTP '.$response->status().'): '.$this->detail($response));
         }
 
         $pdf = base64_decode((string) $response->json('pdf_base64'), true);
@@ -87,13 +87,42 @@ final class SealerClient
                 ->timeout(15)
                 ->post($this->baseUrl.'/v1/certificate', ['credential' => $credential]);
         } catch (ConnectionException $e) {
-            throw new SigningException('Serviço de selagem indisponível.', 0, $e);
+            throw new SigningException('Serviço de selagem indisponível: '.$this->short($e->getMessage()), 0, $e);
         }
 
         if ($response->failed()) {
-            throw new SigningException('Não foi possível ler o certificado (HTTP '.$response->status().').');
+            throw new SigningException('Não foi possível ler o certificado (HTTP '.$response->status().'): '.$this->detail($response));
         }
 
         return CertificateInfo::fromArray((array) $response->json());
+    }
+
+    /** Verifica se o serviço responde (GET /health). Lança SigningException com o motivo se não. */
+    public function health(): void
+    {
+        try {
+            $response = $this->http->timeout(10)->get($this->baseUrl.'/health');
+        } catch (ConnectionException $e) {
+            throw new SigningException('Serviço de selagem indisponível: '.$this->short($e->getMessage()), 0, $e);
+        }
+
+        if ($response->failed()) {
+            throw new SigningException('Serviço respondeu HTTP '.$response->status().': '.$this->detail($response));
+        }
+    }
+
+    private function detail(\Illuminate\Http\Client\Response $response): string
+    {
+        $detail = $response->json('detail');
+        $text = is_string($detail) ? $detail : trim($response->body());
+
+        return $text === '' ? 'sem detalhes' : $this->short($text);
+    }
+
+    private function short(string $text): string
+    {
+        $text = trim(preg_replace('/\s+/', ' ', $text) ?? $text);
+
+        return mb_strlen($text) > 300 ? mb_substr($text, 0, 300).'…' : $text;
     }
 }

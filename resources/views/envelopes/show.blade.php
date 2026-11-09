@@ -24,6 +24,14 @@
             </div>
         </div>
 
+        @if ($envelope->status->value === 'sealing')
+            <div class="alert alert-warning border-0 d-flex flex-wrap align-items-center gap-2">
+                <i class="bx bx-time-five fs-4"></i>
+                <div class="me-auto">Todos assinaram e o documento está aguardando a selagem. Se demorar, veja o motivo na trilha de auditoria abaixo.</div>
+                <form method="post" action="{{ route('envelopes.reseal', $envelope) }}">@csrf<button class="btn btn-sm btn-warning"><i class="bx bx-refresh"></i> Tentar selar novamente</button></form>
+            </div>
+        @endif
+
         @if ($envelope->status->value === 'draft')
             <form method="post" action="{{ route('envelopes.send', $envelope) }}" class="border rounded p-3 mb-3 d-flex flex-wrap align-items-center gap-3">
                 @csrf
@@ -147,7 +155,8 @@ document.querySelectorAll('[data-copy]').forEach(function (b) {
             @foreach ($events as $ev)
                 <tr>
                     <td>{{ $ev->sequence }}</td>
-                    <td>{{ $labels[$ev->type] ?? $ev->type }}@if($ev->signer_id) <span class="text-secondary">· {{ $envelope->signers->firstWhere('id', $ev->signer_id)?->name }}</span>@endif</td>
+                    <td>{{ $labels[$ev->type] ?? $ev->type }}@if($ev->signer_id) <span class="text-secondary">· {{ $envelope->signers->firstWhere('id', $ev->signer_id)?->name }}</span>@endif
+                        @if ($ev->type === 'seal_failed' && ! empty($ev->payload['error']))<div class="small text-danger">{{ $ev->payload['error'] }}</div>@endif</td>
                     <td class="text-nowrap">{{ $ev->occurred_at->timezone('America/Sao_Paulo')->format('d/m/Y H:i:s') }}</td>
                     <td class="mono">{{ $ev->ip ?? '—' }}</td>
                 </tr>
