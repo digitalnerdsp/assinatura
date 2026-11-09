@@ -23,6 +23,9 @@ from pyhanko_certvalidator.registry import SimpleCertificateStore
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse
 from pyhanko.pdf_utils.incremental_writer import IncrementalPdfFileWriter
+from pyhanko.pdf_utils.misc import PdfReadError
+from pyhanko.pdf_utils.reader import PdfFileReader
+from pyhanko.pdf_utils.writer import copy_into_new_writer
 from pyhanko.sign import signers, timestamps
 from pyhanko.sign.fields import SigSeedSubFilter
 from pyhanko.sign.signers.pdf_signer import PdfSignatureMetadata, PdfSigner
@@ -66,6 +69,13 @@ def _build_self_signed() -> signers.SimpleSigner:
         .subject_name(name).issuer_name(name).public_key(key.public_key())
         .serial_number(x509.random_serial_number())
         .not_valid_before(now - timedelta(days=1)).not_valid_after(now + timedelta(days=365))
+        .add_extension(
+            x509.KeyUsage(
+                digital_signature=True, content_commitment=True, key_encipherment=False, data_encipherment=False,
+                key_agreement=False, key_cert_sign=False, crl_sign=False, encipher_only=False, decipher_only=False,
+            ),
+            critical=True,
+        )
         .sign(key, hashes.SHA256())
     )
     # Monta o SimpleSigner direto (a versão do pyHanko do container não tem load_pkcs12_data).
@@ -121,6 +131,27 @@ class CertRequest(BaseModel):
     credential: dict
 
 
+def open_for_signing(data: bytes) -> IncrementalPdfFileWriter:
+    """Abre o PDF para assinatura incremental (preserva os bytes originais).
+
+    PDFs com xref "híbrido" (comuns em Word/Chrome/iText) ou com pequenos problemas de sintaxe são
+    reescritos antes, para um arquivo limpo, porque o pyHanko recusa assinar híbridos no modo estrito.
+    """
+    try:
+        reader = PdfFileReader(io.BytesIO(data), strict=True)
+        if not reader.xrefs.hybrid_xrefs_present:
+            return IncrementalPdfFileWriter(io.BytesIO(data))
+    except PdfReadError:
+        pass  # sintaxe fora do padrão: tenta normalizar abaixo
+
+    lenient = PdfFileReader(io.BytesIO(data), strict=False)
+    clean = io.BytesIO()
+    copy_into_new_writer(lenient).write(clean)
+    clean.seek(0)
+
+    return IncrementalPdfFileWriter(clean)
+
+
 @app.exception_handler(Exception)
 async def unhandled(_request: Request, exc: Exception) -> JSONResponse:
     """Devolve o motivo real do erro (o Laravel mostra na trilha de auditoria e no painel admin)."""
@@ -167,7 +198,7 @@ def seal(pdf: UploadFile = File(...), metadata: str = Form(...)) -> dict:
     )
 
     data = pdf.file.read()
-    writer = IncrementalPdfFileWriter(io.BytesIO(data))
+    writer = open_for_signing(data)
     out = io.BytesIO()
     PdfSigner(signature_meta, signer=signer, timestamper=timestamper).sign_pdf(writer, output=out)
 
