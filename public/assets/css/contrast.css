@@ -1,0 +1,84 @@
+/*
+ * Contraste e legibilidade (claro e escuro). Carregado por último, por cima do tema Rocker.
+ * Regra do projeto: texto sempre com contraste mínimo de 4,5:1 e itens importantes em negrito.
+ */
+
+/* ---------- Ambos os temas ---------- */
+.btn-primary { background-color: #0b63c7; border-color: #0b63c7; color: #fff; font-weight: 600; }
+.btn-primary:hover, .btn-primary:focus, .btn-primary:active { background-color: #0a54a8 !important; border-color: #0a54a8 !important; color: #fff !important; }
+.btn { font-weight: 600; }
+
+/* Menu lateral */
+.sidebar-wrapper .metismenu a { font-weight: 700; }
+.sidebar-wrapper .metismenu .menu-title { font-weight: 700; }
+.sidebar-wrapper .sidebar-header .logo-text { font-weight: 700; }
+
+/* Títulos, rótulos, cabeçalhos de tabela e números de destaque */
+h1, h2, h3, h4, h5, h6, .card-title, .page-breadcrumb .breadcrumb-title { font-weight: 700; }
+label, .form-label { font-weight: 600; }
+.table > thead th { font-weight: 700; }
+.nav-link, .dropdown-item { font-weight: 600; }
+.badge { font-weight: 700; }
+.steps-wizard li { font-weight: 600; }
+
+/* ---------- Tema claro: textos secundários ainda legíveis ---------- */
+html:not(.dark-theme) .text-muted,
+html:not(.dark-theme) .form-text,
+html:not(.dark-theme) .text-secondary { color: #4a5259 !important; }
+html:not(.dark-theme) code { color: #b3175f; }
+html:not(.dark-theme) .sidebar-wrapper .menu-label { color: #4a5259; font-weight: 700; }
+html:not(.dark-theme) .sidebar-wrapper .sidebar-header .logo-text,
+html:not(.dark-theme) .sidebar-wrapper .metismenu .menu-title,
+html:not(.dark-theme) .page-content a:not(.btn):not(.nav-link):not(.dropdown-item):not(.list-group-item) { color: #0a58b5; }
+html:not(.dark-theme) .btn-outline-primary { color: #0a58b5; border-color: #0a58b5; }
+html:not(.dark-theme) .btn-outline-primary:hover { background-color: #0a58b5; color: #fff; }
+html:not(.dark-theme) .text-info { color: #0a6c80 !important; }
+html:not(.dark-theme) .text-warning { color: #8a5a00 !important; }
+html:not(.dark-theme) .text-success { color: #0f7a1a !important; }
+html:not(.dark-theme) .text-danger { color: #c4122f !important; }
+
+/* ---------- Tema escuro ---------- */
+html.dark-theme body { --bs-body-color: #f1f3f5; }
+html.dark-theme h1, html.dark-theme h2, html.dark-theme h3,
+html.dark-theme h4, html.dark-theme h5, html.dark-theme h6,
+html.dark-theme .card-title, html.dark-theme label, html.dark-theme .form-label,
+html.dark-theme .table > thead th, html.dark-theme .breadcrumb-title { color: #ffffff; }
+
+/* Textos que ficavam cinza e sumiam */
+html.dark-theme .text-muted,
+html.dark-theme .text-secondary,
+html.dark-theme .text-body-secondary,
+html.dark-theme .form-text,
+html.dark-theme small,
+html.dark-theme .small { color: #cfd4d9 !important; }
+html.dark-theme code { color: #ff9ac9; }
+html.dark-theme .page-content a:not(.btn):not(.nav-link):not(.dropdown-item):not(.list-group-item) { color: #7db7ff; }
+html.dark-theme .page-content a:not(.btn):not(.nav-link):not(.dropdown-item):hover { color: #a9d0ff; }
+
+/* Campos: borda e placeholder visíveis */
+html.dark-theme .form-control,
+html.dark-theme .form-select { color: #ffffff; border-color: rgba(255, 255, 255, .38); }
+html.dark-theme .form-control::placeholder { color: #b4bac0; opacity: 1; }
+html.dark-theme .form-control:disabled,
+html.dark-theme .form-select:disabled { color: #cfd4d9; opacity: .85; }
+html.dark-theme .input-group-text { color: #f1f3f5; border-color: rgba(255, 255, 255, .38); }
+
+/* Tabelas e listas */
+html.dark-theme .table { --bs-table-color: #f1f3f5; color: #f1f3f5; }
+html.dark-theme .table > :not(caption) > * > * { border-bottom-color: rgba(255, 255, 255, .2); }
+html.dark-theme .list-group-item { color: #f1f3f5; }
+
+/* Menu lateral */
+html.dark-theme .sidebar-wrapper .metismenu a { color: #ffffff; }
+html.dark-theme .sidebar-wrapper .metismenu .menu-title,
+html.dark-theme .sidebar-wrapper .metismenu .parent-icon { color: #ffffff; opacity: 1; }
+html.dark-theme .sidebar-wrapper .metismenu .mm-active > a,
+html.dark-theme .sidebar-wrapper .metismenu a:hover { color: #ffffff; background: rgba(77, 141, 255, .28); }
+html.dark-theme .topbar .nav-link,
+html.dark-theme .topbar .user-name,
+html.dark-theme .topbar .user-info .user-name { color: #ffffff; }
+
+/* Selos/etiquetas */
+html.dark-theme .badge.bg-secondary,
+html.dark-theme .badge.bg-light { background-color: #5c6770 !important; color: #fff !important; }
+html.dark-theme .badge.bg-warning { color: #1a1a1a !important; }
