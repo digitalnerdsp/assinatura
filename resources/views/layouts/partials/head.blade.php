@@ -26,6 +26,10 @@
     iframe.pdf{width:100%;height:62vh;min-height:360px;border:1px solid rgba(0,0,0,.15);border-radius:.5rem;background:#fff}
     video.cam,img.shot{width:100%;max-height:60vh;border-radius:.5rem;background:#000;object-fit:cover}
     .sign-preview{font:italic 2.2rem/1.2 "Brush Script MT","Segoe Script","Snell Roundhand",cursive;padding:.9rem;border:1px dashed #adb5bd;border-radius:.5rem;background:#fff;color:#111;min-height:70px;word-break:break-word}
+    html.dark-theme .steps-wizard li{border-color:rgba(255,255,255,.22)}
+    html.dark-theme .steps-wizard li.done{border-color:#2fb36d;color:#4cd18a}
+    html.dark-theme .steps-wizard li.current{border-color:#4d8dff;box-shadow:inset 0 0 0 1px #4d8dff}
+    html.dark-theme iframe.pdf{border-color:rgba(255,255,255,.2)}
 </style>
 <script>
     // Restaura o tema escolhido (claro/escuro) antes de pintar a página.

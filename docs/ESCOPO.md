@@ -240,3 +240,18 @@ teste de carga, repositório privado.
 - WhatsApp/SMS: só Twilio implementado, sem teste com conta real; o código de verificação (OTP) continua só por e-mail.
 - Posição da assinatura: não está disponível para documentos gerados por modelo; assinatura posicionada só é desenhada em PDFs que o sealer consegue decorar.
 - Webhooks: sem sandbox separado e sem reenvio em lote.
+
+## 15. API v1 — estado em 11/11/2026
+
+Referência interativa em `/api/docs` e especificação em `/api/v1/openapi.json` (um teste garante que toda rota está documentada).
+
+- **Conta:** `GET /me` (confere a chave, mostra consumo e eventos de webhook).
+- **Envelopes:** listar com filtros e paginação, criar (multipart ou JSON com PDF em base64), consultar, enviar, cancelar, selar de novo, evidências, baixar selado e original. `{id}` aceita também o `external_id` do cliente; `metadata` livre volta nas respostas e nos webhooks.
+- **Signatários:** reenviar aviso e gerar novo link.
+- **Modelos:** CRUD e geração de envelope com variáveis.
+- **Webhooks:** CRUD, ativar/desativar, teste (`ping`) e histórico de entregas.
+- **Pastas e etiquetas:** listar, criar e remover.
+- **Verificação pública:** `GET /verify/{codigo}` sem chave, com conferência opcional de hash.
+- **Segurança e robustez:** chave somente leitura; `Idempotency-Key` (24 h); erros em formato único; 120 req/min por chave.
+
+**Fora da API por enquanto:** criar/revogar chaves, usuários da conta, provas biométricas (selfie e foto do documento, de propósito), cobrança, sandbox separado, paginação por cursor.

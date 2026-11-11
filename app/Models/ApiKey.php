@@ -19,7 +19,7 @@ class ApiKey extends Model
 
     protected function casts(): array
     {
-        return ['last_used_at' => 'datetime', 'revoked_at' => 'datetime'];
+        return ['last_used_at' => 'datetime', 'revoked_at' => 'datetime', 'read_only' => 'boolean'];
     }
 
     public function tenant(): BelongsTo
@@ -28,7 +28,7 @@ class ApiKey extends Model
     }
 
     /** @return array{0:ApiKey,1:string} modelo + chave em texto puro (mostrar uma única vez) */
-    public static function issue(Tenant $tenant, string $name): array
+    public static function issue(Tenant $tenant, string $name, bool $readOnly = false): array
     {
         $plain = 'sk_live_'.Str::random(40);
 
@@ -37,6 +37,7 @@ class ApiKey extends Model
             'name' => $name,
             'prefix' => substr($plain, 0, 12),
             'key_hash' => hash('sha256', $plain),
+            'read_only' => $readOnly,
         ]);
 
         return [$key, $plain];

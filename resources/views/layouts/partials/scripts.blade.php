@@ -3,7 +3,7 @@
 <script src="{{ asset('assets/plugins/simplebar/js/simplebar.min.js') }}"></script>
 <script src="{{ asset('assets/plugins/metismenu/js/metisMenu.min.js') }}"></script>
 <script src="{{ asset('assets/plugins/perfect-scrollbar/js/perfect-scrollbar.js') }}"></script>
-<script src="{{ asset('assets/js/app.js') }}"></script>
+<script src="{{ asset('assets/js/layout.js') }}?v=2"></script>
 <script>
     // Mostrar/ocultar senha (campos dentro de .js-password)
     document.querySelectorAll('.js-password').forEach(function (g) {
@@ -14,14 +14,6 @@
             var show = i.type === 'password';
             i.type = show ? 'text' : 'password';
             ic.className = show ? 'bx bx-show' : 'bx bx-hide';
-        });
-    });
-    // Guarda o tema escolhido
-    document.querySelectorAll('.dark-mode').forEach(function (b) {
-        b.addEventListener('click', function () {
-            setTimeout(function () {
-                try { localStorage.setItem('theme', document.documentElement.classList.contains('dark-theme') ? 'dark' : 'light'); } catch (e) {}
-            }, 0);
         });
     });
 </script>

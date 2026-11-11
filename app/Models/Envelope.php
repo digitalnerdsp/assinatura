@@ -34,6 +34,7 @@ class Envelope extends Model
             'require_document' => 'boolean',
             'require_geolocation' => 'boolean',
             'notify_channels' => 'array',
+            'metadata' => 'array',
         ];
     }
 

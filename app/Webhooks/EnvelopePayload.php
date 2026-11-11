@@ -19,6 +19,8 @@ final class EnvelopePayload
         $data = [
             'envelope' => [
                 'id' => $envelope->getKey(),
+                'external_id' => $envelope->external_id,
+                'metadata' => $envelope->metadata,
                 'title' => $envelope->title,
                 'status' => $envelope->status->value,
                 'verification_code' => $envelope->verification_code,

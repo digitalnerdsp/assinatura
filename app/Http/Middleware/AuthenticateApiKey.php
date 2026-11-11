@@ -28,8 +28,14 @@ final class AuthenticateApiKey
             return response()->json(['error' => 'tenant_suspended', 'message' => 'Conta suspensa.'], 403);
         }
 
+        // Chave somente leitura: só consulta (GET/HEAD).
+        if ($key->read_only && ! in_array($request->method(), ['GET', 'HEAD'], true)) {
+            return response()->json(['error' => 'read_only_key', 'message' => 'Esta chave é somente leitura.'], 403);
+        }
+
         $key->forceFill(['last_used_at' => now()])->save();
         $request->attributes->set('tenant', $key->tenant);
+        $request->attributes->set('api_key', $key);
 
         return $next($request);
     }

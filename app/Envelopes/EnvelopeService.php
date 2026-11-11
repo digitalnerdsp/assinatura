@@ -71,12 +71,16 @@ final class EnvelopeService
             ? ($options['reminder_every_days'] === null ? null : max(1, min(30, (int) $options['reminder_every_days'])))
             : (int) config('signing.default_reminder_days');
         $channels = array_values(array_intersect($options['channels'] ?? ['email'], ['email', 'whatsapp', 'sms'])) ?: ['email'];
+        $externalId = isset($options['external_id']) && $options['external_id'] !== '' ? (string) $options['external_id'] : null;
+        if ($externalId !== null && Envelope::query()->where('tenant_id', $tenant->getKey())->where('external_id', $externalId)->exists()) {
+            throw FlowException::because('duplicate_external_id', 'Já existe um envelope com este external_id.');
+        }
         $folderId = $options['folder_id'] ?? null;
         if ($folderId !== null && ! Folder::query()->where('tenant_id', $tenant->getKey())->whereKey($folderId)->exists()) {
             throw FlowException::because('invalid_folder', 'Pasta inválida.');
         }
 
-        return DB::transaction(function () use ($tenant, $creator, $pdfContents, $filename, $title, $signers, $order, $requiredLevel, $message, $otp, $selfie, $docPhoto, $geolocation, $validity, $reminder, $channels, $folderId, $options) {
+        return DB::transaction(function () use ($tenant, $creator, $pdfContents, $filename, $title, $signers, $order, $requiredLevel, $message, $otp, $selfie, $docPhoto, $geolocation, $validity, $reminder, $channels, $folderId, $options, $externalId) {
             $path = "tenants/{$tenant->getKey()}/documents/".Str::uuid().'.pdf';
             Storage::disk('local')->put($path, $pdfContents);
 
@@ -106,6 +110,8 @@ final class EnvelopeService
                 'reminder_every_days' => $reminder,
                 'notify_channels' => $channels,
                 'folder_id' => $folderId,
+                'external_id' => $externalId,
+                'metadata' => $options['metadata'] ?? null,
             ]);
 
             if (! empty($options['tags'])) {

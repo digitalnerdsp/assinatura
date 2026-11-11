@@ -96,6 +96,9 @@ Route::prefix('assinar/{token}')->middleware('throttle:60,1,sign')->group(functi
     Route::post('/recusar', [SigningController::class, 'refuse'])->name('sign.refuse');
 });
 
+// Referência pública da API
+Route::get('/api/docs', [\App\Http\Controllers\Api\V1\DocsController::class, 'page'])->name('api.docs');
+
 // Verificação pública
 Route::get('/verificar', [VerificationController::class, 'index'])->name('verify.index');
 Route::post('/verificar', [VerificationController::class, 'lookup'])->middleware('throttle:20,1,verify-lookup')->name('verify.lookup');
