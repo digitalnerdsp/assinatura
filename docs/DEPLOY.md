@@ -53,6 +53,7 @@ Sem o `scheduler` rodando, lembretes e expiração automática **não acontecem*
 |---|---|
 | `SIGNING_MAX_PDF_MB` (20) | limite de tamanho do PDF. Mantenha `PHP_UPLOAD_MAX_FILESIZE` (25M) e `PHP_POST_MAX_SIZE` (30M) acima dele |
 | `MESSAGING_DRIVER` (`log`) | `twilio` ativa WhatsApp/SMS; com `log` as mensagens só vão para o log |
+| `SEALER_TSA_URL` | carimbo de tempo RFC 3161 no PDF selado. Para teste: `https://freetsa.org/tsr` (sem validade ICP-Brasil). Em produção, use uma ACT credenciada na ICP-Brasil. Vazio = sem carimbo |
 | `TWILIO_SID`, `TWILIO_TOKEN`, `TWILIO_FROM_SMS`, `TWILIO_FROM_WHATSAPP` | credenciais e números de origem da Twilio. WhatsApp exige número aprovado (ou o sandbox da Twilio para testes) |
 | `SENTRY_LARAVEL_DSN` | liga os alertas de erro. Corpo da requisição, cookies e tokens da URL são removidos antes do envio |
 | `SENTRY_TRACES_SAMPLE_RATE` | desempenho (0 a 1); deixe vazio para não coletar |
