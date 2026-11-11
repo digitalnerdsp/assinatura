@@ -1,6 +1,6 @@
 <p>Olá, {{ $signer->name }}.</p>
 @if ($reminder)
-<p>Este é um lembrete: o documento <strong>{{ $signer->envelope->title }}</strong> ainda aguarda a sua assinatura@if ($signer->envelope->expires_at) (disponível até {{ $signer->envelope->expires_at->timezone('America/Sao_Paulo')->format('d/m/Y') }})@endif.</p>
+<p>Este é um lembrete: o documento <strong>{{ $signer->envelope->title }}</strong> ainda aguarda a sua assinatura @if ($signer->envelope->expires_at)(disponível até {{ $signer->envelope->expires_at->timezone('America/Sao_Paulo')->format('d/m/Y') }})@endif.</p>
 @else
 <p>Você recebeu o documento <strong>{{ $signer->envelope->title }}</strong> para assinar.</p>
 @endif
