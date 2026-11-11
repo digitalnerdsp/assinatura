@@ -52,7 +52,13 @@ return [
     |
     */
 
-    'url' => env('APP_URL', 'http://localhost'),
+    // Aceita "dominio.com" sem esquema (erro comum no painel): assume https. Sem isso, os links gerados
+    // fora de uma requisição (fila, PDF selado, e-mails) saem como "http://localhost/dominio.com/...".
+    'url' => (static function (): string {
+        $url = trim((string) env('APP_URL', 'http://localhost'));
+
+        return rtrim(preg_match('#^https?://#i', $url) ? $url : 'https://'.ltrim($url, '/'), '/');
+    })(),
 
     /*
     |--------------------------------------------------------------------------

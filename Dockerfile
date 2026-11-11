@@ -17,6 +17,11 @@ ENV PHP_OPCACHE_ENABLE=1 \
     AUTORUN_LARAVEL_STORAGE_LINK=false \
     SSL_MODE=off
 
+# GD: recorte/redimensionamento da foto de perfil (sem ela a foto é guardada sem reprocessar).
+USER root
+RUN install-php-extensions gd
+USER www-data
+
 WORKDIR /var/www/html
 COPY --from=vendor --chown=www-data:www-data /app ./
 

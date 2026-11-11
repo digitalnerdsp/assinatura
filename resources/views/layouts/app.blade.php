@@ -9,7 +9,6 @@
     $u = auth()->user();
     $isAdmin = $u->isSuperAdmin();
     $item = fn (string $pattern) => request()->routeIs($pattern) ? 'mm-active' : '';
-    $avatar = 'assets/images/avatars/avatar-'.((crc32($u->email) % 5) + 1).'.png';
 @endphp
 <div class="wrapper">
     <div class="sidebar-wrapper" data-simplebar="true">
@@ -52,13 +51,14 @@
                 </div>
                 <div class="user-box dropdown px-3">
                     <a class="d-flex align-items-center nav-link dropdown-toggle gap-3 dropdown-toggle-nocaret" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <img src="{{ asset($avatar) }}" class="user-img" alt="">
+                        <img src="{{ $u->avatarUrl() }}" class="user-img" alt="" style="object-fit:cover">
                         <div class="user-info">
                             <p class="user-name mb-0">{{ $u->name }}</p>
                             <p class="designattion mb-0">{{ $isAdmin ? 'Super admin' : ($u->tenant?->name ?? '—') }}</p>
                         </div>
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item d-flex align-items-center" href="{{ route('profile.edit') }}"><i class="bx bx-user fs-5"></i><span>Meu perfil</span></a></li>
                         <li><a class="dropdown-item d-flex align-items-center" href="{{ route('dashboard') }}"><i class="bx bx-home-circle fs-5"></i><span>Painel</span></a></li>
                         <li><a class="dropdown-item d-flex align-items-center" href="{{ route('api-keys.index') }}"><i class="bx bx-code-alt fs-5"></i><span>Chaves de API</span></a></li>
                         <li><div class="dropdown-divider mb-0"></div></li>

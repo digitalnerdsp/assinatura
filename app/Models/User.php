@@ -17,6 +17,16 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
+    /** Foto enviada pelo usuário; sem foto, um avatar padrão estável (escolhido pelo e-mail). */
+    public function avatarUrl(): string
+    {
+        if ($this->avatar_path) {
+            return route('profile.photo', ['user' => $this->getKey(), 'v' => substr(md5($this->avatar_path), 0, 8)]);
+        }
+
+        return asset('assets/images/avatars/avatar-'.((crc32($this->email) % 5) + 1).'.png');
+    }
+
     public function isSuperAdmin(): bool
     {
         return in_array(mb_strtolower($this->email), config('platform.super_admins', []), true);

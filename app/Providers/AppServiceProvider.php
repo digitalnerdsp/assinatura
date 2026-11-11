@@ -22,6 +22,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Atrás do proxy do Coolify (TLS termina fora do container): links sempre em https quando o APP_URL for https.
+        if (str_starts_with((string) config('app.url'), 'https://')) {
+            \Illuminate\Support\Facades\URL::forceScheme('https');
+        }
+
         // SMTP salvo no painel admin tem precedência sobre MAIL_* do ambiente.
         // Falha silenciosa: no primeiro boot (antes das migrations) a tabela ainda não existe.
         try {

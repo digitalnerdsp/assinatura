@@ -78,6 +78,11 @@ Route::middleware(['auth', 'tenant.active'])->group(function () {
     Route::delete('/webhooks/{endpoint}', [\App\Http\Controllers\Web\WebhookController::class, 'destroy'])->name('webhooks.destroy');
     Route::post('/webhooks/entregas/{delivery}/reenviar', [\App\Http\Controllers\Web\WebhookController::class, 'redeliver'])->name('webhooks.redeliver');
 
+    Route::get('/perfil', [\App\Http\Controllers\Web\ProfileController::class, 'edit'])->name('profile.edit');
+    Route::put('/perfil', [\App\Http\Controllers\Web\ProfileController::class, 'update'])->middleware('throttle:20,1,profile')->name('profile.update');
+    Route::delete('/perfil/foto', [\App\Http\Controllers\Web\ProfileController::class, 'destroyPhoto'])->name('profile.photo.destroy');
+    Route::get('/perfil/foto/{user}', [\App\Http\Controllers\Web\ProfileController::class, 'photo'])->name('profile.photo');
+
     Route::get('/api-keys', [ApiKeyController::class, 'index'])->name('api-keys.index');
     Route::post('/api-keys', [ApiKeyController::class, 'store'])->name('api-keys.store');
     Route::delete('/api-keys/{apiKey}', [ApiKeyController::class, 'destroy'])->name('api-keys.destroy');

@@ -12,7 +12,7 @@ construídos nem executados** (o ambiente de desenvolvimento não tinha Docker).
 | Variável | Valor |
 |---|---|
 | `APP_KEY` | gere com `php artisan key:generate --show` (formato `base64:...`) e **guarde**: perdê-la invalida sessões e dados cifrados |
-| `APP_URL` | `https://seu-dominio` |
+| `APP_URL` | `https://seu-dominio` (com `https://`; é o endereço que vai no QR e no rodapé do PDF selado e nos e-mails) |
 | `DB_PASSWORD` | senha forte para o Postgres |
 | `SEALER_TOKEN` | string aleatória longa (compartilhada entre app e sealer) |
 | `SUPER_ADMIN_EMAILS` | e-mail(s) com acesso a `/admin`. **Cadastre a conta antes** de colocar o e-mail aqui; não há verificação de e-mail no cadastro |
