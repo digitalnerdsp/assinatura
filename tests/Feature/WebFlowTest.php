@@ -26,7 +26,11 @@ function registerUser(string $email = 'dono@acme.com', string $company = 'ACME')
         'password' => 'senha-muito-forte', 'password_confirmation' => 'senha-muito-forte',
     ])->assertRedirect('/painel');
 
-    return User::where('email', $email)->firstOrFail();
+    $user = User::where('email', $email)->firstOrFail();
+    // Estes testes cobrem o fluxo de signatários; a assinatura do remetente tem testes próprios (política 'always' é o padrão).
+    \App\Models\TenantSigningSetting::updateOrCreate(['tenant_id' => $user->tenant_id], ['sender_policy' => 'never']);
+
+    return $user;
 }
 
 function createEnvelopeViaWeb(string $level = 'simple'): Envelope

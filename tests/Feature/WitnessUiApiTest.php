@@ -17,6 +17,7 @@ function witnessUiRegister(): void
         'company' => 'ACME', 'name' => 'Dono', 'email' => 'dono@acme.com',
         'password' => 'senha-muito-forte', 'password_confirmation' => 'senha-muito-forte',
     ])->assertRedirect('/painel');
+    \App\Models\TenantSigningSetting::updateOrCreate(['tenant_id' => \App\Models\User::firstOrFail()->tenant_id], ['sender_policy' => 'never']);
 }
 
 it('o formulário tem a seção Testemunhas (opcional) com adicionar e remover', function () {
