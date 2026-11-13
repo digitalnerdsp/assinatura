@@ -47,19 +47,36 @@
             </div>
         @else
             <div class="table-responsive">
-                <table class="table align-middle mb-0">
-                    <thead class="table-light"><tr><th>Título</th><th>Pasta / etiquetas</th><th>Status</th><th>Signatários</th><th>Criado em</th></tr></thead>
+                <table class="table align-middle mb-0 drive-docs">
+                    <thead class="table-light"><tr><th>Título</th><th>Pasta / etiquetas</th><th>Status</th><th>Signatários</th><th>Criado em</th><th class="text-end"><span class="visually-hidden">Ações</span></th></tr></thead>
                     <tbody>
                     @foreach ($envelopes as $e)
                         <tr>
-                            <td><a href="{{ route('envelopes.show', $e) }}" class="fw-semibold">{{ $e->title }}</a></td>
-                            <td>
+                            <td data-label="Título"><a href="{{ route('envelopes.show', $e) }}" class="fw-semibold">{{ $e->title }}</a></td>
+                            <td data-label="Pasta / etiquetas">
                                 @if ($e->folder_id && isset($folderPaths[$e->folder_id]))<span class="text-secondary small me-1"><i class="bx bx-folder"></i> {{ $folderPaths[$e->folder_id] }}</span>@endif
                                 @foreach ($e->tags as $t)<span class="badge bg-{{ $t->color }} me-1">{{ $t->name }}</span>@endforeach
                             </td>
-                            <td>@include('partials.status-badge', ['status' => $e->status->value])</td>
-                            <td>{{ $e->signers_count }}</td>
-                            <td>{{ $e->created_at->timezone('America/Sao_Paulo')->format('d/m/Y H:i') }}</td>
+                            <td data-label="Status">@include('partials.status-badge', ['status' => $e->status->value])</td>
+                            <td data-label="Signatários">{{ $e->signers_count }}</td>
+                            <td data-label="Criado em">{{ $e->created_at->timezone('America/Sao_Paulo')->format('d/m/Y H:i') }}</td>
+                            <td data-label="Ações" class="text-end">
+                                <div class="dropdown">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary drive-tap border-0" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" aria-label="Ações do documento {{ $e->title }}"><i class="bx bx-dots-vertical-rounded"></i></button>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        <li><a class="dropdown-item drive-tap justify-content-start" href="{{ route('envelopes.show', $e) }}"><i class="bx bx-file me-2"></i>Abrir</a></li>
+                                        <li><button type="button" class="dropdown-item drive-tap justify-content-start" data-drive-action="move-doc" data-id="{{ $e->id }}" data-title="{{ $e->title }}" data-folder="{{ $e->folder_id }}"><i class="bx bx-move me-2"></i>Mover para…</button></li>
+                                        <li><button type="button" class="dropdown-item drive-tap justify-content-start" data-drive-action="tags-doc" data-id="{{ $e->id }}" data-title="{{ $e->title }}" data-tags='@json($e->tags->pluck('id')->values())'><i class="bx bx-purchase-tag-alt me-2"></i>Etiquetas…</button></li>
+                                        @if ($e->isTrashable())
+                                            <li><form method="post" action="{{ route('envelopes.trash', $e) }}" onsubmit="return confirm('Mover este documento para a lixeira? Ele será apagado em 30 dias.')">@csrf<button class="dropdown-item drive-tap justify-content-start"><i class="bx bx-trash me-2"></i>Mover para a lixeira</button></form></li>
+                                        @elseif ($e->isArchivable() && ! $e->isArchived())
+                                            <li><form method="post" action="{{ route('envelopes.archive', $e) }}">@csrf<button class="dropdown-item drive-tap justify-content-start"><i class="bx bx-archive me-2"></i>Arquivar</button></form></li>
+                                        @elseif ($e->isArchived())
+                                            <li><form method="post" action="{{ route('envelopes.unarchive', $e) }}">@csrf<button class="dropdown-item drive-tap justify-content-start"><i class="bx bx-archive-out me-2"></i>Desarquivar</button></form></li>
+                                        @endif
+                                    </ul>
+                                </div>
+                            </td>
                         </tr>
                     @endforeach
                     </tbody>
@@ -69,4 +86,9 @@
         @endif
     </div>
 </div>
+@include('envelopes._drive_modals')
 @endsection
+
+@push('scripts')
+<script src="{{ asset('assets/js/drive.js') }}?v=1"></script>
+@endpush

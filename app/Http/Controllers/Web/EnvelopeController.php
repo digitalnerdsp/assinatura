@@ -92,6 +92,8 @@ final class EnvelopeController extends Controller
                 ->withCount('children')->orderByRaw('lower(name)')->get(),
             'folderCounts' => $folderService->subtreeCounts($tenant),
             'folderPaths' => $folderService->paths($tenant),
+            'folderTree' => $folderService->tree($tenant),
+            'colors' => Tag::COLORS,
         ]);
     }
 

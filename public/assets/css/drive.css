@@ -1,0 +1,37 @@
+/* Pastas e etiquetas estilo Drive (Documentos criados). Pensado para toque: alvos de 44 px, sem hover obrigatório. */
+
+.drive-tap { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
+.dropdown-item.drive-tap { display: flex; width: 100%; }
+.min-w-0 { min-width: 0; }
+
+/* Migalhas: rolam na horizontal se o caminho for longo */
+.drive-breadcrumb { display: flex; align-items: center; flex-wrap: nowrap; gap: .5rem; overflow-x: auto; white-space: nowrap; font-weight: 600; -webkit-overflow-scrolling: touch; padding: .25rem 0; }
+.drive-breadcrumb .drive-sep { opacity: .7; }
+
+/* Cartões de pasta */
+.drive-folders.drive-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: .5rem; }
+.drive-folders.drive-list { display: flex; flex-direction: column; gap: .25rem; }
+.drive-folder { margin-bottom: 0; }
+.drive-folder .card-body { padding-top: .35rem; padding-bottom: .35rem; }
+.drive-folder:hover { box-shadow: 0 0 0 2px rgba(11, 99, 199, .35); }
+
+/* Etiquetas */
+.drive-chip .badge { display: inline-flex; align-items: center; margin: 0; }
+.drive-color { cursor: pointer; border-radius: .5rem; padding: .15rem; border: 2px solid transparent; }
+.drive-color.is-selected { border-color: currentColor; }
+
+/* Árvore "Mover para…" */
+.drive-tree-row { display: flex; align-items: center; width: 100%; padding-top: .35rem; padding-bottom: .35rem; padding-right: .5rem; border-radius: .4rem; cursor: pointer; justify-content: flex-start; }
+.drive-tree-row:hover { background: rgba(11, 99, 199, .12); }
+.drive-tree-row.is-disabled { opacity: .55; cursor: not-allowed; }
+
+/* Lista de documentos vira cartões em tela estreita */
+@media (max-width: 575.98px) {
+    .drive-docs thead { display: none; }
+    .drive-docs, .drive-docs tbody, .drive-docs tr, .drive-docs td { display: block; width: 100%; }
+    .drive-docs tr { border: 1px solid var(--bs-border-color); border-radius: .6rem; margin-bottom: .75rem; padding: .35rem .25rem; }
+    .drive-docs td { border: 0; padding: .25rem .6rem; display: flex; justify-content: space-between; align-items: center; gap: .75rem; text-align: right; }
+    .drive-docs td::before { content: attr(data-label); font-weight: 700; text-align: left; flex: 0 0 auto; }
+    .drive-docs td[data-label="Título"] { font-size: 1.05rem; }
+    .drive-folders.drive-grid { grid-template-columns: 1fr; }
+}
