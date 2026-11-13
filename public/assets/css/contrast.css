@@ -82,3 +82,13 @@ html.dark-theme .topbar .user-info .user-name { color: #ffffff; }
 html.dark-theme .badge.bg-secondary,
 html.dark-theme .badge.bg-light { background-color: #5c6770 !important; color: #fff !important; }
 html.dark-theme .badge.bg-warning { color: #1a1a1a !important; }
+
+/* ---------- Submenus do menu lateral (Documentos, Configurações) ---------- */
+.sidebar-wrapper .metismenu ul a { font-weight: 600; padding-left: 1.5rem; }
+.sidebar-wrapper .metismenu ul a i { margin-right: .4rem; }
+html:not(.dark-theme) .sidebar-wrapper .metismenu ul a { color: #1f2933; }
+html:not(.dark-theme) .sidebar-wrapper .metismenu ul .mm-active > a,
+html:not(.dark-theme) .sidebar-wrapper .metismenu ul a:hover { color: #0b63c7; }
+html.dark-theme .sidebar-wrapper .metismenu ul a { color: #ffffff; }
+html.dark-theme .sidebar-wrapper .metismenu ul .mm-active > a,
+html.dark-theme .sidebar-wrapper .metismenu ul a:hover { color: #7db7ff; background: rgba(77, 141, 255, .18); }

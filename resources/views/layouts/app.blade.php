@@ -17,27 +17,7 @@
             <div><h4 class="logo-text">{{ config('app.name') }}</h4></div>
             <div class="toggle-icon ms-auto"><i class="bx bx-arrow-back"></i></div>
         </div>
-        <ul class="metismenu" id="menu">
-            <li class="{{ $item('dashboard') }}"><a href="{{ route('dashboard') }}"><div class="parent-icon"><i class="bx bx-home-alt"></i></div><div class="menu-title">Painel</div></a></li>
-            <li class="menu-label">Assinaturas</li>
-            <li class="{{ $item('envelopes.index') }}{{ $item('envelopes.show') }}"><a href="{{ route('envelopes.index') }}"><div class="parent-icon"><i class="bx bx-file"></i></div><div class="menu-title">Envelopes</div></a></li>
-            <li class="{{ $item('envelopes.create') }}"><a href="{{ route('envelopes.create') }}"><div class="parent-icon"><i class="bx bx-plus-circle"></i></div><div class="menu-title">Novo envelope</div></a></li>
-            <li class="{{ $item('templates.*') }}"><a href="{{ route('templates.index') }}"><div class="parent-icon"><i class="bx bx-copy-alt"></i></div><div class="menu-title">Modelos</div></a></li>
-            <li class="{{ $item('organization.*') }}"><a href="{{ route('organization.index') }}"><div class="parent-icon"><i class="bx bx-folder"></i></div><div class="menu-title">Pastas e etiquetas</div></a></li>
-            <li><a href="{{ route('verify.index') }}" target="_blank"><div class="parent-icon"><i class="bx bx-badge-check"></i></div><div class="menu-title">Verificar documento</div></a></li>
-            <li class="menu-label">Integração</li>
-            <li class="{{ $item('api-keys.*') }}"><a href="{{ route('api-keys.index') }}"><div class="parent-icon"><i class="bx bx-code-alt"></i></div><div class="menu-title">API</div></a></li>
-            <li class="{{ $item('webhooks.*') }}"><a href="{{ route('webhooks.index') }}"><div class="parent-icon"><i class="bx bx-transfer-alt"></i></div><div class="menu-title">Webhooks</div></a></li>
-            @if ($isAdmin)
-                <li class="menu-label">Plataforma</li>
-                <li class="{{ $item('admin.dashboard') }}"><a href="{{ route('admin.dashboard') }}"><div class="parent-icon"><i class="bx bx-line-chart"></i></div><div class="menu-title">Visão geral</div></a></li>
-                <li class="{{ $item('admin.tenants.*') }}"><a href="{{ route('admin.tenants.index') }}"><div class="parent-icon"><i class="bx bx-buildings"></i></div><div class="menu-title">Clientes</div></a></li>
-                <li class="{{ $item('admin.health*') }}"><a href="{{ route('admin.health') }}"><div class="parent-icon"><i class="bx bx-pulse"></i></div><div class="menu-title">Saúde do sistema</div></a></li>
-                <li class="{{ $item('admin.sealing*') }}"><a href="{{ route('admin.sealing') }}"><div class="parent-icon"><i class="bx bx-shield-quarter"></i></div><div class="menu-title">Selagem do PDF</div></a></li>
-                <li class="{{ $item('admin.mail*') }}"><a href="{{ route('admin.mail') }}"><div class="parent-icon"><i class="bx bx-envelope"></i></div><div class="menu-title">E-mail (SMTP)</div></a></li>
-                <li class="{{ $item('admin.settings*') }}"><a href="{{ route('admin.settings') }}"><div class="parent-icon"><i class="bx bx-cog"></i></div><div class="menu-title">Configurações</div></a></li>
-            @endif
-        </ul>
+        @include('layouts.partials.sidebar')
     </div>
 
     <header>
@@ -46,6 +26,7 @@
                 <div class="mobile-toggle-menu"><i class="bx bx-menu"></i></div>
                 <div class="top-menu ms-auto">
                     <ul class="navbar-nav align-items-center gap-1">
+                        <li class="nav-item d-none d-sm-flex me-2"><a class="btn btn-primary" href="{{ route('envelopes.create') }}"><i class="bx bx-plus"></i> Criar documento</a></li>
                         <li class="nav-item dark-mode d-none d-sm-flex"><a class="nav-link dark-mode-icon" href="javascript:;" title="Tema claro/escuro"><i class="bx bx-moon"></i></a></li>
                     </ul>
                 </div>

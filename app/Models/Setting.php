@@ -24,6 +24,14 @@ class Setting extends Model
         self::query()->updateOrCreate(['key' => $key], ['value' => $value]);
     }
 
+    /** Link da Central de ajuda configurado pelo administrador (null = não mostrar). */
+    public static function helpUrl(): ?string
+    {
+        $url = trim((string) self::get('help_url', ''));
+
+        return $url === '' ? null : $url;
+    }
+
     public static function registrationOpen(): bool
     {
         return self::get('registration_open', '1') === '1';
