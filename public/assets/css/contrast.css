@@ -110,3 +110,22 @@ html .badge.bg-info { background-color: #0dcaf0 !important; color: #052c33 !impo
 html .badge.bg-light { background-color: #e9ecef !important; color: #1a1a1a !important; }
 html .btn-danger { background-color: #b02a37; border-color: #b02a37; color: #ffffff; font-weight: 600; }
 html .btn-danger:hover, html .btn-danger:focus { background-color: #8e1f2b !important; border-color: #8e1f2b !important; color: #ffffff !important; }
+
+/* Avisos (alertas) no tema escuro: texto claro sobre fundo escuro tingido */
+html.dark-theme .alert { font-weight: 600; }
+html.dark-theme .alert-success { background-color: #0f2e1f !important; color: #a3e4c1 !important; }
+html.dark-theme .alert-danger { background-color: #3a1014 !important; color: #f5b8bf !important; }
+html.dark-theme .alert-warning { background-color: #352900 !important; color: #ffe08a !important; }
+html.dark-theme .alert-info, html.dark-theme .alert-primary { background-color: #062c45 !important; color: #9fd3ff !important; }
+html.dark-theme .alert-secondary { background-color: #2a2d31 !important; color: #e2e5e8 !important; }
+html.dark-theme .alert a { color: inherit; text-decoration: underline; }
+html.dark-theme .alert .btn-close { filter: invert(1) grayscale(100%) brightness(200%); opacity: .8; }
+
+/* Telas de entrada/cadastro/convite no tema escuro: o painel da direita era sempre branco */
+html.dark-theme .auth-cover-right { background-color: #161a1d; }
+html.dark-theme .auth-cover-left { background-color: #0f1316; }
+html.dark-theme .auth-cover-right p, html.dark-theme .auth-cover-right .form-text { color: #c9cdd2 !important; }
+
+/* Botão contornado cinza no tema claro: 4,4:1 → texto e borda mais escuros */
+html:not(.dark-theme) .btn-outline-secondary { color: #474e55; border-color: #474e55; }
+html:not(.dark-theme) .btn-outline-secondary:hover, html:not(.dark-theme) .btn-outline-secondary:focus { background-color: #474e55; border-color: #474e55; color: #fff; }

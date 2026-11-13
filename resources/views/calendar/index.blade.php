@@ -13,7 +13,7 @@
                 <a class="btn btn-outline-secondary drive-tap" href="{{ route('calendar.index', ['view' => $view, 'date' => $prev]) }}" aria-label="Anterior"><i class="bx bx-chevron-left"></i></a>
                 <a class="btn btn-outline-secondary drive-tap" href="{{ route('calendar.index', ['view' => $view]) }}">Hoje</a>
                 <a class="btn btn-outline-secondary drive-tap" href="{{ route('calendar.index', ['view' => $view, 'date' => $next]) }}" aria-label="Próximo"><i class="bx bx-chevron-right"></i></a>
-                <h5 class="mb-0 ms-1 text-capitalize">{{ $title }}</h5>
+                <h5 class="mb-0 ms-1">{{ $title }}</h5>
             </div>
             <div class="btn-group" role="group" aria-label="Visualização">
                 <a class="btn drive-tap {{ $view === 'month' ? 'btn-primary' : 'btn-outline-primary' }}" href="{{ route('calendar.index', ['view' => 'month', 'date' => $anchor]) }}" @if ($view === 'month') aria-current="page" @endif>Mês</a>
@@ -48,7 +48,8 @@
             @foreach ($days as $d)
                 @if ($d['events'] !== [] && $d['in_range'])
                     <div class="cal-list-day {{ $d['today'] ? 'is-today' : '' }}">
-                        <div class="fw-bold mb-1 text-capitalize">{{ $d['date']->locale('pt_BR')->translatedFormat('l, j \d\e F') }}@if ($d['today']) <span class="badge bg-primary">Hoje</span>@endif</div>
+                        @php($label = $d['date']->locale('pt_BR')->translatedFormat('l, j \d\e F'))
+                        <div class="fw-bold mb-1">{{ mb_strtoupper(mb_substr($label, 0, 1)).mb_substr($label, 1) }}@if ($d['today']) <span class="badge bg-primary">Hoje</span>@endif</div>
                         @foreach ($d['events'] as $ev)
                             <a class="cal-ev cal-{{ $ev['type'] }} drive-tap" href="{{ route('envelopes.show', $ev['envelope_id']) }}"><strong>{{ $types[$ev['type']] }}:</strong>&nbsp;{{ $ev['title'] }}</a>
                         @endforeach

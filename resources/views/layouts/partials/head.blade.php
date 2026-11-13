@@ -14,8 +14,8 @@
 <link href="{{ asset('assets/css/icons.css') }}" rel="stylesheet">
 <link rel="stylesheet" href="{{ asset('assets/css/dark-theme.css') }}">
 <link rel="stylesheet" href="{{ asset('assets/css/semi-dark.css') }}">
-<link rel="stylesheet" href="{{ asset('assets/css/contrast.css') }}?v=5">
-<link rel="stylesheet" href="{{ asset('assets/css/drive.css') }}?v=4">
+<link rel="stylesheet" href="{{ asset('assets/css/contrast.css') }}?v=8">
+<link rel="stylesheet" href="{{ asset('assets/css/drive.css') }}?v=10">
 <style>
     .brand-badge{width:38px;height:38px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:22px;background:linear-gradient(135deg,#6078ea,#17c5ea)}
     .mono{font-family:ui-monospace,Consolas,monospace;font-size:.82rem;word-break:break-all}

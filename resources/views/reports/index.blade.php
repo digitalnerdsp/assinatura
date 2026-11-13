@@ -13,15 +13,15 @@
 <div class="card radius-10">
     <div class="card-body">
         <form method="get" action="{{ route('reports.index') }}" class="row g-2 align-items-end">
-            <div class="col-6 col-md-2"><label class="form-label" for="r-from">De</label><input type="date" class="form-control" id="r-from" name="from" value="{{ $filters['from'] ?? '' }}"></div>
-            <div class="col-6 col-md-2"><label class="form-label" for="r-to">Até</label><input type="date" class="form-control" id="r-to" name="to" value="{{ $filters['to'] ?? '' }}"></div>
-            <div class="col-12 col-md-2"><label class="form-label" for="r-folder">Pasta</label>
+            <div class="col-6 col-lg-2"><label class="form-label" for="r-from">De</label><input type="date" class="form-control" id="r-from" name="from" value="{{ $filters['from'] ?? '' }}"></div>
+            <div class="col-6 col-lg-2"><label class="form-label" for="r-to">Até</label><input type="date" class="form-control" id="r-to" name="to" value="{{ $filters['to'] ?? '' }}"></div>
+            <div class="col-12 col-sm-6 col-lg-2"><label class="form-label" for="r-folder">Pasta</label>
                 <select class="form-select" id="r-folder" name="folder"><option value="">Todas</option>@foreach ($folderPaths as $id => $path)<option value="{{ $id }}" @selected(($filters['folder'] ?? '') === $id)>{{ $path }}</option>@endforeach</select></div>
-            <div class="col-6 col-md-2"><label class="form-label" for="r-tag">Etiqueta</label>
+            <div class="col-6 col-lg-2"><label class="form-label" for="r-tag">Etiqueta</label>
                 <select class="form-select" id="r-tag" name="tag"><option value="">Todas</option>@foreach ($tags as $t)<option value="{{ $t->id }}" @selected(($filters['tag'] ?? '') === $t->id)>{{ $t->name }}</option>@endforeach</select></div>
-            <div class="col-6 col-md-2"><label class="form-label" for="r-template">Modelo</label>
+            <div class="col-6 col-lg-2"><label class="form-label" for="r-template">Modelo</label>
                 <select class="form-select" id="r-template" name="template"><option value="">Todos</option>@foreach ($templates as $tp)<option value="{{ $tp->id }}" @selected(($filters['template'] ?? '') === $tp->id)>{{ $tp->name }}</option>@endforeach</select></div>
-            <div class="col-12 col-md-2"><label class="form-label" for="r-signer">E-mail do signatário</label><input type="email" class="form-control" id="r-signer" name="signer" value="{{ $filters['signer'] ?? '' }}"></div>
+            <div class="col-12 col-sm-6 col-lg-2"><label class="form-label" for="r-signer">E-mail do signatário</label><input type="email" class="form-control" id="r-signer" name="signer" value="{{ $filters['signer'] ?? '' }}"></div>
             <div class="col-12 d-flex gap-2">
                 <button class="btn btn-primary drive-tap"><i class="bx bx-filter-alt"></i> Aplicar</button>
                 @if ($filters)<a class="btn btn-outline-secondary drive-tap" href="{{ route('reports.index') }}">Limpar</a>@endif
@@ -70,7 +70,7 @@
             <p class="text-secondary mb-0">Nenhum documento com esses filtros.</p>
         @else
             <div class="table-responsive">
-                <table class="table align-middle mb-0 drive-docs">
+                <table class="table align-middle mb-0 drive-docs drive-docs-md">
                     <thead class="table-light"><tr><th>Título</th><th>Situação</th><th>Criado em</th><th>Concluído em</th><th>Tempo</th><th>Pasta</th></tr></thead>
                     <tbody>
                     @foreach ($rows as $e)

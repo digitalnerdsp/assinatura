@@ -84,7 +84,7 @@ it('a tela do mês e da semana mostra os eventos com link para o documento', fun
     $e = calDoc($user->tenant, 'draft', ['title' => 'Contrato Mensal', 'created_at' => CarbonImmutable::parse('2026-11-03 10:00', 'America/Sao_Paulo')]);
     calDoc($user->tenant, 'draft', ['title' => 'Outra Semana', 'created_at' => CarbonImmutable::parse('2026-11-25 10:00', 'America/Sao_Paulo')]);
 
-    $this->get('/calendario')->assertOk()->assertSee('novembro de 2026')
+    $this->get('/calendario')->assertOk()->assertSee('Novembro de 2026')
         ->assertSee('Contrato Mensal')->assertSee('Outra Semana')->assertSee(route('envelopes.show', $e), false);
 
     $this->get('/calendario?view=week&date=2026-11-03')->assertOk()
@@ -95,6 +95,6 @@ it('a tela do mês e da semana mostra os eventos com link para o documento', fun
 it('parâmetros inválidos caem no mês atual sem erro', function () {
     calUser();
 
-    $this->get('/calendario?view=ano&date=ontem')->assertOk()->assertSee('novembro de 2026')
+    $this->get('/calendario?view=ano&date=ontem')->assertOk()->assertSee('Novembro de 2026')
         ->assertViewHas('view', 'month');
 });

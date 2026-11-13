@@ -56,9 +56,9 @@
 
     <div class="page-wrapper">
         <div class="page-content">
-            <div class="page-breadcrumb d-none d-sm-flex align-items-center mb-3">
+            <div class="page-breadcrumb d-flex flex-wrap align-items-center gap-2 mb-3">
                 <div class="breadcrumb-title pe-3">@yield('section', 'Assinaturas')</div>
-                <div class="ps-3">
+                <div class="ps-3 d-none d-sm-block">
                     <nav aria-label="breadcrumb">
                         <ol class="breadcrumb mb-0 p-0">
                             <li class="breadcrumb-item"><a href="{{ route('dashboard') }}"><i class="bx bx-home-alt"></i></a></li>

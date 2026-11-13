@@ -56,7 +56,7 @@ final class CalendarController extends Controller
 
         return view('calendar.index', [
             'view' => $view,
-            'title' => $title,
+            'title' => mb_strtoupper(mb_substr($title, 0, 1)).mb_substr($title, 1),
             'days' => $days,
             'anchor' => $date->format('Y-m-d'),
             'prev' => $prev->format('Y-m-d'),

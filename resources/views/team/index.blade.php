@@ -22,8 +22,9 @@
                         <td data-label="Perfil">{{ $m->role === 'owner' ? 'Responsável' : 'Membro' }}</td>
                         <td data-label="Situação"><span class="badge {{ $state[1] }}">{{ $state[0] }}</span></td>
                         @if ($isOwner)
-                            <td data-label="Ações" class="text-end">
-                                @if (! $m->is($me) && $m->role !== 'owner')
+                            @php($canAct = ! $m->is($me) && $m->role !== 'owner')
+                            <td data-label="Ações" class="text-end {{ $canAct ? '' : 'd-none d-sm-table-cell' }}">
+                                @if ($canAct)
                                     <div class="dropdown">
                                         <button type="button" class="btn btn-sm btn-outline-secondary drive-tap border-0" data-bs-toggle="dropdown" data-bs-popper-config='{{ $popper }}' aria-expanded="false" aria-label="Ações do usuário {{ $m->name }}"><i class="bx bx-dots-vertical-rounded"></i></button>
                                         <ul class="dropdown-menu dropdown-menu-end">

@@ -215,11 +215,19 @@ A escolha é feita por tenant (`tenant_signing_settings`): provedor, referência
 
 ## 14. Backlog priorizado (decidido em 09/11/2026)
 
+**Fase 2 entregue em 17/11/2026** (validada em 375 e 768 px, temas claro e escuro, contraste ≥ 4,5:1):
+- **Contatos:** cadastro com etiquetas, criação automática a partir dos signatários (nunca sobrescreve o que foi editado), sugestão ao digitar no formulário de criar documento, importar/exportar CSV (`;`, BOM, proteção contra fórmula) e API `/contacts`.
+- **Relatórios:** indicadores por situação, tempo médio do envio até a conclusão e faixas (< 30 min … 10 dias ou mais), filtros por período, pasta (com subpastas), etiqueta, modelo e signatário, exportação CSV; o Painel usa os mesmos números. Documentos gerados por modelo passam a gravar o modelo (os antigos ficam sem).
+- **Calendário:** mês e semana com prazo, criado, concluído e próximo lembrete previsto (fuso de São Paulo, sem lixeira); no celular vira lista por dia.
+- **Usuários** (Configurações): o responsável convida por e-mail (link de uso único por 7 dias), reenvia, desativa (a pessoa sai na hora e não entra mais), reativa e remove (os documentos ficam). Os demais só veem a lista.
+- Ajustes gerais: o cabeçalho com os botões da página aparece também no celular (antes sumia, escondendo por exemplo Importar/Exportar de Contatos); avisos e telas de entrada/convite legíveis no tema escuro; campos com 44 px em telas de toque.
+- Fora desta fase: feed ICS, compromissos manuais no calendário, papéis de usuário além de responsável/membro.
+
 **Fase 1c entregue em 16/11/2026, reorganizada em 17/11** (pastas com 3 níveis de subpasta abaixo da primária, etiquetas editáveis, ações por popups e menus ⋮ na página própria **Documentos › Pastas e etiquetas** com busca e filtros; **Documentos criados** voltou a ser a lista simples com pasta e etiquetas por linha, validadas em 375 e 768 px; apagar pasta manda para a lixeira o que pode e sobe o resto; API com `parent_id`, `PATCH` e `DELETE` com a regra).
 
 **Fase 1b entregue em 15/11/2026** (remetente que assina junto, sem selfie nem código, com "Minha assinatura" no perfil; testemunhas em lista à parte, que assinam por último e contam para concluir; assinatura da empresa pela API com representante, termo de delegação e permissão por chave; política da empresa `always` | `optional` | `never`, padrão `always`). Pendente: texto final do termo de delegação com o advogado; documentos gerados por modelo ainda sem testemunhas e sem remetente.
 
-**Fase 1 do menu entregue em 14/11/2026** (Roboto local, menu ZapSign com Documentos e Configurações, Minhas assinaturas, lixeira de 30 dias e arquivo, Central de ajuda configurável). Próximas: fase 2 (Contatos, Relatórios, Calendário, Usuários), fase 3 (planos e limites), fase 4 (cobrança), fase 5 (integração com a hospedagem).
+**Fase 1 do menu entregue em 14/11/2026** (Roboto local, menu ZapSign com Documentos e Configurações, Minhas assinaturas, lixeira de 30 dias e arquivo, Central de ajuda configurável). Próximas: fase 3 (planos e limites), fase 4 (cobrança), fase 5 (integração com a hospedagem).
 
 **Entregue em 09/11/2026** (itens 2 e 4 da lista de ideias; ainda sem teste em produção): lembretes e expiração, webhooks, WhatsApp/SMS, modelos com variáveis,
 posição da assinatura no PDF, signatários em ordem, pastas/etiquetas/busca, painel de saúde, Sentry, backup, limite de PDF,
@@ -256,7 +264,8 @@ Referência interativa em `/api/docs` e especificação em `/api/v1/openapi.json
 - **Pastas e etiquetas:** `POST /folders` aceita `parent_id` (até 4 níveis); `PATCH /folders/{id}` renomeia e move; `DELETE /folders/{id}` responde `{trashed,kept,folders}` (rascunho/cancelado/expirado vão para a lixeira, o resto sobe para a pasta pai); `PATCH /tags/{id}`; o filtro `folder_id` da lista inclui subpastas.
 - **Signatários:** reenviar aviso e gerar novo link. `role` aceita `signer` ou `witness` (testemunha); a resposta traz `is_sender` e `signed_via`.
 - **Assinatura da empresa:** `sender_signs` no `POST /envelopes`; com a política `always` (padrão) exige chave com a permissão `can_sign_as_company`, representante cadastrado e termo de delegação aceito, senão **422** (`sender_signature_not_allowed` ou `no_company_representative`) e nada é criado. A assinatura é aplicada no envio (`send: true` ou `POST /envelopes/{id}/send`); `signature_fields[].signer` aceita `"sender"`.
-- **Modelos:** CRUD e geração de envelope com variáveis.
+- **Modelos:** CRUD e geração de envelope com variáveis (o envelope guarda o modelo de origem).
+- **Contatos:** `GET /contacts` (busca `q`, paginação `per_page`), `POST`, `GET/PATCH/DELETE /contacts/{id}`; e-mail único por empresa, sem diferenciar maiúsculas.
 - **Webhooks:** CRUD, ativar/desativar, teste (`ping`) e histórico de entregas.
 - **Pastas e etiquetas:** listar, criar e remover.
 - **Verificação pública:** `GET /verify/{codigo}` sem chave, com conferência opcional de hash.
