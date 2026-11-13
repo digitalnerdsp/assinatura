@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     @include('layouts.partials.head')
-    <title>@yield('title', 'Painel') · {{ config('app.name') }}</title>
+    <title>@yield('title', 'Painel') · {{ \App\Branding\BrandService::forRequest(request())['name'] }}</title>
 </head>
 <body>
 @php
@@ -13,8 +13,8 @@
 <div class="wrapper">
     <div class="sidebar-wrapper" data-simplebar="true">
         <div class="sidebar-header">
-            <div><span class="brand-badge"><i class="bx bx-pen"></i></span></div>
-            <div><h4 class="logo-text">{{ config('app.name') }}</h4></div>
+            <div>@include('layouts.partials.brand-mark')</div>
+            <div><h4 class="logo-text">{{ \App\Branding\BrandService::forRequest(request())['name'] }}</h4></div>
             <div class="toggle-icon ms-auto"><i class="bx bx-arrow-back"></i></div>
         </div>
         @include('layouts.partials.sidebar')

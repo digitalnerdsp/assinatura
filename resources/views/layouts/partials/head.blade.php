@@ -33,6 +33,10 @@
     html.dark-theme .steps-wizard li.current{border-color:#4d8dff;box-shadow:inset 0 0 0 1px #4d8dff}
     html.dark-theme iframe.pdf{border-color:rgba(255,255,255,.2)}
 </style>
+@php($__brandHead = \App\Branding\BrandService::forRequest(request()))
+@if ($__brandHead['active'] && ($__brandCss = \App\Branding\BrandService::css($__brandHead)) !== '')
+<style id="brand-style">{!! $__brandCss !!}</style>
+@endif
 <script>
     // Restaura o tema escolhido (claro/escuro) antes de pintar a página.
     try { if (localStorage.getItem('theme') === 'dark') document.documentElement.className = 'dark-theme'; } catch (e) {}

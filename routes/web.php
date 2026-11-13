@@ -16,6 +16,9 @@ Route::middleware('guest')->group(function () {
     Route::post('/cadastro', [AuthController::class, 'register'])->middleware('throttle:10,1,auth');
 });
 
+// Logo da empresa (público: aparece na página de assinatura); só com o recurso no plano
+Route::get('/marca/{tenant}/logo', [\App\Http\Controllers\Web\BrandController::class, 'logo'])->whereUuid('tenant')->middleware('throttle:120,1,brand-logo')->name('brand.logo');
+
 // Convite de usuário (público; o token é a credencial)
 Route::get('/convite/{token}', [\App\Http\Controllers\Web\InviteController::class, 'show'])->middleware('throttle:30,1,invite')->name('invite.show');
 Route::post('/convite/{token}', [\App\Http\Controllers\Web\InviteController::class, 'accept'])->middleware('throttle:10,1,invite-accept')->name('invite.accept');
@@ -103,6 +106,10 @@ Route::middleware(['auth', 'tenant.active'])->group(function () {
     Route::post('/configuracoes/usuarios/{user}/desativar', [\App\Http\Controllers\Web\TeamController::class, 'deactivate'])->name('team.deactivate');
     Route::post('/configuracoes/usuarios/{user}/reativar', [\App\Http\Controllers\Web\TeamController::class, 'reactivate'])->name('team.reactivate');
     Route::delete('/configuracoes/usuarios/{user}', [\App\Http\Controllers\Web\TeamController::class, 'destroy'])->name('team.destroy');
+
+    Route::get('/configuracoes/marca', [\App\Http\Controllers\Web\BrandController::class, 'edit'])->name('brand.edit');
+    Route::put('/configuracoes/marca', [\App\Http\Controllers\Web\BrandController::class, 'update'])->middleware('throttle:20,1,brand')->name('brand.update');
+    Route::delete('/configuracoes/marca', [\App\Http\Controllers\Web\BrandController::class, 'reset'])->name('brand.reset');
 
     Route::get('/calendario', [\App\Http\Controllers\Web\CalendarController::class, 'index'])->name('calendar.index');
     Route::get('/relatorios', [\App\Http\Controllers\Web\ReportController::class, 'index'])->middleware('feature:reports')->name('reports.index');

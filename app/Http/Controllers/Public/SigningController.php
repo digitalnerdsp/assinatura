@@ -52,6 +52,8 @@ final class SigningController extends Controller
         }
         $steps[] = ['key' => 'sign', 'label' => 'Assinar', 'done' => false];
 
+        \App\Branding\BrandService::useTenant(request(), $envelope->tenant);
+
         return view('sign.show', [
             'signer' => $signer,
             'envelope' => $envelope,
@@ -174,6 +176,8 @@ final class SigningController extends Controller
                 RequestContext::fromRequest($request),
             );
 
+            \App\Branding\BrandService::useTenant(request(), $signer->envelope->tenant);
+
             return view('sign.done', ['signer' => $signer, 'refused' => false]);
         });
     }
@@ -184,6 +188,8 @@ final class SigningController extends Controller
 
         return $this->guard($token, function (Signer $signer) use ($request, $data) {
             $this->signing->refuse($signer, $data['reason'], RequestContext::fromRequest($request));
+
+            \App\Branding\BrandService::useTenant(request(), $signer->envelope->tenant);
 
             return view('sign.done', ['signer' => $signer, 'refused' => true]);
         });

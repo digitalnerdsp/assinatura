@@ -4,7 +4,7 @@
     $isSuper = $user->isSuperAdmin();
     $item = fn (string ...$patterns) => request()->routeIs(...$patterns) ? 'mm-active' : '';
     $docsOpen = request()->routeIs('envelopes.*', 'documents.*');
-    $cfgOpen = request()->routeIs('profile.*', 'company.*', 'api-keys.*', 'webhooks.*', 'team.*');
+    $cfgOpen = request()->routeIs('profile.*', 'company.*', 'api-keys.*', 'webhooks.*', 'team.*', 'brand.*');
     $helpUrl = \App\Models\Setting::helpUrl();
 @endphp
 <ul class="metismenu" id="menu">
@@ -35,6 +35,7 @@
             <li class="{{ $item('company.*') }}"><a href="{{ route('company.signing.edit') }}"><i class="bx bx-right-arrow-alt"></i>Assinatura da empresa</a></li>
             <li class="{{ $item('team.*') }}"><a href="{{ route('team.index') }}"><i class="bx bx-right-arrow-alt"></i>Usuários</a></li>
             @if ($user->role === 'owner')
+            <li class="{{ $item('brand.*') }}"><a href="{{ route('brand.edit') }}"><i class="bx bx-right-arrow-alt"></i>Marca própria</a></li>
             <li class="{{ $item('api-keys.*') }}"><a href="{{ route('api-keys.index') }}"><i class="bx bx-right-arrow-alt"></i>API</a></li>
             <li class="{{ $item('webhooks.*') }}"><a href="{{ route('webhooks.index') }}"><i class="bx bx-right-arrow-alt"></i>Webhooks</a></li>
             @endif
