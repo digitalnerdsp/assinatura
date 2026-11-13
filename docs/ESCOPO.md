@@ -215,6 +215,8 @@ A escolha é feita por tenant (`tenant_signing_settings`): provedor, referência
 
 ## 14. Backlog priorizado (decidido em 09/11/2026)
 
+**Fase 1 do menu entregue em 14/11/2026** (Roboto local, menu ZapSign com Documentos e Configurações, Minhas assinaturas, lixeira de 30 dias e arquivo, Central de ajuda configurável). Próximas: fase 2 (Contatos, Relatórios, Calendário, Usuários), fase 3 (planos e limites), fase 4 (cobrança), fase 5 (integração com a hospedagem).
+
 **Entregue em 09/11/2026** (itens 2 e 4 da lista de ideias; ainda sem teste em produção): lembretes e expiração, webhooks, WhatsApp/SMS, modelos com variáveis,
 posição da assinatura no PDF, signatários em ordem, pastas/etiquetas/busca, painel de saúde, Sentry, backup, limite de PDF,
 teste de carga, repositório privado.
