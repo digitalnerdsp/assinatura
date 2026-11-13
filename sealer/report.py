@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import base64
 import io
+import re
 from xml.sax.saxutils import escape
 
 import qrcode
@@ -164,6 +165,46 @@ def _kv_table(rows: list[tuple[str, object, bool]], st: dict[str, ParagraphStyle
     return t
 
 
+def _brand(report: dict) -> dict:
+    """Marca da empresa (nome, cor #rrggbb e logo PNG em base64), tudo opcional e validado: qualquer coisa estranha é ignorada."""
+    b = report.get("brand")
+    if not isinstance(b, dict):
+        return {}
+    color = b.get("color")
+    return {
+        "name": str(b["name"])[:60] if isinstance(b.get("name"), str) and b["name"].strip() else None,
+        "color": color if isinstance(color, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", color) else None,
+        "logo": b.get("logo") if isinstance(b.get("logo"), str) else None,
+    }
+
+
+def _draw_brand(c: canvas.Canvas, brand: dict, first_page: bool) -> None:
+    """Faixa colorida no topo de toda página do relatório e, na primeira, logo + nome da marca à esquerda."""
+    try:
+        if brand.get("color"):
+            c.setFillColor(colors.HexColor(brand["color"]))
+            c.rect(0, A4[1] - 4, A4[0], 4, stroke=0, fill=1)
+        if not first_page:
+            return
+        x = 40.0
+        if brand.get("logo"):
+            try:
+                img = ImageReader(io.BytesIO(base64.b64decode(brand["logo"], validate=True)))
+                iw, ih = img.getSize()
+                h = min(26.0, 120.0 * ih / iw)
+                w = h * iw / ih
+                c.drawImage(img, x, A4[1] - 36, width=w, height=h, mask="auto")
+                x += w + 8
+            except Exception:  # logo ilegível: segue sem ele
+                pass
+        if brand.get("name"):
+            c.setFont("Helvetica-Bold", 9)
+            c.setFillColor(GREY)
+            c.drawString(x, A4[1] - 26, brand["name"])
+    except Exception:  # a marca é enfeite: nunca pode impedir a selagem
+        pass
+
+
 def _report_pdf(report: dict) -> bytes:
     st = _styles()
     buf = io.BytesIO()
@@ -172,6 +213,7 @@ def _report_pdf(report: dict) -> bytes:
         title="Relatorio de assinaturas", author=str(report.get("tenant", "")),
     )
     el: list = []
+    brand = _brand(report)
 
     el.append(Paragraph("Relatório de assinaturas", st["title"]))
     el.append(Paragraph(escape(str(report.get("title", ""))), st["sub"]))
@@ -238,6 +280,7 @@ def _report_pdf(report: dict) -> bytes:
         c.setFont("Helvetica", 7)
         c.setFillColor(GREY)
         c.drawRightString(A4[0] - 40, A4[1] - 24, f"Relatório de assinaturas  |  página {c.getPageNumber()}")
+        _draw_brand(c, brand, first_page=c.getPageNumber() == 1)
 
     def on_first_page(c, d):
         on_page(c, d)

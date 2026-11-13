@@ -22,6 +22,6 @@ final class SignatureRequestedMail extends Mailable
 
     public function content(): Content
     {
-        return new Content(view: 'mail.signature-requested');
+        return new Content(view: 'mail.signature-requested', with: ['brand' => app(\App\Branding\BrandService::class)->for($this->signer->envelope?->tenant)]);
     }
 }

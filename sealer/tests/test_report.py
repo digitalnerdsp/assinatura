@@ -151,3 +151,30 @@ def test_report_shows_how_the_company_signed(client):
     text = "".join(p.extract_text() for p in reader.pages[1:])
 
     assert "Assinado via integração (chave de API)" in text
+
+
+PIXEL = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+
+
+def _report_text(r):
+    reader = PdfReader(io.BytesIO(base64.b64decode(r.json()["pdf_base64"])))
+    return "".join(p.extract_text() for p in reader.pages)
+
+
+def test_brand_name_color_and_logo_in_report_header(client):
+    r = seal(client, pdf_pages([A4]), {**REPORT, "brand": {"name": "Marca Exemplo", "color": "#0b3d91", "logo": PIXEL}})
+    assert r.status_code == 200, r.text
+    text = _report_text(r)
+    assert "Marca Exemplo" in text and "ACME Ltda" in text  # "Emitido por" segue sendo a razão social
+
+
+def test_brand_with_corrupt_logo_or_bad_color_never_breaks_sealing(client):
+    for brand in ({"name": "Marca", "color": "#0b3d91", "logo": "nao-e-imagem"}, {"name": "Marca", "color": "vermelho; evil", "logo": None}, {"color": None}, "texto", {}):
+        r = seal(client, pdf_pages([A4]), {**REPORT, "brand": brand})
+        assert r.status_code == 200, (brand, r.text)
+        assert "Relatório de assinaturas" in _report_text(r)
+
+
+def test_report_without_brand_is_unchanged(client):
+    r = seal(client, pdf_pages([A4]), {**REPORT, "brand": None})
+    assert r.status_code == 200 and "Marca Exemplo" not in _report_text(r)

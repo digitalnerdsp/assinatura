@@ -24,10 +24,10 @@ final class BrandService
     private const BOX = [400, 160];
 
     /** @return array{active:bool,name:string,logo_url:?string,primary:?string,accent:?string} */
-    public function for(Tenant $tenant): array
+    public function for(?Tenant $tenant): array
     {
         $default = ['active' => false, 'name' => (string) config('app.name'), 'logo_url' => null, 'primary' => null, 'accent' => null];
-        if (! Entitlements::for($tenant)->feature('white_label')) {
+        if ($tenant === null || ! Entitlements::for($tenant)->feature('white_label')) {
             return $default;
         }
 

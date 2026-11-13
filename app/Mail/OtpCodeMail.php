@@ -22,6 +22,6 @@ final class OtpCodeMail extends Mailable
 
     public function content(): Content
     {
-        return new Content(view: 'mail.otp');
+        return new Content(view: 'mail.otp', with: ['brand' => app(\App\Branding\BrandService::class)->for($this->signer->envelope?->tenant)]);
     }
 }

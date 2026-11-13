@@ -52,7 +52,29 @@ final class ReportBuilder
                 ->map(fn (Signer $s) => $this->signer($s, $events))->values()->all(),
             'events' => $this->events($envelope, $events),
             'placements' => $this->placements($envelope),
+            'brand' => $this->brand($envelope),
         ];
+    }
+
+    /** Marca da empresa para o cabeçalho do relatório; null quando não tem marca ativa. Falha de leitura do logo nunca atrapalha. */
+    private function brand(Envelope $envelope): ?array
+    {
+        $tenant = $envelope->tenant;
+        $service = app(\App\Branding\BrandService::class);
+        $brand = $service->for($tenant);
+        if (! $brand['active']) {
+            return null;
+        }
+
+        $logo = null;
+        try {
+            $path = $service->publicLogoPath($tenant);
+            $logo = $path ? base64_encode(\Illuminate\Support\Facades\Storage::disk('local')->get($path)) : null;
+        } catch (\Throwable) {
+            $logo = null;
+        }
+
+        return ['name' => $brand['name'], 'color' => $brand['primary'], 'logo' => $logo];
     }
 
     /**
