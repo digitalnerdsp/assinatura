@@ -62,9 +62,7 @@ final class EnvelopeService
         if (strlen($pdfContents) > (int) config('signing.max_pdf_mb') * 1024 * 1024) {
             throw FlowException::because('document_too_large', 'O PDF excede o limite de '.config('signing.max_pdf_mb').' MB.');
         }
-        if ($signers === []) {
-            throw FlowException::because('no_signers', 'Informe ao menos um signatário.');
-        }
+        $this->assertParticipants($signers);
 
         $validity = max(1, min(365, (int) ($options['validity_days'] ?? config('signing.default_validity_days'))));
         $reminder = array_key_exists('reminder_every_days', $options)
@@ -121,14 +119,20 @@ final class EnvelopeService
             }
 
             $created = [];
+            $lastSignerPosition = collect(array_values($signers))
+                ->map(fn ($s, $i) => ($s['role'] ?? 'signer') === 'signer' ? (int) ($s['position'] ?? $i + 1) : 0)
+                ->max() ?: 1;
+
             foreach (array_values($signers) as $i => $signer) {
+                $role = $signer['role'] ?? 'signer';
                 $created[$i] = $envelope->signers()->create([
                     'name' => $signer['name'],
                     'email' => mb_strtolower($signer['email']),
                     'phone' => $signer['phone'] ?? null,
                     'cpf' => $signer['cpf'] ?? null,
-                    'role' => $signer['role'] ?? 'signer',
-                    'position' => $signer['position'] ?? $i + 1,
+                    'role' => $role,
+                    // testemunhas formam o último grupo: depois de todos os signatários
+                    'position' => $signer['position'] ?? ($role === 'witness' ? $lastSignerPosition + 1 : $i + 1),
                     'status' => SignerStatus::Pending,
                 ]);
             }
@@ -157,6 +161,26 @@ final class EnvelopeService
 
             return $envelope;
         });
+    }
+
+    /** Papéis aceitos, limite de testemunhas e ao menos um signatário. @param list<array<string,mixed>> $signers */
+    private function assertParticipants(array $signers): void
+    {
+        $roles = array_map(fn ($s) => $s['role'] ?? 'signer', $signers);
+
+        foreach ($roles as $role) {
+            if (! in_array($role, Envelope::PARTICIPANT_ROLES, true)) {
+                throw FlowException::because('invalid_role', 'Papel inválido: use signer ou witness.');
+            }
+        }
+
+        if (count(array_filter($roles, fn ($r) => $r === 'witness')) > (int) config('signing.max_witnesses')) {
+            throw FlowException::because('too_many_witnesses', 'Limite de '.config('signing.max_witnesses').' testemunhas por documento.');
+        }
+
+        if (! in_array('signer', $roles, true)) {
+            throw FlowException::because('no_signers', 'Informe ao menos um signatário.');
+        }
     }
 
     /**

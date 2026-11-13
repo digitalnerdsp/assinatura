@@ -100,7 +100,7 @@ class Envelope extends Model
      */
     public function activeSigners(): Collection
     {
-        $open = $this->signers()->where('role', 'signer')
+        $open = $this->signers()->whereIn('role', self::PARTICIPANT_ROLES)
             ->whereNotIn('status', [SignerStatus::Signed->value, SignerStatus::Refused->value])
             ->get();
 

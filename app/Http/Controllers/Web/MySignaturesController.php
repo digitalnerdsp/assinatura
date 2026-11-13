@@ -22,7 +22,7 @@ final class MySignaturesController extends Controller
         $user = $request->user();
 
         $signers = Signer::query()
-            ->where('role', 'signer')
+            ->whereIn('role', \App\Models\Envelope::PARTICIPANT_ROLES)
             ->whereRaw('LOWER(email) = ?', [mb_strtolower($user->email)])
             ->whereHas('envelope', fn ($q) => $q
                 ->where('tenant_id', $user->tenant_id)

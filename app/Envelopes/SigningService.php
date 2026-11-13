@@ -168,7 +168,7 @@ final class SigningService
                 'signature_sha256' => hash('sha256', $data),
             ], $fresh, $context);
 
-            $pending = $envelope->signers()->where('role', 'signer')->where('status', '!=', SignerStatus::Signed->value)->count();
+            $pending = $envelope->signers()->whereIn('role', Envelope::PARTICIPANT_ROLES)->where('status', '!=', SignerStatus::Signed->value)->count();
 
             if ($pending === 0) {
                 $envelope->update(['status' => EnvelopeStatus::Sealing]);
@@ -320,7 +320,7 @@ final class SigningService
         }
 
         $blocking = $envelope->signers()
-            ->where('role', 'signer')
+            ->whereIn('role', Envelope::PARTICIPANT_ROLES)
             ->where('position', '<', $signer->position)
             ->where('status', '!=', SignerStatus::Signed->value)
             ->exists();
