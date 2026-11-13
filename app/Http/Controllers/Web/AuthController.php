@@ -37,6 +37,7 @@ final class AuthController extends Controller
 
         $user = DB::transaction(function () use ($data) {
             $tenant = Tenant::query()->create(['name' => $data['company']]);
+            app(\App\Plans\PlanService::class)->assign($tenant, app(\App\Plans\PlanService::class)->defaultPlan());
 
             return User::query()->create([
                 'tenant_id' => $tenant->getKey(),

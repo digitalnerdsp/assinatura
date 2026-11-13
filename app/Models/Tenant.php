@@ -30,6 +30,11 @@ class Tenant extends Model
         return $this->hasMany(User::class);
     }
 
+    public function subscription(): HasOne
+    {
+        return $this->hasOne(Subscription::class);
+    }
+
     public function signingSetting(): HasOne
     {
         return $this->hasOne(TenantSigningSetting::class);
