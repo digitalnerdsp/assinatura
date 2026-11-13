@@ -144,6 +144,10 @@ final class TemplateController extends Controller
                 $this->notifier->inviteActive($envelope->fresh());
             }
         } catch (FlowException $e) {
+            if (\App\Plans\Decision::isPlanReason($e->reason)) {
+                return response()->json(['error' => 'plan_limit_reached', 'reason' => $e->reason, 'message' => $e->getMessage()], 403);
+            }
+
             return response()->json(['error' => $e->reason, 'message' => $e->getMessage()], 422);
         }
 

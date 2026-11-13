@@ -29,6 +29,7 @@ final class LifecycleService
 
         $envelope->update(['status' => EnvelopeStatus::Expired]);
         $this->evidence->record($envelope, 'envelope_expired', []);
+        app(\App\Plans\UsageLedger::class)->refund($envelope);
         $this->webhooks->dispatch($envelope, 'envelope.expired');
 
         return true;

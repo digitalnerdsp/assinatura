@@ -28,6 +28,10 @@ final class AuthenticateApiKey
             return response()->json(['error' => 'tenant_suspended', 'message' => 'Conta suspensa.'], 403);
         }
 
+        if (! \App\Plans\Entitlements::for($key->tenant)->feature('api')) {
+            return response()->json(['error' => 'feature_off', 'message' => 'Seu plano não inclui o acesso pela API. Fale com o suporte ou troque de plano.'], 403);
+        }
+
         // Chave somente leitura: só consulta (GET/HEAD).
         if ($key->read_only && ! in_array($request->method(), ['GET', 'HEAD'], true)) {
             return response()->json(['error' => 'read_only_key', 'message' => 'Esta chave é somente leitura.'], 403);

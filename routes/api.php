@@ -33,20 +33,20 @@ Route::prefix('v1')->middleware(['api.key', 'throttle:120,1'])->group(function (
     Route::post('envelopes/{id}/signers/{signer}/new-link', [EnvelopeController::class, 'newLink']);
 
     // Modelos
-    Route::get('templates', [TemplateController::class, 'index']);
-    Route::post('templates', [TemplateController::class, 'store']);
-    Route::get('templates/{id}', [TemplateController::class, 'show']);
-    Route::put('templates/{id}', [TemplateController::class, 'update']);
-    Route::delete('templates/{id}', [TemplateController::class, 'destroy']);
-    Route::post('templates/{id}/envelopes', [TemplateController::class, 'generate'])->middleware('idempotent');
+    Route::get('templates', [TemplateController::class, 'index'])->middleware('feature:templates');
+    Route::post('templates', [TemplateController::class, 'store'])->middleware('feature:templates');
+    Route::get('templates/{id}', [TemplateController::class, 'show'])->middleware('feature:templates');
+    Route::put('templates/{id}', [TemplateController::class, 'update'])->middleware('feature:templates');
+    Route::delete('templates/{id}', [TemplateController::class, 'destroy'])->middleware('feature:templates');
+    Route::post('templates/{id}/envelopes', [TemplateController::class, 'generate'])->middleware('feature:templates')->middleware('idempotent');
 
     // Webhooks
-    Route::get('webhooks', [WebhookController::class, 'index']);
-    Route::post('webhooks', [WebhookController::class, 'store']);
-    Route::patch('webhooks/{id}', [WebhookController::class, 'update']);
-    Route::delete('webhooks/{id}', [WebhookController::class, 'destroy']);
-    Route::post('webhooks/{id}/test', [WebhookController::class, 'test']);
-    Route::get('webhooks/{id}/deliveries', [WebhookController::class, 'deliveries']);
+    Route::get('webhooks', [WebhookController::class, 'index'])->middleware('feature:webhooks');
+    Route::post('webhooks', [WebhookController::class, 'store'])->middleware('feature:webhooks');
+    Route::patch('webhooks/{id}', [WebhookController::class, 'update'])->middleware('feature:webhooks');
+    Route::delete('webhooks/{id}', [WebhookController::class, 'destroy'])->middleware('feature:webhooks');
+    Route::post('webhooks/{id}/test', [WebhookController::class, 'test'])->middleware('feature:webhooks');
+    Route::get('webhooks/{id}/deliveries', [WebhookController::class, 'deliveries'])->middleware('feature:webhooks');
 
     // Pastas e etiquetas
     Route::get('folders', [OrganizationController::class, 'folders']);

@@ -25,6 +25,7 @@ final class TeamService
 
         return DB::transaction(function () use ($owner, $name, $email) {
             $this->purgeExpiredInvite($email);
+            \App\Plans\Entitlements::for($owner->tenant)->canInviteUser()->orFail();
             if (User::query()->whereRaw('lower(email) = ?', [$email])->lockForUpdate()->exists()) {
                 throw FlowException::because('email_taken', 'Este e-mail já tem uma conta.');
             }

@@ -17,7 +17,7 @@ final class OpenApiSpec
         $err = fn (string $desc) => ['description' => $desc, 'content' => ['application/json' => ['schema' => ['$ref' => '#/components/schemas/Error']]]];
         $body = fn (array $schema) => ['required' => true, 'content' => ['application/json' => ['schema' => $schema]]];
         $list = fn (string $schema) => $json(['type' => 'object', 'properties' => ['data' => ['type' => 'array', 'items' => ['$ref' => '#/components/schemas/'.$schema]]]]);
-        $common = ['401' => $err('Chave ausente, inválida ou revogada'), '403' => $err('Chave somente leitura ou conta suspensa'), '429' => $err('Limite de 120 requisições por minuto')];
+        $common = ['401' => $err('Chave ausente, inválida ou revogada'), '403' => $err('Chave somente leitura, conta suspensa, recurso fora do plano (feature_off) ou limite do plano (plan_limit_reached, com reason)'), '429' => $err('Limite de 120 requisições por minuto')];
         $idem = ['name' => 'Idempotency-Key', 'in' => 'header', 'required' => false, 'schema' => ['type' => 'string', 'maxLength' => 120],
             'description' => 'Repetir o POST com a mesma chave (e o mesmo conteúdo) devolve a resposta original, com o cabeçalho Idempotent-Replayed: true, em vez de criar outro. Vale por 24 h.'];
 
@@ -159,7 +159,7 @@ final class OpenApiSpec
                 'securitySchemes' => ['bearerAuth' => ['type' => 'http', 'scheme' => 'bearer', 'description' => 'Chave de API: sk_live_...']],
                 'schemas' => [
                     'Error' => ['type' => 'object', 'properties' => ['error' => ['type' => 'string', 'example' => 'validation_failed'], 'message' => ['type' => 'string'], 'errors' => ['type' => 'object', 'additionalProperties' => ['type' => 'array', 'items' => ['type' => 'string']]]]],
-                    'Me' => ['type' => 'object', 'properties' => ['api_version' => ['type' => 'string'], 'tenant' => ['type' => 'object'], 'key' => ['type' => 'object'], 'usage' => ['type' => 'object'], 'webhook_events' => ['type' => 'array', 'items' => ['type' => 'string']]]],
+                    'Me' => ['type' => 'object', 'properties' => ['api_version' => ['type' => 'string'], 'tenant' => ['type' => 'object'], 'key' => ['type' => 'object'], 'plan' => ['type' => 'object', 'description' => 'name, status (trialing|active|blocked|canceled), trial_ends_at, period_end'], 'usage' => ['type' => 'object', 'description' => 'documents {used,limit,credits}, users {used,limit}, storage {used_bytes,limit_bytes}; limit nulo = ilimitado'], 'webhook_events' => ['type' => 'array', 'items' => ['type' => 'string']]]],
                     'Signer' => ['type' => 'object', 'properties' => [
                         'id' => ['type' => 'string', 'format' => 'uuid'], 'name' => ['type' => 'string'], 'email' => ['type' => 'string'], 'phone' => ['type' => 'string', 'nullable' => true],
                         'role' => ['type' => 'string', 'enum' => ['signer', 'witness']], 'is_sender' => ['type' => 'boolean', 'description' => 'true para quem enviou (a empresa).'], 'signed_via' => ['type' => 'string', 'nullable' => true, 'enum' => ['link', 'session', 'api_key']], 'position' => ['type' => 'integer'], 'status' => ['type' => 'string', 'enum' => ['pending', 'viewed', 'signed', 'refused']],

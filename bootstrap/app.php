@@ -19,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'super.admin' => \App\Http\Middleware\EnsureSuperAdmin::class,
             'platform' => \App\Http\Middleware\EnsurePlatformAdmin::class,
             'owner' => \App\Http\Middleware\EnsureOwner::class,
+            'feature' => \App\Http\Middleware\EnsureFeature::class,
             'tenant.active' => \App\Http\Middleware\EnsureTenantActive::class,
             'idempotent' => \App\Http\Middleware\Idempotent::class,
         ]);

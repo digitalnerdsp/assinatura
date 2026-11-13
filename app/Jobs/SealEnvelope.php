@@ -69,6 +69,12 @@ final class SealEnvelope implements ShouldQueue
             'sealed_at' => $sealed->sealedAt,
         ]);
 
+        try {
+            app(\App\Plans\UsageLedger::class)->charge($envelope, 'complete'); // nunca impede a conclusão
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
         $evidence->record($envelope, 'envelope_sealed', [
             'provider' => $sealed->provider,
             'certificate_serial' => $sealed->certificate->serial,

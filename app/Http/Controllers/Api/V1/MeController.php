@@ -16,12 +16,19 @@ final class MeController extends Controller
     {
         $tenant = $request->attributes->get('tenant');
         $key = $request->attributes->get('api_key');
+        $ent = \App\Plans\Entitlements::for($tenant);
 
         return response()->json([
             'api_version' => 'v1',
             'tenant' => ['id' => $tenant->getKey(), 'name' => $tenant->name],
             'key' => ['name' => $key->name, 'prefix' => $key->prefix, 'read_only' => $key->read_only, 'can_sign_as_company' => $key->can_sign_as_company],
-            'usage' => [
+            'plan' => [
+                'name' => $ent->subscription()->plan->name,
+                'status' => $ent->subscription()->status,
+                'trial_ends_at' => $ent->subscription()->trial_ends_at?->toIso8601String(),
+                'period_end' => $ent->subscription()->period_end?->toIso8601String(),
+            ],
+            'usage' => $ent->usage() + [
                 'envelopes_sent_this_month' => Envelope::query()->where('tenant_id', $tenant->getKey())->where('sent_at', '>=', now()->startOfMonth())->count(),
                 'monthly_envelope_limit' => $tenant->monthly_envelope_limit,
                 'max_pdf_mb' => (int) config('signing.max_pdf_mb'),

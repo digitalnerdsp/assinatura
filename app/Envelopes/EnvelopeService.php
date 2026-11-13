@@ -227,6 +227,9 @@ final class EnvelopeService
             throw FlowException::because('tenant_suspended', 'Esta conta está suspensa. Entre em contato com o suporte.');
         }
 
+        // Limites do plano (documentos, teste vencido, assinatura bloqueada). A cobrança com trava vem logo abaixo.
+        \App\Plans\Entitlements::for($tenant)->canSendDocument()->orFail();
+
         if ($tenant->monthly_envelope_limit !== null) {
             $used = Envelope::query()->where('tenant_id', $tenant->getKey())->where('sent_at', '>=', now()->startOfMonth())->count();
             if ($used >= $tenant->monthly_envelope_limit) {
@@ -258,6 +261,7 @@ final class EnvelopeService
             ]);
 
             $this->evidence->record($envelope, 'envelope_sent', ['expires_at' => $envelope->expires_at?->toIso8601String()], null, $context);
+            app(\App\Plans\UsageLedger::class)->charge($envelope, 'send'); // sem saldo: lança e desfaz o envio
 
             return $tokens;
         });
@@ -328,6 +332,7 @@ final class EnvelopeService
 
         $envelope->update(['status' => EnvelopeStatus::Cancelled]);
         $this->evidence->record($envelope, 'envelope_cancelled', [], null, $context);
+        app(\App\Plans\UsageLedger::class)->refund($envelope);
         $this->webhooks->dispatch($envelope, 'envelope.cancelled');
     }
 }

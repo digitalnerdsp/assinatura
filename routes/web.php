@@ -105,25 +105,25 @@ Route::middleware(['auth', 'tenant.active'])->group(function () {
     Route::delete('/configuracoes/usuarios/{user}', [\App\Http\Controllers\Web\TeamController::class, 'destroy'])->name('team.destroy');
 
     Route::get('/calendario', [\App\Http\Controllers\Web\CalendarController::class, 'index'])->name('calendar.index');
-    Route::get('/relatorios', [\App\Http\Controllers\Web\ReportController::class, 'index'])->name('reports.index');
-    Route::get('/relatorios/exportar', [\App\Http\Controllers\Web\ReportController::class, 'export'])->middleware('throttle:20,1,reports-export')->name('reports.export');
+    Route::get('/relatorios', [\App\Http\Controllers\Web\ReportController::class, 'index'])->middleware('feature:reports')->name('reports.index');
+    Route::get('/relatorios/exportar', [\App\Http\Controllers\Web\ReportController::class, 'export'])->middleware('throttle:20,1,reports-export')->middleware('feature:reports')->name('reports.export');
 
-    Route::get('/modelos', [\App\Http\Controllers\Web\TemplateController::class, 'index'])->name('templates.index');
-    Route::get('/modelos/novo', [\App\Http\Controllers\Web\TemplateController::class, 'create'])->name('templates.create');
-    Route::post('/modelos', [\App\Http\Controllers\Web\TemplateController::class, 'store'])->name('templates.store');
-    Route::get('/modelos/{template}', [\App\Http\Controllers\Web\TemplateController::class, 'edit'])->name('templates.edit');
-    Route::put('/modelos/{template}', [\App\Http\Controllers\Web\TemplateController::class, 'update'])->name('templates.update');
-    Route::delete('/modelos/{template}', [\App\Http\Controllers\Web\TemplateController::class, 'destroy'])->name('templates.destroy');
-    Route::get('/modelos/{template}/previa', [\App\Http\Controllers\Web\TemplateController::class, 'preview'])->middleware('throttle:20,1,template-preview')->name('templates.preview');
-    Route::get('/modelos/{template}/usar', [\App\Http\Controllers\Web\TemplateController::class, 'use'])->name('templates.use');
-    Route::post('/modelos/{template}/usar', [\App\Http\Controllers\Web\TemplateController::class, 'generate'])->name('templates.generate');
+    Route::get('/modelos', [\App\Http\Controllers\Web\TemplateController::class, 'index'])->middleware('feature:templates')->name('templates.index');
+    Route::get('/modelos/novo', [\App\Http\Controllers\Web\TemplateController::class, 'create'])->middleware('feature:templates')->name('templates.create');
+    Route::post('/modelos', [\App\Http\Controllers\Web\TemplateController::class, 'store'])->middleware('feature:templates')->name('templates.store');
+    Route::get('/modelos/{template}', [\App\Http\Controllers\Web\TemplateController::class, 'edit'])->middleware('feature:templates')->name('templates.edit');
+    Route::put('/modelos/{template}', [\App\Http\Controllers\Web\TemplateController::class, 'update'])->middleware('feature:templates')->name('templates.update');
+    Route::delete('/modelos/{template}', [\App\Http\Controllers\Web\TemplateController::class, 'destroy'])->middleware('feature:templates')->name('templates.destroy');
+    Route::get('/modelos/{template}/previa', [\App\Http\Controllers\Web\TemplateController::class, 'preview'])->middleware('throttle:20,1,template-preview')->middleware('feature:templates')->name('templates.preview');
+    Route::get('/modelos/{template}/usar', [\App\Http\Controllers\Web\TemplateController::class, 'use'])->middleware('feature:templates')->name('templates.use');
+    Route::post('/modelos/{template}/usar', [\App\Http\Controllers\Web\TemplateController::class, 'generate'])->middleware('feature:templates')->name('templates.generate');
 
-    Route::get('/webhooks', [\App\Http\Controllers\Web\WebhookController::class, 'index'])->middleware('owner')->name('webhooks.index');
-    Route::post('/webhooks', [\App\Http\Controllers\Web\WebhookController::class, 'store'])->middleware('throttle:20,1,webhook-create')->middleware('owner')->name('webhooks.store');
-    Route::post('/webhooks/{endpoint}/alternar', [\App\Http\Controllers\Web\WebhookController::class, 'toggle'])->middleware('owner')->name('webhooks.toggle');
-    Route::post('/webhooks/{endpoint}/testar', [\App\Http\Controllers\Web\WebhookController::class, 'test'])->middleware('throttle:10,1,webhook-test')->middleware('owner')->name('webhooks.test');
-    Route::delete('/webhooks/{endpoint}', [\App\Http\Controllers\Web\WebhookController::class, 'destroy'])->middleware('owner')->name('webhooks.destroy');
-    Route::post('/webhooks/entregas/{delivery}/reenviar', [\App\Http\Controllers\Web\WebhookController::class, 'redeliver'])->middleware('owner')->name('webhooks.redeliver');
+    Route::get('/webhooks', [\App\Http\Controllers\Web\WebhookController::class, 'index'])->middleware('owner')->middleware('feature:webhooks')->name('webhooks.index');
+    Route::post('/webhooks', [\App\Http\Controllers\Web\WebhookController::class, 'store'])->middleware('throttle:20,1,webhook-create')->middleware('owner')->middleware('feature:webhooks')->name('webhooks.store');
+    Route::post('/webhooks/{endpoint}/alternar', [\App\Http\Controllers\Web\WebhookController::class, 'toggle'])->middleware('owner')->middleware('feature:webhooks')->name('webhooks.toggle');
+    Route::post('/webhooks/{endpoint}/testar', [\App\Http\Controllers\Web\WebhookController::class, 'test'])->middleware('throttle:10,1,webhook-test')->middleware('owner')->middleware('feature:webhooks')->name('webhooks.test');
+    Route::delete('/webhooks/{endpoint}', [\App\Http\Controllers\Web\WebhookController::class, 'destroy'])->middleware('owner')->middleware('feature:webhooks')->name('webhooks.destroy');
+    Route::post('/webhooks/entregas/{delivery}/reenviar', [\App\Http\Controllers\Web\WebhookController::class, 'redeliver'])->middleware('owner')->middleware('feature:webhooks')->name('webhooks.redeliver');
 
     Route::get('/perfil', [\App\Http\Controllers\Web\ProfileController::class, 'edit'])->name('profile.edit');
     Route::put('/perfil', [\App\Http\Controllers\Web\ProfileController::class, 'update'])->middleware('throttle:20,1,profile')->name('profile.update');

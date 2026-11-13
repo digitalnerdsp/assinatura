@@ -373,6 +373,10 @@ final class EnvelopeController extends Controller
 
     private function error(string $code, string $message, int $status): JsonResponse
     {
+        if (\App\Plans\Decision::isPlanReason($code)) {
+            return response()->json(['error' => 'plan_limit_reached', 'reason' => $code, 'message' => $message], 403);
+        }
+
         return response()->json(['error' => $code, 'message' => $message], $status);
     }
 
