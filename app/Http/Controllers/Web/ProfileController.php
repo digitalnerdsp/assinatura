@@ -67,7 +67,7 @@ final class ProfileController extends Controller
                 return back()->withErrors(['data' => 'O nome digitado pode ter no máximo 80 caracteres.']);
             }
         } else {
-            $error = $this->invalidSignaturePng($data);
+            [$data, $error] = $this->normalizedSignaturePng($data);
             if ($error !== null) {
                 return back()->withErrors(['data' => $error]);
             }
@@ -85,29 +85,60 @@ final class ProfileController extends Controller
         return back()->with('status', 'Assinatura removida.');
     }
 
-    /** Só PNG de verdade, até 200 KB e 1600x800 px. Devolve a mensagem de erro ou null se estiver ok. */
-    private function invalidSignaturePng(string $dataUrl): ?string
+    /**
+     * Só PNG de verdade e até 200 KB. Desenhos de até 4000x2000 px são aceitos e reduzidos para no máximo
+     * 1600x800 (telas largas geram canvas maiores que isso); acima disso, recusa. Devolve [data URL, erro].
+     *
+     * @return array{0:string,1:?string}
+     */
+    private function normalizedSignaturePng(string $dataUrl): array
     {
-        if (! str_starts_with($dataUrl, 'data:image/png;base64,')) {
-            return 'Desenhe a assinatura de novo.';
+        $prefix = 'data:image/png;base64,';
+        if (! str_starts_with($dataUrl, $prefix)) {
+            return [$dataUrl, 'Desenhe a assinatura de novo.'];
         }
 
-        $binary = base64_decode(substr($dataUrl, strlen('data:image/png;base64,')), true);
+        $binary = base64_decode(substr($dataUrl, strlen($prefix)), true);
         if ($binary === false || strlen($binary) > 200 * 1024) {
-            return 'A assinatura desenhada é inválida ou grande demais.';
+            return [$dataUrl, 'A assinatura desenhada é inválida ou grande demais.'];
         }
 
         $info = @getimagesizefromstring($binary);
         if ($info === false || $info[2] !== IMAGETYPE_PNG) {
-            return 'A assinatura desenhada precisa ser uma imagem PNG.';
-        }
-        if ($info[0] > 1600 || $info[1] > 800) {
-            return 'A assinatura desenhada tem dimensões grandes demais.';
+            return [$dataUrl, 'A assinatura desenhada precisa ser uma imagem PNG.'];
         }
 
-        return null;
+        [$w, $h] = $info;
+        if ($w > 4000 || $h > 2000) {
+            return [$dataUrl, 'A assinatura desenhada tem dimensões grandes demais.'];
+        }
+        if ($w <= 1600 && $h <= 800) {
+            return [$dataUrl, null];
+        }
+        if (! function_exists('imagecreatefromstring')) {
+            return [$dataUrl, 'A assinatura desenhada tem dimensões grandes demais.'];
+        }
+
+        $src = @imagecreatefromstring($binary);
+        if ($src === false) {
+            return [$dataUrl, 'Não foi possível processar a assinatura desenhada.'];
+        }
+
+        $scale = min(1600 / $w, 800 / $h);
+        $nw = max(1, (int) floor($w * $scale));
+        $nh = max(1, (int) floor($h * $scale));
+        $dst = imagecreatetruecolor($nw, $nh);
+        imagealphablending($dst, false);
+        imagesavealpha($dst, true);
+        imagefill($dst, 0, 0, imagecolorallocatealpha($dst, 255, 255, 255, 127)); // mantém o fundo transparente
+        imagecopyresampled($dst, $src, 0, 0, 0, 0, $nw, $nh, $w, $h);
+
+        ob_start();
+        imagepng($dst);
+        $png = (string) ob_get_clean();
+
+        return [$prefix.base64_encode($png), null];
     }
-
     public function destroyPhoto(Request $request): RedirectResponse
     {
         $user = $request->user();

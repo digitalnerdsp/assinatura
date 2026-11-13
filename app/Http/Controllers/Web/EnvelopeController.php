@@ -291,12 +291,13 @@ final class EnvelopeController extends Controller
 
         try {
             if ($sender !== null) {
-                // Quem libera é o remetente: o signatário marcado passa a ser essa pessoa.
-                $sender->update(['name' => $user->name, 'email' => mb_strtolower($user->email)]);
+                // Quem libera é o remetente: o signatário marcado passa a ser essa pessoa (aplicado dentro do envio).
                 $tokens = $this->envelopes->sendAndSignAsSender(
                     $envelope,
                     new SenderSignature((string) $user->signature_type, (string) $user->signature_data, 'session', $user->getKey()),
                     $context,
+                    null,
+                    ['name' => $user->name, 'email' => $user->email, 'cpf' => null],
                 );
             } else {
                 $tokens = $this->envelopes->send($envelope, $context);

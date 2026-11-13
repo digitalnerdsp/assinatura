@@ -104,7 +104,9 @@
     let down = false, dirty = false;
     function size() {
         const r = pad.getBoundingClientRect(); if (!r.width) return;
-        pad.width = r.width * 2; pad.height = r.height * 2; ctx.scale(2, 2);
+        // 2x para nitidez, mas nunca acima de 1600x800 (o servidor aceita no máximo isso)
+        const k = Math.min(2, 1600 / r.width, 800 / r.height);
+        pad.width = Math.round(r.width * k); pad.height = Math.round(r.height * k); ctx.scale(k, k);
         ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#111';
     }
     const pos = e => { const r = pad.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };

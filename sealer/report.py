@@ -198,6 +198,7 @@ def _report_pdf(report: dict) -> bytes:
             ("CPF", s.get("cpf"), False),
             ("Situação", f"{s.get('status', '-')}  {('em ' + s['signed_at']) if s.get('signed_at') else ''}".strip(), False),
             ("Assinatura", s.get("signature"), False),
+            ("Método", s.get("method"), False),
             ("IP", s.get("ip"), True),
             ("Dispositivo", s.get("device"), False),
             ("Verificações", ", ".join(s.get("checks", [])) or "nenhuma (assinatura simples)", False),

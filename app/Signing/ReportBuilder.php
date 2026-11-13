@@ -119,6 +119,12 @@ final class ReportBuilder
             'cpf' => $this->maskCpf($s->cpf),
             'status' => $this->statusLabel($s),
             'signed_at' => $s->signed_at ? $this->at($s->signed_at) : null,
+            // Como a empresa assinou (só o remetente tem): a prova não pode sugerir que uma pessoa viu e assinou.
+            'method' => match ($s->signed_via) {
+                'api_key' => 'Assinado via integração (chave de API)',
+                'session' => 'Assinado no painel (sessão autenticada)',
+                default => null,
+            },
             'signature' => $sig
                 ? ($sig->type === 'drawn' ? 'Desenhada' : 'Digitada').' - nível '.($sig->level === 'advanced' ? 'avançado' : 'simples')
                 : null,

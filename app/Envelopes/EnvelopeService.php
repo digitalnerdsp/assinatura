@@ -146,7 +146,9 @@ final class EnvelopeService
                     'cpf' => $signer['cpf'] ?? null,
                     'role' => $role,
                     // testemunhas formam o último grupo: depois de todos os signatários
-                    'position' => $signer['position'] ?? ($role === 'witness' ? $lastSignerPosition + 1 : $i + 1),
+                    'position' => $role === 'witness'
+                        ? max((int) ($signer['position'] ?? 0), $lastSignerPosition + 1)
+                        : ($signer['position'] ?? $i + 1),
                     'status' => SignerStatus::Pending,
                 ]);
             }
@@ -267,13 +269,26 @@ final class EnvelopeService
      *
      * @return array<string,string>
      */
-    public function sendAndSignAsSender(Envelope $envelope, SenderSignature $signature, ?RequestContext $context = null, ?int $validDays = null): array
+    public function sendAndSignAsSender(Envelope $envelope, SenderSignature $signature, ?RequestContext $context = null, ?int $validDays = null, ?array $senderIdentity = null): array
     {
-        $tokens = $this->send($envelope, $context, $validDays);
+        // Tudo ou nada: se a assinatura do remetente falhar, o envelope volta a rascunho (nada de envelope preso
+        // "enviado" com remetente pendente e sem link). A identidade só muda depois que send() validou o rascunho.
+        return DB::transaction(function () use ($envelope, $signature, $context, $validDays, $senderIdentity) {
+            $tokens = $this->send($envelope, $context, $validDays);
 
-        app(SenderSigner::class)->apply($envelope->fresh(), $signature, $context);
+            if ($senderIdentity !== null) {
+                // O remetente é quem de fato assina (quem liberou no painel, ou o representante na API).
+                $envelope->signers()->where('is_sender', true)->update([
+                    'name' => $senderIdentity['name'],
+                    'email' => mb_strtolower($senderIdentity['email']),
+                    'cpf' => $senderIdentity['cpf'] ?? null,
+                ]);
+            }
 
-        return $tokens;
+            app(SenderSigner::class)->apply($envelope->fresh(), $signature, $context);
+
+            return $tokens;
+        });
     }
 
     /**
@@ -281,6 +296,10 @@ final class EnvelopeService
      */
     public function regenerateLink(Signer $signer, ?RequestContext $context = null): string
     {
+        if ($signer->isSender()) {
+            throw FlowException::because('sender_no_link', 'O remetente assina pelo painel ou pela API e não tem link de assinatura.');
+        }
+
         $envelope = $signer->envelope;
 
         if (! $envelope->status->isOpenForSigning()) {

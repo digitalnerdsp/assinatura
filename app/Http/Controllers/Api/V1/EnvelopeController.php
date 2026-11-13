@@ -291,6 +291,8 @@ final class EnvelopeController extends Controller
                 $envelope,
                 new SenderSignature('typed', $representative['name'], 'api_key', null, (string) $request->attributes->get('api_key')->getKey()),
                 $context,
+                null,
+                $representative,
             );
         } else {
             $this->envelopes->send($envelope, $context);

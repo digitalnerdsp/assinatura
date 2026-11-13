@@ -137,3 +137,17 @@ def test_witnesses_get_their_own_heading(client):
 
     assert "Testemunhas" in text and "Carlos Testemunha" in text
     assert text.index("Ana Souza") < text.index("Testemunhas") < text.index("Carlos Testemunha")
+
+
+def test_report_shows_how_the_company_signed(client):
+    report = {**REPORT, "signers": [
+        {"name": "Empresa X", "role": "remetente", "email": "x@ex.com", "cpf": None, "status": "Assinado",
+         "signed_at": "09/11/2026 13:48:56", "signature": "Digitada - nível simples", "method": "Assinado via integração (chave de API)",
+         "ip": "203.0.113.9", "device": "Mozilla/5.0", "checks": [], "geo": None},
+    ] + REPORT["signers"]}
+    r = seal(client, pdf_pages([A4]), report)
+    assert r.status_code == 200 and r.json()["decorated"] is True
+    reader = PdfReader(io.BytesIO(base64.b64decode(r.json()["pdf_base64"])))
+    text = "".join(p.extract_text() for p in reader.pages[1:])
+
+    assert "Assinado via integração (chave de API)" in text

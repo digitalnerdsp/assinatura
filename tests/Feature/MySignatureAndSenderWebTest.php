@@ -79,12 +79,6 @@ it('recusa PNG corrompido, outro tipo de imagem, imagem gigante e nome grande de
     'nome grande' => ['typed', str_repeat('a', 81)],
 ]);
 
-it('recusa PNG com dimensões enormes', function () {
-    sigRegister();
-
-    $this->from('/perfil')->put('/perfil/assinatura', ['type' => 'drawn', 'data' => sigPng(1700, 900)])->assertSessionHasErrors('data');
-});
-
 it('a assinatura de um usuário não aparece para outra empresa', function () {
     $a = sigRegister('a@acme.com', 'ACME');
     $this->put('/perfil/assinatura', ['type' => 'typed', 'data' => 'ASSINATURA-SECRETA-DA-A']);
