@@ -62,8 +62,12 @@ Route::middleware(['auth', 'tenant.active'])->group(function () {
 
     Route::post('/envelopes/{envelope}/organizar', [EnvelopeController::class, 'organize'])->name('envelopes.organize');
 
-    Route::get('/organizacao', [\App\Http\Controllers\Web\OrganizationController::class, 'index'])->name('organization.index');
+    // A tela de pastas e etiquetas vive em Documentos criados; o endereço antigo continua valendo.
+    Route::redirect('/organizacao', '/envelopes', 301)->name('organization.index');
     Route::post('/organizacao/pastas', [\App\Http\Controllers\Web\OrganizationController::class, 'storeFolder'])->name('folders.store');
+    Route::put('/organizacao/pastas/{folder}', [\App\Http\Controllers\Web\OrganizationController::class, 'updateFolder'])->name('folders.update');
+    Route::post('/organizacao/pastas/{folder}/mover', [\App\Http\Controllers\Web\OrganizationController::class, 'moveFolder'])->name('folders.move');
+    Route::get('/organizacao/pastas/{folder}/impacto', [\App\Http\Controllers\Web\OrganizationController::class, 'impactFolder'])->name('folders.impact');
     Route::delete('/organizacao/pastas/{folder}', [\App\Http\Controllers\Web\OrganizationController::class, 'destroyFolder'])->name('folders.destroy');
     Route::post('/organizacao/etiquetas', [\App\Http\Controllers\Web\OrganizationController::class, 'storeTag'])->name('tags.store');
     Route::delete('/organizacao/etiquetas/{tag}', [\App\Http\Controllers\Web\OrganizationController::class, 'destroyTag'])->name('tags.destroy');
