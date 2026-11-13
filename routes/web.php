@@ -57,6 +57,7 @@ Route::middleware(['auth', 'tenant.active'])->group(function () {
     Route::post('/envelopes/{envelope}/restaurar', [EnvelopeController::class, 'restore'])->name('envelopes.restore');
     Route::post('/envelopes/{envelope}/arquivar', [EnvelopeController::class, 'archive'])->name('envelopes.archive');
     Route::post('/envelopes/{envelope}/desarquivar', [EnvelopeController::class, 'unarchive'])->name('envelopes.unarchive');
+    Route::get('/documentos/minhas-assinaturas', [\App\Http\Controllers\Web\MySignaturesController::class, 'index'])->name('documents.mine');
     Route::get('/documentos/lixeira', [EnvelopeController::class, 'trashIndex'])->name('documents.trash');
 
     Route::post('/envelopes/{envelope}/organizar', [EnvelopeController::class, 'organize'])->name('envelopes.organize');
