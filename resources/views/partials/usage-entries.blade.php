@@ -5,7 +5,7 @@
     <p class="text-secondary mb-0">Nenhum lançamento ainda.</p>
 @else
     <div class="table-responsive">
-        <table class="table align-middle mb-0 drive-docs">
+        <table class="table align-middle mb-0 drive-docs drive-docs-md">
             <thead class="table-light"><tr><th>Data</th><th>Tipo</th><th>Variação</th><th>Saldo depois</th><th>Detalhe</th></tr></thead>
             <tbody>
             @foreach ($entries as $e)

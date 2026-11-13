@@ -14,7 +14,7 @@
             <div class="col-12 col-md-auto d-flex gap-2"><button class="btn btn-outline-primary drive-tap"><i class="bx bx-search"></i> Filtrar</button>@if (array_filter($filters))<a class="btn btn-outline-secondary drive-tap" href="{{ route('admin.subscriptions.index') }}">Limpar</a>@endif</div>
         </form>
         <div class="table-responsive">
-            <table class="table align-middle mb-0 drive-docs">
+            <table class="table align-middle mb-0 drive-docs drive-docs-md">
                 <thead class="table-light"><tr><th>Empresa</th><th>Plano</th><th>Situação</th><th>Documentos no período</th><th>Créditos</th><th>Cobrança</th></tr></thead>
                 <tbody>
                 @forelse ($subs as $s)

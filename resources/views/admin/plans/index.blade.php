@@ -13,7 +13,7 @@
     <div class="card-body">
         <p class="text-secondary small">Cada empresa fica em um plano. Os limites, recursos e regras daqui valem para todas as empresas do plano, e podem ser sobrescritos por empresa em <a href="{{ route('admin.subscriptions.index') }}">Assinaturas</a>. O plano marcado como <strong>Padrão</strong> é o das empresas que se cadastram.</p>
         <div class="table-responsive">
-            <table class="table align-middle mb-0 drive-docs">
+            <table class="table align-middle mb-0 drive-docs drive-docs-md">
                 <thead class="table-light"><tr><th>Plano</th><th>Limites</th><th>Preço mensal</th><th>Empresas</th><th aria-label="Ações"></th></tr></thead>
                 <tbody>
                 @foreach ($plans as $p)

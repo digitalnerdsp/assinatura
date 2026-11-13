@@ -1,6 +1,6 @@
 # Escopo — Menu e identidade, módulos de gestão, planos e cobrança, integração com a hospedagem
 
-Data: 13/11/2026 · Status: **aprovado em 13/11/2026 · Fase 1 entregue em 14/11/2026 · Fase 2 entregue em 17/11/2026** · Complementa `docs/ESCOPO.md` (seção 14, "Monetização e produto").
+Data: 13/11/2026 · Status: **aprovado em 13/11/2026 · Fase 1 entregue em 14/11/2026 · Fase 2 entregue em 17/11/2026 · Fase 3 entregue em 18/11/2026** · Complementa `docs/ESCOPO.md` (seção 14, "Monetização e produto").
 
 ## 1. Intenção
 

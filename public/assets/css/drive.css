@@ -87,3 +87,9 @@ html.dark-theme .cal-grid { background: rgba(255, 255, 255, .16); border-color: 
 html.dark-theme .cal-day { background: #161a1d; color: #e8eaed; }
 html.dark-theme .cal-head, html.dark-theme .cal-day.is-out { background: #23292e; color: #e8eaed; }
 html.dark-theme .cal-list-day { border-color: rgba(255, 255, 255, .2); }
+
+/* Cartões no celular/tablet: o tema força nowrap nas células; textos longos (limites, notas) precisam quebrar */
+@media (max-width: 575.98px) { .drive-docs td { white-space: normal; } }
+@media (max-width: 991.98px) { .drive-docs-md td { white-space: normal; } }
+/* Link da faixa de aviso com alvo de toque de 44 px */
+.plan-banner-link { display: inline-flex; align-items: center; min-height: 44px; }

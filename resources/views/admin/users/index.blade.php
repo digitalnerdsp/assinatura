@@ -13,7 +13,7 @@
         <h5 class="mb-1">Equipe da plataforma</h5>
         <p class="text-secondary small mb-3"><strong>Administrador:</strong> opera clientes, saúde do sistema e selagem. <strong>Super administrador:</strong> faz tudo isso e ainda gerencia esta equipe, planos, e-mail e configurações. Acessos marcados como <strong>Fixo</strong> vêm do servidor e não mudam por aqui.</p>
         <div class="table-responsive">
-            <table class="table align-middle mb-0 drive-docs">
+            <table class="table align-middle mb-0 drive-docs drive-docs-md">
                 <thead class="table-light"><tr><th>Nome</th><th>E-mail</th><th>Papel</th><th>Situação</th><th>Concedido por</th><th aria-label="Ações"></th></tr></thead>
                 <tbody>
                 @foreach ($members as $m)

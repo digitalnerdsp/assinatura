@@ -15,7 +15,7 @@ construídos nem executados** (o ambiente de desenvolvimento não tinha Docker).
 | `APP_URL` | `https://seu-dominio` (com `https://`; é o endereço que vai no QR e no rodapé do PDF selado e nos e-mails) |
 | `DB_PASSWORD` | senha forte para o Postgres |
 | `SEALER_TOKEN` | string aleatória longa (compartilhada entre app e sealer) |
-| `SUPER_ADMIN_EMAILS` | e-mail(s) com acesso a `/admin`. **Cadastre a conta antes** de colocar o e-mail aqui; não há verificação de e-mail no cadastro |
+| `SUPER_ADMIN_EMAILS` | e-mail(s) **raiz** com acesso total a `/admin` (a tela não altera esses acessos). **Cadastre a conta antes** de colocar o e-mail aqui; não há verificação de e-mail no cadastro. Os demais administradores e super administradores são criados em **Plataforma › Usuários da plataforma** |
 | `SIGNING_ALLOW_LOCAL_TEST` | `true` **somente em teste** (certificado autoassinado, sem validade jurídica) |
 | `MAIL_MAILER`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS` | SMTP real; com `log` os e-mails só aparecem nos logs |
 
@@ -59,7 +59,7 @@ O sealer nunca devolve a senha em respostas nem em log. Para trocar de certifica
 |---|---|
 | `app` | site e API (porta 8080; é o único com domínio) |
 | `worker` | fila: envio de e-mail/WhatsApp, selagem do PDF, entrega de webhooks |
-| `scheduler` | **novo:** `schedule:work` — expira envelopes vencidos (a cada 15 min) e envia lembretes (de hora em hora) |
+| `scheduler` | **novo:** `schedule:work` — expira envelopes vencidos (a cada 15 min) e envia lembretes (de hora em hora) e confere o armazenamento de cada empresa (`storage:reconcile`, 03:30) |
 | `sealer` | selagem PAdES + carimbo na página + relatório |
 | `backup` | **novo:** a cada 24 h grava `db-AAAAMMDD-HHMMSS.sql.gz` e `documents-….tar.gz` no volume `backups` e apaga o que passar de `BACKUP_RETENTION_DAYS` (padrão 14) |
 | `db` | PostgreSQL 17 |
