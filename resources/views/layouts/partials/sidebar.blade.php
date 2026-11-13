@@ -23,6 +23,8 @@
 
     <li class="{{ $item('contacts.*') }}"><a href="{{ route('contacts.index') }}"><div class="parent-icon"><i class="bx bx-id-card"></i></div><div class="menu-title">Contatos</div></a></li>
 
+    <li class="{{ $item('reports.*') }}"><a href="{{ route('reports.index') }}"><div class="parent-icon"><i class="bx bx-bar-chart-alt-2"></i></div><div class="menu-title">Relatórios</div></a></li>
+
     <li class="{{ $cfgOpen ? 'mm-active' : '' }}">
         <a class="has-arrow" href="javascript:;"><div class="parent-icon"><i class="bx bx-cog"></i></div><div class="menu-title">Configurações</div></a>
         <ul class="mm-collapse {{ $cfgOpen ? 'mm-show' : '' }}">

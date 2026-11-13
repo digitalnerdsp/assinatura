@@ -23,13 +23,13 @@ final class DashboardController extends Controller
         $completed = MonthlySeries::counts($base, 'completed_at');
 
         $byStatus = (clone $base)->select('status', DB::raw('count(*) as total'))->groupBy('status')->pluck('total', 'status');
-        $count = fn (EnvelopeStatus ...$s) => (int) collect($s)->sum(fn ($x) => $byStatus[$x->value] ?? 0);
 
         $pending = (clone $base)
             ->whereIn('status', [EnvelopeStatus::Sent->value, EnvelopeStatus::InProgress->value, EnvelopeStatus::Sealing->value])
             ->withCount(['signers', 'signers as signed_count' => fn ($q) => $q->where('status', 'signed')])
             ->latest()->limit(6)->get();
 
+        $summary = app(\App\Reports\ReportService::class)->summary($tenant, []);
         $monthStart = now()->startOfMonth();
         $usedThisMonth = (clone $base)->where('sent_at', '>=', $monthStart)->count();
 
@@ -38,11 +38,11 @@ final class DashboardController extends Controller
             'kpi' => [
                 'month' => end($created),
                 'monthDelta' => MonthlySeries::delta($created),
-                'pending' => $count(EnvelopeStatus::Sent, EnvelopeStatus::InProgress, EnvelopeStatus::Sealing),
+                'pending' => $summary['in_progress'],
                 'completedMonth' => end($completed),
                 'completedDelta' => MonthlySeries::delta($completed),
-                'failed' => $count(EnvelopeStatus::Refused, EnvelopeStatus::Expired, EnvelopeStatus::Cancelled),
-                'total' => (int) $byStatus->sum(),
+                'failed' => $summary['refused'] + $summary['expired'] + $summary['cancelled'],
+                'total' => $summary['total'],
             ],
             'labels' => MonthlySeries::labels(),
             'created' => $created,

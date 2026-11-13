@@ -110,6 +110,7 @@ final class EnvelopeService
                 'folder_id' => $folderId,
                 'external_id' => $externalId,
                 'metadata' => $options['metadata'] ?? null,
+                'template_id' => $options['template_id'] ?? null,
             ]);
 
             if (! empty($options['tags'])) {

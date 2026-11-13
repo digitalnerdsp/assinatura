@@ -84,6 +84,9 @@ Route::middleware(['auth', 'tenant.active'])->group(function () {
     Route::put('/contatos/{contact}', [\App\Http\Controllers\Web\ContactController::class, 'update'])->name('contacts.update');
     Route::delete('/contatos/{contact}', [\App\Http\Controllers\Web\ContactController::class, 'destroy'])->name('contacts.destroy');
 
+    Route::get('/relatorios', [\App\Http\Controllers\Web\ReportController::class, 'index'])->name('reports.index');
+    Route::get('/relatorios/exportar', [\App\Http\Controllers\Web\ReportController::class, 'export'])->middleware('throttle:20,1,reports-export')->name('reports.export');
+
     Route::get('/modelos', [\App\Http\Controllers\Web\TemplateController::class, 'index'])->name('templates.index');
     Route::get('/modelos/novo', [\App\Http\Controllers\Web\TemplateController::class, 'create'])->name('templates.create');
     Route::post('/modelos', [\App\Http\Controllers\Web\TemplateController::class, 'store'])->name('templates.store');

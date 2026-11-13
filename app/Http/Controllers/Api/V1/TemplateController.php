@@ -133,6 +133,7 @@ final class TemplateController extends Controller
                     'channels' => $data['channels'] ?? null,
                     'folder_id' => $data['folder_id'] ?? null,
                     'tags' => $data['tags'] ?? null,
+                    'template_id' => $template->getKey(),
                     'external_id' => $data['external_id'] ?? null,
                     'metadata' => $data['metadata'] ?? null,
                 ], fn ($v) => $v !== null) + ($reminder === null ? [] : ['reminder_every_days' => $reminder === 0 ? null : $reminder]),

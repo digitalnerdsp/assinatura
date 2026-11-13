@@ -146,6 +146,7 @@ final class TemplateController extends Controller
                     'channels' => $data['channels'] ?? ['email'],
                     'folder_id' => $data['folder_id'] ?? null,
                     'tags' => $data['tags'] ?? [],
+                    'template_id' => $template->getKey(),
                 ],
             );
         } catch (FlowException $e) {
