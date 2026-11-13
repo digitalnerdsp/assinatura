@@ -84,6 +84,7 @@ Route::middleware(['auth', 'tenant.active'])->group(function () {
     Route::put('/contatos/{contact}', [\App\Http\Controllers\Web\ContactController::class, 'update'])->name('contacts.update');
     Route::delete('/contatos/{contact}', [\App\Http\Controllers\Web\ContactController::class, 'destroy'])->name('contacts.destroy');
 
+    Route::get('/calendario', [\App\Http\Controllers\Web\CalendarController::class, 'index'])->name('calendar.index');
     Route::get('/relatorios', [\App\Http\Controllers\Web\ReportController::class, 'index'])->name('reports.index');
     Route::get('/relatorios/exportar', [\App\Http\Controllers\Web\ReportController::class, 'export'])->middleware('throttle:20,1,reports-export')->name('reports.export');
 
