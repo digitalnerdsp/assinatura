@@ -41,7 +41,7 @@
                     <ul class="dropdown-menu dropdown-menu-end">
                         <li><a class="dropdown-item d-flex align-items-center" href="{{ route('profile.edit') }}"><i class="bx bx-user fs-5"></i><span>Meu perfil</span></a></li>
                         <li><a class="dropdown-item d-flex align-items-center" href="{{ route('dashboard') }}"><i class="bx bx-home-circle fs-5"></i><span>Painel</span></a></li>
-                        <li><a class="dropdown-item d-flex align-items-center" href="{{ route('api-keys.index') }}"><i class="bx bx-code-alt fs-5"></i><span>Chaves de API</span></a></li>
+                        @if (auth()->user()->role === 'owner')<li><a class="dropdown-item d-flex align-items-center" href="{{ route('api-keys.index') }}"><i class="bx bx-code-alt fs-5"></i><span>Chaves de API</span></a></li>@endif
                         <li><div class="dropdown-divider mb-0"></div></li>
                         <li>
                             <form method="post" action="{{ route('logout') }}">@csrf

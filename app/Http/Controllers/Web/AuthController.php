@@ -24,6 +24,9 @@ final class AuthController extends Controller
     public function register(Request $request): RedirectResponse
     {
         abort_unless(Setting::registrationOpen(), 403, 'Os cadastros estão fechados no momento.');
+        if (is_string($request->input('email'))) {
+            app(\App\Team\TeamService::class)->purgeExpiredInvite($request->input('email'));
+        }
 
         $data = $request->validate([
             'company' => ['required', 'string', 'max:150'],

@@ -83,10 +83,11 @@ final class ContactService
 
             if ($existing === null) {
                 try {
-                    Contact::query()->create([
+                    // savepoint: se outro envio criar o mesmo contato ao mesmo tempo, só esta parte é desfeita
+                    DB::transaction(fn () => Contact::query()->create([
                         'tenant_id' => $tenant->getKey(), 'name' => mb_substr(trim((string) ($person['name'] ?? $email)), 0, 150),
                         'email' => $email, 'phone' => $phone, 'document' => $document,
-                    ]);
+                    ]));
                 } catch (UniqueConstraintViolationException) {
                     // outro envio criou o mesmo contato ao mesmo tempo: nada a fazer
                 }

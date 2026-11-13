@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Calendar;
 
 use App\Enums\EnvelopeStatus;
+use App\Enums\SignerStatus;
+use App\Enums\SigningOrder;
 use App\Models\Envelope;
 use App\Models\Tenant;
 use Carbon\CarbonImmutable;
@@ -51,8 +53,9 @@ final class CalendarService
         $max = (int) config('signing.max_reminders');
         $base()->whereIn('status', $open)->whereNotNull('reminder_every_days')
             ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
+            ->with('signers')
             ->each(function (Envelope $e) use ($push, $max): void {
-                $next = $e->activeSigners()
+                $next = $this->activeSigners($e)
                     ->filter(fn ($s) => ($s->last_reminded_at ?? $s->invited_at) !== null && $s->reminders_count < $max)
                     ->map(fn ($s) => CarbonImmutable::instance($s->last_reminded_at ?? $s->invited_at)->addDays($e->reminder_every_days))
                     ->min();
@@ -64,5 +67,18 @@ final class CalendarService
         $order = array_flip(array_keys(self::TYPES));
 
         return $events->sortBy(fn ($x) => $x['date'].$order[$x['type']].mb_strtolower($x['title']))->values();
+    }
+
+    /** Mesma regra de Envelope::activeSigners(), sobre os signatários já carregados (sem consulta por envelope). */
+    private function activeSigners(Envelope $e): Collection
+    {
+        $open = $e->signers->filter(fn ($s) => in_array($s->role, Envelope::PARTICIPANT_ROLES, true)
+            && ! in_array($s->status instanceof \BackedEnum ? $s->status->value : $s->status, [SignerStatus::Signed->value, SignerStatus::Refused->value], true))->values();
+        if ($e->signing_order !== SigningOrder::Sequential || $open->isEmpty()) {
+            return $open;
+        }
+        $first = $open->min('position');
+
+        return $open->where('position', $first)->values();
     }
 }

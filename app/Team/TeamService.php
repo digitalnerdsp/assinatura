@@ -24,6 +24,7 @@ final class TeamService
         $email = mb_strtolower(trim($email));
 
         return DB::transaction(function () use ($owner, $name, $email) {
+            $this->purgeExpiredInvite($email);
             if (User::query()->whereRaw('lower(email) = ?', [$email])->lockForUpdate()->exists()) {
                 throw FlowException::because('email_taken', 'Este e-mail já tem uma conta.');
             }
@@ -103,6 +104,14 @@ final class TeamService
     {
         $this->guard($owner, $member);
         $member->delete();
+    }
+
+    /** Convite vencido e nunca aceito não prende o e-mail: o usuário provisório é apagado. */
+    public function purgeExpiredInvite(string $email): void
+    {
+        User::query()->whereRaw('lower(email) = ?', [mb_strtolower(trim($email))])
+            ->whereNotNull('invite_token_hash')->where('invite_expires_at', '<=', now())
+            ->delete();
     }
 
     private function assertOwner(User $owner): void

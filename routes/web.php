@@ -109,12 +109,12 @@ Route::middleware(['auth', 'tenant.active'])->group(function () {
     Route::get('/modelos/{template}/usar', [\App\Http\Controllers\Web\TemplateController::class, 'use'])->name('templates.use');
     Route::post('/modelos/{template}/usar', [\App\Http\Controllers\Web\TemplateController::class, 'generate'])->name('templates.generate');
 
-    Route::get('/webhooks', [\App\Http\Controllers\Web\WebhookController::class, 'index'])->name('webhooks.index');
-    Route::post('/webhooks', [\App\Http\Controllers\Web\WebhookController::class, 'store'])->middleware('throttle:20,1,webhook-create')->name('webhooks.store');
-    Route::post('/webhooks/{endpoint}/alternar', [\App\Http\Controllers\Web\WebhookController::class, 'toggle'])->name('webhooks.toggle');
-    Route::post('/webhooks/{endpoint}/testar', [\App\Http\Controllers\Web\WebhookController::class, 'test'])->middleware('throttle:10,1,webhook-test')->name('webhooks.test');
-    Route::delete('/webhooks/{endpoint}', [\App\Http\Controllers\Web\WebhookController::class, 'destroy'])->name('webhooks.destroy');
-    Route::post('/webhooks/entregas/{delivery}/reenviar', [\App\Http\Controllers\Web\WebhookController::class, 'redeliver'])->name('webhooks.redeliver');
+    Route::get('/webhooks', [\App\Http\Controllers\Web\WebhookController::class, 'index'])->middleware('owner')->name('webhooks.index');
+    Route::post('/webhooks', [\App\Http\Controllers\Web\WebhookController::class, 'store'])->middleware('throttle:20,1,webhook-create')->middleware('owner')->name('webhooks.store');
+    Route::post('/webhooks/{endpoint}/alternar', [\App\Http\Controllers\Web\WebhookController::class, 'toggle'])->middleware('owner')->name('webhooks.toggle');
+    Route::post('/webhooks/{endpoint}/testar', [\App\Http\Controllers\Web\WebhookController::class, 'test'])->middleware('throttle:10,1,webhook-test')->middleware('owner')->name('webhooks.test');
+    Route::delete('/webhooks/{endpoint}', [\App\Http\Controllers\Web\WebhookController::class, 'destroy'])->middleware('owner')->name('webhooks.destroy');
+    Route::post('/webhooks/entregas/{delivery}/reenviar', [\App\Http\Controllers\Web\WebhookController::class, 'redeliver'])->middleware('owner')->name('webhooks.redeliver');
 
     Route::get('/perfil', [\App\Http\Controllers\Web\ProfileController::class, 'edit'])->name('profile.edit');
     Route::put('/perfil', [\App\Http\Controllers\Web\ProfileController::class, 'update'])->middleware('throttle:20,1,profile')->name('profile.update');
@@ -126,9 +126,9 @@ Route::middleware(['auth', 'tenant.active'])->group(function () {
     Route::get('/configuracoes/assinatura-da-empresa', [\App\Http\Controllers\Web\CompanySigningController::class, 'edit'])->name('company.signing.edit');
     Route::put('/configuracoes/assinatura-da-empresa', [\App\Http\Controllers\Web\CompanySigningController::class, 'update'])->middleware('throttle:20,1,company-signing')->name('company.signing.update');
 
-    Route::get('/api-keys', [ApiKeyController::class, 'index'])->name('api-keys.index');
-    Route::post('/api-keys', [ApiKeyController::class, 'store'])->name('api-keys.store');
-    Route::delete('/api-keys/{apiKey}', [ApiKeyController::class, 'destroy'])->name('api-keys.destroy');
+    Route::get('/api-keys', [ApiKeyController::class, 'index'])->middleware('owner')->name('api-keys.index');
+    Route::post('/api-keys', [ApiKeyController::class, 'store'])->middleware('owner')->name('api-keys.store');
+    Route::delete('/api-keys/{apiKey}', [ApiKeyController::class, 'destroy'])->middleware('owner')->name('api-keys.destroy');
 });
 
 // Assinatura pelo signatário (sem login; o token é a credencial)

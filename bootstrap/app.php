@@ -17,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'api.key' => AuthenticateApiKey::class,
             'super.admin' => \App\Http\Middleware\EnsureSuperAdmin::class,
+            'owner' => \App\Http\Middleware\EnsureOwner::class,
             'tenant.active' => \App\Http\Middleware\EnsureTenantActive::class,
             'idempotent' => \App\Http\Middleware\Idempotent::class,
         ]);
