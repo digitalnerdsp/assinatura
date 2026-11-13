@@ -6,6 +6,8 @@ namespace App\Http\Controllers\Web;
 
 use App\Enums\SigningOrder;
 use App\Envelopes\EnvelopeService;
+use App\Envelopes\SenderPolicy;
+use App\Envelopes\SenderSignature;
 use App\Envelopes\Exceptions\FlowException;
 use App\Evidence\EvidenceLogger;
 use App\Evidence\RequestContext;
@@ -129,9 +131,14 @@ final class EnvelopeController extends Controller
     {
         $tenantId = $request->user()->tenant_id;
 
+        $user = $request->user();
+
         return [
             'folders' => Folder::query()->where('tenant_id', $tenantId)->orderBy('name')->get(),
             'tags' => Tag::query()->where('tenant_id', $tenantId)->orderBy('name')->get(),
+            'senderPolicy' => app(SenderPolicy::class)->policy($user->tenant),
+            'senderUser' => $user,
+            'hasSignature' => $user->hasSignature(),
         ];
     }
 
@@ -173,7 +180,8 @@ final class EnvelopeController extends Controller
             'tags' => ['nullable', 'array', 'max:10'],
             'tags.*' => ['uuid'],
             'signature_fields' => ['nullable', 'array', 'max:60'],
-            'signature_fields.*.signer' => ['required', 'integer', 'min:0', 'max:19'],
+            'signature_fields.*.signer' => ['required', 'regex:/^(sender|\d{1,2})$/'],
+            'sender_signs' => ['nullable', 'boolean'],
             'signature_fields.*.page' => ['required', 'integer', 'min:1', 'max:2000'],
             'signature_fields.*.x' => ['required', 'numeric', 'between:0,1'],
             'signature_fields.*.y' => ['required', 'numeric', 'between:0,1'],
@@ -199,6 +207,20 @@ final class EnvelopeController extends Controller
             array_map(fn ($w) => $w + ['role' => 'witness'], array_values($data['witnesses'] ?? [])),
         );
 
+        // Remetente: a política da empresa decide se quem cria também assina (sempre | opcional | nunca).
+        $user = $request->user();
+        try {
+            $wantsSender = app(SenderPolicy::class)->wantsSenderSignature(
+                $user->tenant,
+                $request->has('sender_signs') ? $request->boolean('sender_signs') : null,
+            );
+        } catch (FlowException $e) {
+            return back()->withInput()->withErrors(['sender' => $e->getMessage()]);
+        }
+        if ($wantsSender && ! $user->hasSignature()) {
+            return back()->withInput()->withErrors(['sender' => 'Crie a sua assinatura em Meu perfil antes de enviar documentos como remetente.']);
+        }
+
         try {
             $envelope = $this->envelopes->create(
                 $request->user()->tenant,
@@ -223,6 +245,7 @@ final class EnvelopeController extends Controller
                     'folder_id' => $data['folder_id'] ?? null,
                     'tags' => $data['tags'] ?? [],
                     'signature_fields' => array_values($data['signature_fields'] ?? []),
+                    'sender' => $wantsSender ? ['name' => $user->name, 'email' => $user->email] : null,
                 ],
             );
         } catch (FlowException $e) {
@@ -251,17 +274,43 @@ final class EnvelopeController extends Controller
     public function send(Request $request, Envelope $envelope): RedirectResponse
     {
         $this->owned($request, $envelope);
+        $user = $request->user();
+        $context = RequestContext::fromRequest($request);
+        $sender = $envelope->signers()->where('is_sender', true)->first();
+
+        if ($sender !== null && ! $user->hasSignature()) {
+            return back()->withErrors(['envelope' => 'Crie a sua assinatura em Meu perfil antes de liberar: o documento sai assinado por você, como remetente.']);
+        }
+
+        // Envio manual: grava antes de enviar, senão o próximo da fila seria avisado por e-mail quando o remetente assina.
+        $manual = $request->boolean('skip_email');
+        $original = $envelope->only(['notify_channels', 'reminder_every_days']);
+        if ($manual) {
+            $envelope->update(['notify_channels' => ['manual'], 'reminder_every_days' => null]);
+        }
 
         try {
-            $tokens = $this->envelopes->send($envelope, RequestContext::fromRequest($request));
+            if ($sender !== null) {
+                // Quem libera é o remetente: o signatário marcado passa a ser essa pessoa.
+                $sender->update(['name' => $user->name, 'email' => mb_strtolower($user->email)]);
+                $tokens = $this->envelopes->sendAndSignAsSender(
+                    $envelope,
+                    new SenderSignature((string) $user->signature_type, (string) $user->signature_data, 'session', $user->getKey()),
+                    $context,
+                );
+            } else {
+                $tokens = $this->envelopes->send($envelope, $context);
+            }
         } catch (FlowException $e) {
+            if ($manual) {
+                $envelope->update($original);
+            }
+
             return back()->withErrors(['envelope' => $e->getMessage()]);
         }
 
-        if ($request->boolean('skip_email')) {
+        if ($manual) {
             // Envio manual: o sistema não avisa ninguém sozinho (nem o próximo da fila, nem lembretes).
-            $envelope->update(['notify_channels' => ['manual'], 'reminder_every_days' => null]);
-
             return back()->with('status', 'Envelope liberado para assinatura. Copie o link de cada signatário abaixo e envie como preferir.');
         }
 

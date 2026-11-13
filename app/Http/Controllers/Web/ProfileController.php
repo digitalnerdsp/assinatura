@@ -53,6 +53,61 @@ final class ProfileController extends Controller
         return redirect()->route('profile.edit')->with('status', 'Perfil atualizado.');
     }
 
+    /** "Minha assinatura": desenhada (PNG pequeno em data URL) ou digitada. Usada ao assinar como remetente. */
+    public function updateSignature(Request $request): RedirectResponse
+    {
+        $input = $request->validate([
+            'type' => ['required', 'in:drawn,typed'],
+            'data' => ['required', 'string', 'max:300000'],
+        ]);
+        $data = trim($input['data']);
+
+        if ($input['type'] === 'typed') {
+            if (mb_strlen($data) > 80) {
+                return back()->withErrors(['data' => 'O nome digitado pode ter no máximo 80 caracteres.']);
+            }
+        } else {
+            $error = $this->invalidSignaturePng($data);
+            if ($error !== null) {
+                return back()->withErrors(['data' => $error]);
+            }
+        }
+
+        $request->user()->forceFill(['signature_type' => $input['type'], 'signature_data' => $data])->save();
+
+        return redirect()->route('profile.edit')->with('status', 'Assinatura salva.');
+    }
+
+    public function destroySignature(Request $request): RedirectResponse
+    {
+        $request->user()->forceFill(['signature_type' => null, 'signature_data' => null])->save();
+
+        return back()->with('status', 'Assinatura removida.');
+    }
+
+    /** Só PNG de verdade, até 200 KB e 1600x800 px. Devolve a mensagem de erro ou null se estiver ok. */
+    private function invalidSignaturePng(string $dataUrl): ?string
+    {
+        if (! str_starts_with($dataUrl, 'data:image/png;base64,')) {
+            return 'Desenhe a assinatura de novo.';
+        }
+
+        $binary = base64_decode(substr($dataUrl, strlen('data:image/png;base64,')), true);
+        if ($binary === false || strlen($binary) > 200 * 1024) {
+            return 'A assinatura desenhada é inválida ou grande demais.';
+        }
+
+        $info = @getimagesizefromstring($binary);
+        if ($info === false || $info[2] !== IMAGETYPE_PNG) {
+            return 'A assinatura desenhada precisa ser uma imagem PNG.';
+        }
+        if ($info[0] > 1600 || $info[1] > 800) {
+            return 'A assinatura desenhada tem dimensões grandes demais.';
+        }
+
+        return null;
+    }
+
     public function destroyPhoto(Request $request): RedirectResponse
     {
         $user = $request->user();

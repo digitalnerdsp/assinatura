@@ -33,6 +33,25 @@
                 <div class="card-header d-flex align-items-center"><h6 class="mb-0"><i class="bx bx-group me-1"></i> Signatários</h6>
                     <button type="button" class="btn btn-sm btn-outline-primary ms-auto" id="add"><i class="bx bx-plus"></i> Adicionar</button></div>
                 <div class="card-body" id="signers">
+                    @if ($senderPolicy !== 'never')
+                        <div class="border rounded p-3 mb-3" id="sender-row">
+                            <strong><i class="bx bx-badge-check"></i> Eu (remetente)</strong>
+                            <span class="text-secondary">{{ $senderUser->name }} &lt;{{ $senderUser->email }}&gt;</span>
+                            @if ($senderPolicy === 'always')
+                                <input type="hidden" name="sender_signs" value="1">
+                                <div class="small text-secondary mt-1">Sua assinatura é aplicada ao liberar o documento, sem selfie nem código.</div>
+                            @else
+                                <div class="form-check mt-1">
+                                    <input class="form-check-input" type="checkbox" name="sender_signs" value="1" id="sender_signs" checked>
+                                    <label class="form-check-label" for="sender_signs">Eu também assino este documento</label>
+                                </div>
+                            @endif
+                            @unless ($hasSignature)
+                                <div class="alert alert-warning border-0 mt-2 mb-0">Crie a sua assinatura em <a href="{{ route('profile.edit') }}#minha-assinatura">Meu perfil</a> antes de criar o documento.</div>
+                            @endunless
+                            @error('sender')<div class="text-danger small mt-2">{{ $message }}</div>@enderror
+                        </div>
+                    @endif
                     @php($rows = old('signers', [['name' => '', 'email' => '']]))
                     @foreach ($rows as $i => $s)
                         <div class="border rounded p-3 mb-3 signer-row">
@@ -152,7 +171,7 @@ document.getElementById('witnesses').addEventListener('click', function (e) {
     renumberWitnesses();
     // descarta as posições da testemunha removida e desloca as das seguintes
     if (typeof fields !== 'undefined') {
-        fields = fields.filter(function (f) { return f.signer !== g; }).map(function (f) { return f.signer > g ? Object.assign({}, f, { signer: f.signer - 1 }) : f; });
+        fields = fields.filter(function (f) { return f.signer !== g; }).map(function (f) { return (f.signer !== 'sender' && f.signer > g) ? Object.assign({}, f, { signer: f.signer - 1 }) : f; });
     }
     refreshSigners();
 });
@@ -171,19 +190,26 @@ function signerNames() {
         return (w ? 'Testemunha: ' : '') + (el.value.trim() || ((w ? 'Testemunha ' : 'Signatário ') + (i + 1)));
     });
 }
+function senderOn() { // o remetente assina neste documento? (linha fixa ou caixa marcada)
+    if (!document.getElementById('sender-row')) return false;
+    const cb = document.getElementById('sender_signs');
+    return cb ? cb.checked : true;
+}
 function refreshSigners() {
     const sel = document.getElementById('place-signer'), keep = sel.value;
-    sel.innerHTML = signerNames().map((n, i) => '<option value="' + i + '">' + n.replace(/</g, '&lt;') + '</option>').join('');
+    sel.innerHTML = (senderOn() ? '<option value="sender">Eu (remetente)</option>' : '') +
+        signerNames().map((n, i) => '<option value="' + i + '">' + n.replace(/</g, '&lt;') + '</option>').join('');
     if (keep !== '') sel.value = keep;
     drawMarkers();
 }
 document.getElementById('signers').addEventListener('input', refreshSigners);
 document.getElementById('witnesses').addEventListener('input', refreshSigners);
+if (document.getElementById('sender_signs')) document.getElementById('sender_signs').addEventListener('change', refreshSigners);
 
 function drawMarkers() {
     const names = signerNames(), box = document.getElementById('markers'), hidden = document.getElementById('fields');
     box.innerHTML = ''; hidden.innerHTML = '';
-    fields = fields.filter(f => f.signer < names.length);
+    fields = fields.filter(f => f.signer === 'sender' ? senderOn() : f.signer < names.length);
     fields.forEach((f, idx) => {
         hidden.insertAdjacentHTML('beforeend',
             '<input type="hidden" name="signature_fields[' + idx + '][signer]" value="' + f.signer + '">' +
@@ -195,7 +221,7 @@ function drawMarkers() {
         m.style.cssText = 'position:absolute;pointer-events:auto;cursor:pointer;border:2px dashed #0d6efd;background:rgba(13,110,253,.12);font-size:11px;color:#0d6efd;overflow:hidden;padding:2px 4px;' +
             'left:' + (f.x * 100) + '%;top:' + (f.y * 100) + '%;width:' + (BOX_W * 100) + '%;height:' + (BOX_H * 100) + '%';
         m.title = 'Clique para remover';
-        m.textContent = names[f.signer] + ' ✕';
+        m.textContent = (f.signer === 'sender' ? 'Eu (remetente)' : names[f.signer]) + ' ✕';
         m.addEventListener('click', e => { e.stopPropagation(); fields.splice(idx, 1); drawMarkers(); });
         box.appendChild(m);
     });
@@ -222,7 +248,8 @@ wrap.addEventListener('click', e => {
     if (!pdfDoc || !r.width || !r.height) return; // página ainda carregando
     const x = Math.min(Math.max((e.clientX - r.left) / r.width, 0), 1 - BOX_W);
     const y = Math.min(Math.max((e.clientY - r.top) / r.height, 0), 1 - BOX_H);
-    fields.push({ signer: parseInt(document.getElementById('place-signer').value || '0', 10), page: page, x: x, y: y });
+    const pick = document.getElementById('place-signer').value;
+    fields.push({ signer: pick === 'sender' ? 'sender' : parseInt(pick || '0', 10), page: page, x: x, y: y });
     drawMarkers();
 });
 document.getElementById('prev-page').addEventListener('click', () => { if (pdfDoc && page > 1) { page--; renderPage(); } });

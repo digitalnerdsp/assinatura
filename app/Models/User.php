@@ -17,6 +17,12 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
+    /** Tem uma "Minha assinatura" salva (desenhada ou digitada) para assinar como remetente. */
+    public function hasSignature(): bool
+    {
+        return in_array($this->signature_type, ['drawn', 'typed'], true) && trim((string) $this->signature_data) !== '';
+    }
+
     /** Foto enviada pelo usuário; sem foto, um avatar padrão estável (escolhido pelo e-mail). */
     public function avatarUrl(): string
     {

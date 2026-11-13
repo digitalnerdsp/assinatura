@@ -87,6 +87,8 @@ Route::middleware(['auth', 'tenant.active'])->group(function () {
 
     Route::get('/perfil', [\App\Http\Controllers\Web\ProfileController::class, 'edit'])->name('profile.edit');
     Route::put('/perfil', [\App\Http\Controllers\Web\ProfileController::class, 'update'])->middleware('throttle:20,1,profile')->name('profile.update');
+    Route::put('/perfil/assinatura', [\App\Http\Controllers\Web\ProfileController::class, 'updateSignature'])->middleware('throttle:20,1,profile-signature')->name('profile.signature.update');
+    Route::delete('/perfil/assinatura', [\App\Http\Controllers\Web\ProfileController::class, 'destroySignature'])->name('profile.signature.destroy');
     Route::delete('/perfil/foto', [\App\Http\Controllers\Web\ProfileController::class, 'destroyPhoto'])->name('profile.photo.destroy');
     Route::get('/perfil/foto/{user}', [\App\Http\Controllers\Web\ProfileController::class, 'photo'])->name('profile.photo');
 
