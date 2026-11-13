@@ -47,6 +47,25 @@
                 </div>
             </div>
 
+            <div class="card radius-10">
+                <div class="card-header d-flex align-items-center"><h6 class="mb-0"><i class="bx bx-user-voice me-1"></i> Testemunhas (opcional)</h6>
+                    <button type="button" class="btn btn-sm btn-outline-primary ms-auto" id="add-witness"><i class="bx bx-plus"></i> Adicionar testemunha</button></div>
+                <div class="card-body" id="witnesses">
+                    <p class="text-secondary small mb-0" id="witnesses-empty">Para contratos que exigem testemunhas. Elas assinam depois dos signatários e o documento só conclui com todas.</p>
+                    @foreach (old('witnesses', []) as $i => $w)
+                        <div class="border rounded p-3 mb-3 witness-row">
+                            <div class="d-flex"><strong class="small">Testemunha</strong><button type="button" class="btn-close ms-auto remove-witness" aria-label="Remover testemunha"></button></div>
+                            <div class="row g-2">
+                                <div class="col-md-6"><label class="form-label">Nome</label><input type="text" class="form-control signer-name witness-name" name="witnesses[{{ $i }}][name]" value="{{ $w['name'] ?? '' }}" required></div>
+                                <div class="col-md-6"><label class="form-label">E-mail</label><input type="email" class="form-control" name="witnesses[{{ $i }}][email]" value="{{ $w['email'] ?? '' }}" required></div>
+                                <div class="col-md-6"><label class="form-label">CPF <span class="text-secondary">(opcional)</span></label><input type="text" class="form-control" name="witnesses[{{ $i }}][cpf]" value="{{ $w['cpf'] ?? '' }}"></div>
+                                <div class="col-md-6"><label class="form-label">Telefone <span class="text-secondary">(WhatsApp/SMS)</span></label><input type="text" class="form-control" name="witnesses[{{ $i }}][phone]" value="{{ $w['phone'] ?? '' }}"></div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+
             <div class="card radius-10" id="placement-card">
                 <div class="card-header"><h6 class="mb-0"><i class="bx bx-pointer me-1"></i> Posição da assinatura no PDF <span class="text-secondary fw-normal">(opcional)</span></h6></div>
                 <div class="card-body">
@@ -95,6 +114,49 @@ document.getElementById('add').addEventListener('click', function () {
     wrap.appendChild(d);
     refreshSigners();
 });
+
+// Testemunhas: mesmo padrão, com remover. Os campos mudam de índice ao remover, então os índices das
+// posições no PDF (signer = índice na lista signatários + testemunhas) são ajustados junto.
+function witnessRow(i) {
+    return '<div class="d-flex"><strong class="small">Testemunha</strong><button type="button" class="btn-close ms-auto remove-witness" aria-label="Remover testemunha"></button></div>' +
+        '<div class="row g-2">' +
+        '<div class="col-md-6"><label class="form-label">Nome</label><input type="text" class="form-control signer-name witness-name" name="witnesses[' + i + '][name]" required></div>' +
+        '<div class="col-md-6"><label class="form-label">E-mail</label><input type="email" class="form-control" name="witnesses[' + i + '][email]" required></div>' +
+        '<div class="col-md-6"><label class="form-label">CPF <span class="text-secondary">(opcional)</span></label><input type="text" class="form-control" name="witnesses[' + i + '][cpf]"></div>' +
+        '<div class="col-md-6"><label class="form-label">Telefone <span class="text-secondary">(WhatsApp/SMS)</span></label><input type="text" class="form-control" name="witnesses[' + i + '][phone]"></div></div>';
+}
+function renumberWitnesses() {
+    document.querySelectorAll('#witnesses .witness-row').forEach(function (row, i) {
+        row.querySelectorAll('input[name^="witnesses["]').forEach(function (inp) {
+            inp.name = inp.name.replace(/^witnesses\[\d+\]/, 'witnesses[' + i + ']');
+        });
+    });
+    var empty = document.getElementById('witnesses-empty');
+    if (empty) empty.style.display = document.querySelectorAll('#witnesses .witness-row').length ? 'none' : '';
+}
+document.getElementById('add-witness').addEventListener('click', function () {
+    const wrap = document.getElementById('witnesses'), i = wrap.querySelectorAll('.witness-row').length;
+    const d = document.createElement('div');
+    d.className = 'border rounded p-3 mb-3 witness-row';
+    d.innerHTML = witnessRow(i);
+    wrap.appendChild(d);
+    renumberWitnesses();
+    refreshSigners();
+});
+document.getElementById('witnesses').addEventListener('click', function (e) {
+    const btn = e.target.closest('.remove-witness');
+    if (!btn) return;
+    const all = Array.from(document.querySelectorAll('.signer-name')), row = btn.closest('.witness-row');
+    const g = all.indexOf(row.querySelector('.signer-name'));
+    row.remove();
+    renumberWitnesses();
+    // descarta as posições da testemunha removida e desloca as das seguintes
+    if (typeof fields !== 'undefined') {
+        fields = fields.filter(function (f) { return f.signer !== g; }).map(function (f) { return f.signer > g ? Object.assign({}, f, { signer: f.signer - 1 }) : f; });
+    }
+    refreshSigners();
+});
+document.addEventListener('DOMContentLoaded', renumberWitnesses);
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
@@ -104,7 +166,10 @@ let pdfDoc = null, page = 1, fields = [];
 const wrap = document.getElementById('page-wrap'), canvas = document.getElementById('page-canvas');
 
 function signerNames() {
-    return Array.from(document.querySelectorAll('.signer-name')).map((el, i) => el.value.trim() || ('Signatário ' + (i + 1)));
+    return Array.from(document.querySelectorAll('.signer-name')).map((el, i) => {
+        const w = el.classList.contains('witness-name');
+        return (w ? 'Testemunha: ' : '') + (el.value.trim() || ((w ? 'Testemunha ' : 'Signatário ') + (i + 1)));
+    });
 }
 function refreshSigners() {
     const sel = document.getElementById('place-signer'), keep = sel.value;
@@ -113,6 +178,7 @@ function refreshSigners() {
     drawMarkers();
 }
 document.getElementById('signers').addEventListener('input', refreshSigners);
+document.getElementById('witnesses').addEventListener('input', refreshSigners);
 
 function drawMarkers() {
     const names = signerNames(), box = document.getElementById('markers'), hidden = document.getElementById('fields');

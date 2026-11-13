@@ -82,11 +82,11 @@
     <div class="card-header"><h6 class="mb-0"><i class="bx bx-group me-1"></i> Signatários</h6></div>
     <div class="table-responsive">
         <table class="table align-middle mb-0">
-            <thead class="table-light"><tr><th>#</th><th>Nome</th><th>E-mail</th><th>Status</th><th>Assinou em</th></tr></thead>
+            <thead class="table-light"><tr><th>#</th><th>Nome</th><th>Papel</th><th>E-mail</th><th>Status</th><th>Assinou em</th></tr></thead>
             <tbody>
             @foreach ($envelope->signers as $s)
                 <tr>
-                    <td>{{ $s->position }}</td><td>{{ $s->name }}</td><td>{{ $s->email }}</td>
+                    <td>{{ $s->position }}</td><td>{{ $s->name }}</td><td>@if ($s->isSender())<span class="badge bg-primary">Remetente</span>@elseif ($s->isWitness())<span class="badge bg-secondary">Testemunha</span>@else<span class="text-secondary">Signatário</span>@endif</td><td>{{ $s->email }}</td>
                     <td>@include('partials.status-badge', ['status' => $s->status->value])@if($s->refused_reason)<div class="small text-secondary">{{ $s->refused_reason }}</div>@endif @if ($envelope->signing_order->value === 'sequential' && $envelope->status->isOpenForSigning() && ! in_array($s->status->value, ['signed', 'refused']))<div class="small text-secondary">{{ in_array($s->id, $activeIds) ? 'na vez de assinar' : 'aguardando a vez' }}</div>@endif</td>
                     <td>{{ $s->signed_at?->timezone('America/Sao_Paulo')->format('d/m/Y H:i:s') ?? '—' }}</td>
                 </tr>

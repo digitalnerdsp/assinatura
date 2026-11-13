@@ -25,6 +25,7 @@ final class OpenApiSpec
             'name' => ['type' => 'string'], 'email' => ['type' => 'string', 'format' => 'email'],
             'phone' => ['type' => 'string', 'description' => 'Para WhatsApp/SMS. Aceita (11) 99999-8888 ou +5511999998888.'],
             'cpf' => ['type' => 'string'],
+            'role' => ['type' => 'string', 'enum' => ['signer', 'witness'], 'default' => 'signer', 'description' => 'witness = testemunha: assina depois dos signatários e é exigida para concluir. Pelo menos um item precisa ser signer.'],
             'position' => ['type' => 'integer', 'description' => 'Ordem (ordem sequencial). Mesma posição = assinam juntos.'],
         ]]];
         $options = [
@@ -148,7 +149,7 @@ final class OpenApiSpec
                     'Me' => ['type' => 'object', 'properties' => ['api_version' => ['type' => 'string'], 'tenant' => ['type' => 'object'], 'key' => ['type' => 'object'], 'usage' => ['type' => 'object'], 'webhook_events' => ['type' => 'array', 'items' => ['type' => 'string']]]],
                     'Signer' => ['type' => 'object', 'properties' => [
                         'id' => ['type' => 'string', 'format' => 'uuid'], 'name' => ['type' => 'string'], 'email' => ['type' => 'string'], 'phone' => ['type' => 'string', 'nullable' => true],
-                        'role' => ['type' => 'string'], 'position' => ['type' => 'integer'], 'status' => ['type' => 'string', 'enum' => ['pending', 'viewed', 'signed', 'refused']],
+                        'role' => ['type' => 'string', 'enum' => ['signer', 'witness']], 'is_sender' => ['type' => 'boolean', 'description' => 'true para quem enviou (a empresa).'], 'signed_via' => ['type' => 'string', 'nullable' => true, 'enum' => ['link', 'session', 'api_key']], 'position' => ['type' => 'integer'], 'status' => ['type' => 'string', 'enum' => ['pending', 'viewed', 'signed', 'refused']],
                         'viewed_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true], 'signed_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
                         'refused_reason' => ['type' => 'string', 'nullable' => true], 'reminders_count' => ['type' => 'integer'],
                         'sign_url' => ['type' => 'string', 'nullable' => true, 'description' => 'Link pessoal de assinatura (só enquanto o envelope está aberto). Trate como senha.'],

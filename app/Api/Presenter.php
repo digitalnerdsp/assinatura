@@ -57,6 +57,8 @@ final class Presenter
             'email' => $s->email,
             'phone' => $s->phone,
             'role' => $s->role,
+            'is_sender' => (bool) $s->is_sender,
+            'signed_via' => $s->signed_via,
             'position' => $s->position,
             'status' => $s->status->value,
             'viewed_at' => $s->viewed_at?->toIso8601String(),

@@ -102,6 +102,7 @@ final class EnvelopeController extends Controller
             'signers.*.email' => ['required', 'email', 'max:190'],
             'signers.*.phone' => ['nullable', 'string', 'max:30'],
             'signers.*.cpf' => ['nullable', 'string', 'max:14'],
+            'signers.*.role' => ['nullable', 'in:signer,witness'],
             'signers.*.position' => ['nullable', 'integer', 'between:1,50'],
             'signature_fields' => ['nullable', 'array', 'max:60'],
             'signature_fields.*.signer' => ['required', 'integer', 'min:0', 'max:19'],

@@ -186,7 +186,18 @@ final class EnvelopeController extends Controller
             'signers.*.email' => ['required', 'email', 'max:190'],
             'signers.*.phone' => ['nullable', 'string', 'max:30'],
             'signers.*.cpf' => ['nullable', 'string', 'max:14'],
+            'witnesses' => ['nullable', 'array', 'max:'.(int) config('signing.max_witnesses')],
+            'witnesses.*.name' => ['required', 'string', 'max:150'],
+            'witnesses.*.email' => ['required', 'email', 'max:190'],
+            'witnesses.*.phone' => ['nullable', 'string', 'max:30'],
+            'witnesses.*.cpf' => ['nullable', 'string', 'max:14'],
         ]);
+
+        // Signatários primeiro, testemunhas depois: os índices de signature_fields seguem essa ordem.
+        $people = array_merge(
+            array_values($data['signers']),
+            array_map(fn ($w) => $w + ['role' => 'witness'], array_values($data['witnesses'] ?? [])),
+        );
 
         try {
             $envelope = $this->envelopes->create(
@@ -195,7 +206,7 @@ final class EnvelopeController extends Controller
                 (string) file_get_contents($request->file('document')->getRealPath()),
                 $request->file('document')->getClientOriginalName(),
                 $data['title'],
-                array_values($data['signers']),
+                $people,
                 SigningOrder::from($data['signing_order']),
                 'simple',
                 $data['message'] ?? null,
