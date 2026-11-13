@@ -4,7 +4,7 @@
     $isSuper = $user->isSuperAdmin();
     $item = fn (string ...$patterns) => request()->routeIs(...$patterns) ? 'mm-active' : '';
     $docsOpen = request()->routeIs('envelopes.*', 'documents.*');
-    $cfgOpen = request()->routeIs('profile.*', 'company.*', 'api-keys.*', 'webhooks.*', 'team.*', 'brand.*');
+    $cfgOpen = request()->routeIs('profile.*', 'company.*', 'api-keys.*', 'webhooks.*', 'team.*', 'brand.*', 'plan-usage.*');
     $helpUrl = \App\Models\Setting::helpUrl();
 @endphp
 <ul class="metismenu" id="menu">
@@ -35,6 +35,7 @@
             <li class="{{ $item('company.*') }}"><a href="{{ route('company.signing.edit') }}"><i class="bx bx-right-arrow-alt"></i>Assinatura da empresa</a></li>
             <li class="{{ $item('team.*') }}"><a href="{{ route('team.index') }}"><i class="bx bx-right-arrow-alt"></i>Usuários</a></li>
             @if ($user->role === 'owner')
+            <li class="{{ $item('plan-usage.*') }}"><a href="{{ route('plan-usage.index') }}"><i class="bx bx-right-arrow-alt"></i>Plano e uso</a></li>
             <li class="{{ $item('brand.*') }}"><a href="{{ route('brand.edit') }}"><i class="bx bx-right-arrow-alt"></i>Marca própria</a></li>
             <li class="{{ $item('api-keys.*') }}"><a href="{{ route('api-keys.index') }}"><i class="bx bx-right-arrow-alt"></i>API</a></li>
             <li class="{{ $item('webhooks.*') }}"><a href="{{ route('webhooks.index') }}"><i class="bx bx-right-arrow-alt"></i>Webhooks</a></li>
@@ -51,9 +52,11 @@
         <li class="menu-label">Plataforma</li>
         <li class="{{ $item('admin.dashboard') }}"><a href="{{ route('admin.dashboard') }}"><div class="parent-icon"><i class="bx bx-line-chart"></i></div><div class="menu-title">Visão geral</div></a></li>
         <li class="{{ $item('admin.tenants.*') }}"><a href="{{ route('admin.tenants.index') }}"><div class="parent-icon"><i class="bx bx-buildings"></i></div><div class="menu-title">Clientes</div></a></li>
+        <li class="{{ $item('admin.subscriptions.*') }}"><a href="{{ route('admin.subscriptions.index') }}"><div class="parent-icon"><i class="bx bx-credit-card-front"></i></div><div class="menu-title">Assinaturas</div></a></li>
         <li class="{{ $item('admin.health*') }}"><a href="{{ route('admin.health') }}"><div class="parent-icon"><i class="bx bx-pulse"></i></div><div class="menu-title">Saúde do sistema</div></a></li>
         <li class="{{ $item('admin.sealing*') }}"><a href="{{ route('admin.sealing') }}"><div class="parent-icon"><i class="bx bx-shield-quarter"></i></div><div class="menu-title">Selagem do PDF</div></a></li>
         @if ($isSuper)
+        <li class="{{ $item('admin.plans.*') }}"><a href="{{ route('admin.plans.index') }}"><div class="parent-icon"><i class="bx bx-layer"></i></div><div class="menu-title">Planos</div></a></li>
         <li class="{{ $item('admin.users.*') }}"><a href="{{ route('admin.users.index') }}"><div class="parent-icon"><i class="bx bx-user-check"></i></div><div class="menu-title">Usuários da plataforma</div></a></li>
         <li class="{{ $item('admin.mail*') }}"><a href="{{ route('admin.mail') }}"><div class="parent-icon"><i class="bx bx-envelope"></i></div><div class="menu-title">E-mail (SMTP)</div></a></li>
         <li class="{{ $item('admin.settings*') }}"><a href="{{ route('admin.settings') }}"><div class="parent-icon"><i class="bx bx-cog"></i></div><div class="menu-title">Configurações</div></a></li>

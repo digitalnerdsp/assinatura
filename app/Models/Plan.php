@@ -16,6 +16,11 @@ class Plan extends Model
     /** Recursos que um plano liga ou desliga. */
     public const FEATURES = ['whatsapp', 'api', 'webhooks', 'templates', 'positioning', 'ordered_signers', 'selfie', 'timestamp', 'reports', 'white_label'];
 
+    public const FEATURE_LABELS = ['whatsapp' => 'WhatsApp e SMS', 'api' => 'API', 'webhooks' => 'Webhooks', 'templates' => 'Modelos', 'positioning' => 'Posicionamento da assinatura', 'ordered_signers' => 'Signatários em ordem', 'selfie' => 'Selfie e foto do documento', 'timestamp' => 'Carimbo de tempo', 'reports' => 'Relatórios', 'white_label' => 'Marca própria (logo e cores)'];
+
+    /** Recursos que o sistema já barra de verdade quando desligados; os demais ainda são só informativos. */
+    public const FEATURES_ENFORCED = ['api', 'webhooks', 'templates', 'reports', 'white_label'];
+
     public const LIMITS = ['documents', 'users', 'storage_mb', 'max_pdf_mb'];
 
     protected $guarded = [];

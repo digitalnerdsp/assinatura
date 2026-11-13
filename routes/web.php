@@ -33,12 +33,23 @@ Route::middleware(['auth', 'tenant.active', 'platform'])->prefix('admin')->name(
     Route::put('/clientes/{tenant}', [\App\Http\Controllers\Admin\TenantController::class, 'update'])->name('tenants.update');
     Route::post('/clientes/{tenant}/suspender', [\App\Http\Controllers\Admin\TenantController::class, 'suspend'])->name('tenants.suspend');
     Route::post('/clientes/{tenant}/reativar', [\App\Http\Controllers\Admin\TenantController::class, 'reactivate'])->name('tenants.reactivate');
+    Route::get('/assinaturas', [\App\Http\Controllers\Admin\SubscriptionController::class, 'index'])->name('subscriptions.index');
+    Route::get('/assinaturas/{tenant}', [\App\Http\Controllers\Admin\SubscriptionController::class, 'show'])->whereUuid('tenant')->name('subscriptions.show');
+    Route::put('/assinaturas/{tenant}', [\App\Http\Controllers\Admin\SubscriptionController::class, 'update'])->whereUuid('tenant')->name('subscriptions.update');
+    Route::post('/assinaturas/{tenant}/creditos', [\App\Http\Controllers\Admin\SubscriptionController::class, 'credits'])->whereUuid('tenant')->middleware('throttle:30,1,admin-credits')->name('subscriptions.credits');
     Route::get('/saude', [\App\Http\Controllers\Admin\HealthController::class, 'index'])->name('health');
     Route::get('/selagem', [\App\Http\Controllers\Admin\SealingController::class, 'index'])->name('sealing');
     Route::post('/selagem/teste', [\App\Http\Controllers\Admin\SealingController::class, 'test'])->middleware('throttle:10,1,admin-sealing-test')->name('sealing.test');
 
     // só super admin
     Route::middleware('super.admin')->group(function () {
+        Route::get('/planos', [\App\Http\Controllers\Admin\PlanController::class, 'index'])->name('plans.index');
+        Route::get('/planos/novo', [\App\Http\Controllers\Admin\PlanController::class, 'create'])->name('plans.create');
+        Route::post('/planos', [\App\Http\Controllers\Admin\PlanController::class, 'store'])->name('plans.store');
+        Route::get('/planos/{plan}/editar', [\App\Http\Controllers\Admin\PlanController::class, 'edit'])->whereUuid('plan')->name('plans.edit');
+        Route::put('/planos/{plan}', [\App\Http\Controllers\Admin\PlanController::class, 'update'])->whereUuid('plan')->name('plans.update');
+        Route::post('/planos/{plan}/padrao', [\App\Http\Controllers\Admin\PlanController::class, 'makeDefault'])->whereUuid('plan')->name('plans.default');
+        Route::delete('/planos/{plan}', [\App\Http\Controllers\Admin\PlanController::class, 'destroy'])->whereUuid('plan')->name('plans.destroy');
         Route::get('/usuarios', [\App\Http\Controllers\Admin\PlatformUserController::class, 'index'])->name('users.index');
         Route::post('/usuarios/promover', [\App\Http\Controllers\Admin\PlatformUserController::class, 'promote'])->middleware('throttle:20,1,platform-users')->name('users.promote');
         Route::post('/usuarios/convidar', [\App\Http\Controllers\Admin\PlatformUserController::class, 'invite'])->middleware('throttle:20,1,platform-users')->name('users.invite');
@@ -107,6 +118,7 @@ Route::middleware(['auth', 'tenant.active'])->group(function () {
     Route::post('/configuracoes/usuarios/{user}/reativar', [\App\Http\Controllers\Web\TeamController::class, 'reactivate'])->name('team.reactivate');
     Route::delete('/configuracoes/usuarios/{user}', [\App\Http\Controllers\Web\TeamController::class, 'destroy'])->name('team.destroy');
 
+    Route::get('/configuracoes/plano', [\App\Http\Controllers\Web\PlanUsageController::class, 'index'])->name('plan-usage.index');
     Route::get('/configuracoes/marca', [\App\Http\Controllers\Web\BrandController::class, 'edit'])->name('brand.edit');
     Route::put('/configuracoes/marca', [\App\Http\Controllers\Web\BrandController::class, 'update'])->middleware('throttle:20,1,brand')->name('brand.update');
     Route::delete('/configuracoes/marca', [\App\Http\Controllers\Web\BrandController::class, 'reset'])->name('brand.reset');
