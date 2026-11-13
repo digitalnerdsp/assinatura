@@ -7,7 +7,7 @@
 <body>
 @php
     $u = auth()->user();
-    $isAdmin = $u->isSuperAdmin();
+    $isAdmin = $u->isPlatformAdmin();
     $item = fn (string $pattern) => request()->routeIs($pattern) ? 'mm-active' : '';
 @endphp
 <div class="wrapper">

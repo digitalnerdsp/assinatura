@@ -44,9 +44,28 @@ class User extends Authenticatable
         return $this->invite_token_hash !== null;
     }
 
-    public function isSuperAdmin(): bool
+    /** Acesso fixo definido no servidor (SUPER_ADMIN_EMAILS); a tela da equipe nunca altera. */
+    public function isRootAdmin(): bool
     {
         return in_array(mb_strtolower($this->email), config('platform.super_admins', []), true);
+    }
+
+    /** Super administrador: raiz ou papel concedido, e com a conta ativa (convite aceito). */
+    public function isSuperAdmin(): bool
+    {
+        return $this->isActive() && ! $this->isPendingInvite()
+            && ($this->isRootAdmin() || $this->platform_role === 'super_admin');
+    }
+
+    /** Administrador ou super administrador da plataforma. */
+    public function isPlatformAdmin(): bool
+    {
+        return $this->isSuperAdmin() || ($this->isActive() && ! $this->isPendingInvite() && $this->platform_role === 'admin');
+    }
+
+    public function grantedBy(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(self::class, 'platform_granted_by');
     }
 
     public function tenant(): \Illuminate\Database\Eloquent\Relations\BelongsTo
@@ -65,6 +84,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'deactivated_at' => 'datetime',
             'invite_expires_at' => 'datetime',
+            'platform_granted_at' => 'datetime',
             'password' => 'hashed',
         ];
     }

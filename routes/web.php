@@ -22,8 +22,8 @@ Route::post('/convite/{token}', [\App\Http\Controllers\Web\InviteController::cla
 
 Route::middleware('auth')->post('/sair', [AuthController::class, 'logout'])->name('logout');
 
-// Painel da plataforma (super admin)
-Route::middleware(['auth', 'tenant.active', 'super.admin'])->prefix('admin')->name('admin.')->group(function () {
+// Painel da plataforma: admin opera; super admin também gerencia equipe, e-mail e configurações
+Route::middleware(['auth', 'tenant.active', 'platform'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [\App\Http\Controllers\Admin\DashboardController::class, 'index'])->name('dashboard');
     Route::get('/clientes', [\App\Http\Controllers\Admin\TenantController::class, 'index'])->name('tenants.index');
     Route::get('/clientes/{tenant}', [\App\Http\Controllers\Admin\TenantController::class, 'show'])->name('tenants.show');
@@ -33,12 +33,21 @@ Route::middleware(['auth', 'tenant.active', 'super.admin'])->prefix('admin')->na
     Route::get('/saude', [\App\Http\Controllers\Admin\HealthController::class, 'index'])->name('health');
     Route::get('/selagem', [\App\Http\Controllers\Admin\SealingController::class, 'index'])->name('sealing');
     Route::post('/selagem/teste', [\App\Http\Controllers\Admin\SealingController::class, 'test'])->middleware('throttle:10,1,admin-sealing-test')->name('sealing.test');
-    Route::get('/email', [\App\Http\Controllers\Admin\MailController::class, 'edit'])->name('mail');
-    Route::put('/email', [\App\Http\Controllers\Admin\MailController::class, 'update'])->name('mail.update');
-    Route::post('/email/teste', [\App\Http\Controllers\Admin\MailController::class, 'test'])->middleware('throttle:10,1,admin-mail-test')->name('mail.test');
-    Route::delete('/email', [\App\Http\Controllers\Admin\MailController::class, 'reset'])->name('mail.reset');
-    Route::get('/configuracoes', [\App\Http\Controllers\Admin\SettingsController::class, 'edit'])->name('settings');
-    Route::put('/configuracoes', [\App\Http\Controllers\Admin\SettingsController::class, 'update'])->name('settings.update');
+
+    // só super admin
+    Route::middleware('super.admin')->group(function () {
+        Route::get('/usuarios', [\App\Http\Controllers\Admin\PlatformUserController::class, 'index'])->name('users.index');
+        Route::post('/usuarios/promover', [\App\Http\Controllers\Admin\PlatformUserController::class, 'promote'])->middleware('throttle:20,1,platform-users')->name('users.promote');
+        Route::post('/usuarios/convidar', [\App\Http\Controllers\Admin\PlatformUserController::class, 'invite'])->middleware('throttle:20,1,platform-users')->name('users.invite');
+        Route::put('/usuarios/{user}', [\App\Http\Controllers\Admin\PlatformUserController::class, 'role'])->name('users.role');
+        Route::delete('/usuarios/{user}', [\App\Http\Controllers\Admin\PlatformUserController::class, 'revoke'])->name('users.revoke');
+        Route::get('/email', [\App\Http\Controllers\Admin\MailController::class, 'edit'])->name('mail');
+        Route::put('/email', [\App\Http\Controllers\Admin\MailController::class, 'update'])->name('mail.update');
+        Route::post('/email/teste', [\App\Http\Controllers\Admin\MailController::class, 'test'])->middleware('throttle:10,1,admin-mail-test')->name('mail.test');
+        Route::delete('/email', [\App\Http\Controllers\Admin\MailController::class, 'reset'])->name('mail.reset');
+        Route::get('/configuracoes', [\App\Http\Controllers\Admin\SettingsController::class, 'edit'])->name('settings');
+        Route::put('/configuracoes', [\App\Http\Controllers\Admin\SettingsController::class, 'update'])->name('settings.update');
+    });
 });
 
 Route::middleware(['auth', 'tenant.active'])->group(function () {

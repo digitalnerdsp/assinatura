@@ -1,6 +1,7 @@
 @php
     $user = auth()->user();
-    $isAdmin = $user->isSuperAdmin();
+    $isAdmin = $user->isPlatformAdmin();
+    $isSuper = $user->isSuperAdmin();
     $item = fn (string ...$patterns) => request()->routeIs(...$patterns) ? 'mm-active' : '';
     $docsOpen = request()->routeIs('envelopes.*', 'documents.*');
     $cfgOpen = request()->routeIs('profile.*', 'company.*', 'api-keys.*', 'webhooks.*', 'team.*');
@@ -51,7 +52,10 @@
         <li class="{{ $item('admin.tenants.*') }}"><a href="{{ route('admin.tenants.index') }}"><div class="parent-icon"><i class="bx bx-buildings"></i></div><div class="menu-title">Clientes</div></a></li>
         <li class="{{ $item('admin.health*') }}"><a href="{{ route('admin.health') }}"><div class="parent-icon"><i class="bx bx-pulse"></i></div><div class="menu-title">Saúde do sistema</div></a></li>
         <li class="{{ $item('admin.sealing*') }}"><a href="{{ route('admin.sealing') }}"><div class="parent-icon"><i class="bx bx-shield-quarter"></i></div><div class="menu-title">Selagem do PDF</div></a></li>
+        @if ($isSuper)
+        <li class="{{ $item('admin.users.*') }}"><a href="{{ route('admin.users.index') }}"><div class="parent-icon"><i class="bx bx-user-check"></i></div><div class="menu-title">Usuários da plataforma</div></a></li>
         <li class="{{ $item('admin.mail*') }}"><a href="{{ route('admin.mail') }}"><div class="parent-icon"><i class="bx bx-envelope"></i></div><div class="menu-title">E-mail (SMTP)</div></a></li>
         <li class="{{ $item('admin.settings*') }}"><a href="{{ route('admin.settings') }}"><div class="parent-icon"><i class="bx bx-cog"></i></div><div class="menu-title">Configurações</div></a></li>
+        @endif
     @endif
 </ul>

@@ -154,7 +154,7 @@ final class ProfileController extends Controller
         $viewer = $request->user();
         abort_unless(
             $user->avatar_path
-            && ($viewer->is($user) || $viewer->isSuperAdmin() || ($viewer->tenant_id !== null && $viewer->tenant_id === $user->tenant_id)),
+            && ($viewer->is($user) || $viewer->isPlatformAdmin() || ($viewer->tenant_id !== null && $viewer->tenant_id === $user->tenant_id)),
             404,
         );
         abort_unless(Storage::disk('local')->exists($user->avatar_path), 404);

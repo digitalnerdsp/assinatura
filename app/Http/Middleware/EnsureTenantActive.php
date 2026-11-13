@@ -16,7 +16,7 @@ final class EnsureTenantActive
     {
         $user = $request->user();
 
-        if ($user && ! $user->isSuperAdmin() && $user->tenant?->isSuspended()) {
+        if ($user && ! $user->isPlatformAdmin() && $user->tenant?->isSuspended()) {
             Auth::logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();

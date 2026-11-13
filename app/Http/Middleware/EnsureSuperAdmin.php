@@ -8,12 +8,17 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-/** Painel da plataforma. Para quem não é admin responde 404 (não revela que a rota existe). */
+/**
+ * Áreas só de super admin (equipe, e-mail, configurações). Quem não é da plataforma recebe 404 (não revela
+ * que a rota existe); o admin comum, que já conhece o painel, recebe 403.
+ */
 final class EnsureSuperAdmin
 {
     public function handle(Request $request, Closure $next): Response
     {
-        abort_unless($request->user()?->isSuperAdmin(), 404);
+        $user = $request->user();
+        abort_unless($user?->isPlatformAdmin(), 404);
+        abort_unless($user->isSuperAdmin(), 403, 'Esta área é só para super administradores.');
 
         return $next($request);
     }
