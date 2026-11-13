@@ -18,6 +18,11 @@ Schedule::call(fn () => \Illuminate\Support\Facades\Cache::put(\App\Support\Syst
 Schedule::command('envelopes:expire')->everyFifteenMinutes()->withoutOverlapping();
 Schedule::command('envelopes:remind')->hourly()->withoutOverlapping();
 
+Artisan::command('envelopes:purge-trash', function (\App\Envelopes\TrashService $trash) {
+    $this->info($trash->purge(30).' envelope(s) removido(s) da lixeira.');
+})->purpose('Apaga de vez os envelopes que estão há 30 dias ou mais na lixeira');
+Schedule::command('envelopes:purge-trash')->daily()->withoutOverlapping();
+
 Artisan::command('api:prune-idempotency', function () {
     $n = \Illuminate\Support\Facades\DB::table('api_idempotency_keys')->where('created_at', '<', now()->subDay())->delete();
     $this->info("{$n} chave(s) de idempotência removida(s).");

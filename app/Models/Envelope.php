@@ -29,6 +29,8 @@ class Envelope extends Model
             'expires_at' => 'datetime',
             'completed_at' => 'datetime',
             'sealed_at' => 'datetime',
+            'trashed_at' => 'datetime',
+            'archived_at' => 'datetime',
             'require_otp' => 'boolean',
             'require_selfie' => 'boolean',
             'require_document' => 'boolean',
@@ -36,6 +38,34 @@ class Envelope extends Model
             'notify_channels' => 'array',
             'metadata' => 'array',
         ];
+    }
+
+    /** Só rascunho, cancelado e expirado podem ir para a lixeira; documento assinado nunca é apagado pelo usuário. */
+    public function isTrashable(): bool
+    {
+        return in_array($this->status, [EnvelopeStatus::Draft, EnvelopeStatus::Cancelled, EnvelopeStatus::Expired], true);
+    }
+
+    /** Concluído e recusado saem da lista por arquivamento (continuam verificáveis). */
+    public function isArchivable(): bool
+    {
+        return in_array($this->status, [EnvelopeStatus::Completed, EnvelopeStatus::Refused], true);
+    }
+
+    public function isTrashed(): bool
+    {
+        return $this->trashed_at !== null;
+    }
+
+    public function isArchived(): bool
+    {
+        return $this->archived_at !== null;
+    }
+
+    /** Fora da lixeira e do arquivo (lista padrão). */
+    public function scopeVisible(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    {
+        return $query->whereNull('trashed_at')->whereNull('archived_at');
     }
 
     public function folder(): BelongsTo
