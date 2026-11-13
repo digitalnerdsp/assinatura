@@ -62,7 +62,7 @@ final class EnvelopeService
         if (strlen($pdfContents) > (int) config('signing.max_pdf_mb') * 1024 * 1024) {
             throw FlowException::because('document_too_large', 'O PDF excede o limite de '.config('signing.max_pdf_mb').' MB.');
         }
-        $this->assertParticipants($signers);
+        $this->assertParticipants($signers, ! empty($options['sender']));
 
         $validity = max(1, min(365, (int) ($options['validity_days'] ?? config('signing.default_validity_days'))));
         $reminder = array_key_exists('reminder_every_days', $options)
@@ -118,6 +118,20 @@ final class EnvelopeService
                 );
             }
 
+            // Remetente (a empresa): signatário marcado, sempre o primeiro (posição 0), sem link público.
+            $sender = null;
+            if (! empty($options['sender'])) {
+                $sender = $envelope->signers()->create([
+                    'name' => $options['sender']['name'],
+                    'email' => mb_strtolower($options['sender']['email']),
+                    'cpf' => $options['sender']['cpf'] ?? null,
+                    'role' => 'signer',
+                    'position' => 0,
+                    'status' => SignerStatus::Pending,
+                    'is_sender' => true,
+                ]);
+            }
+
             $created = [];
             $lastSignerPosition = collect(array_values($signers))
                 ->map(fn ($s, $i) => ($s['role'] ?? 'signer') === 'signer' ? (int) ($s['position'] ?? $i + 1) : 0)
@@ -139,11 +153,12 @@ final class EnvelopeService
 
             // Posição da assinatura no PDF: signer = índice na lista de signatários.
             foreach ($options['signature_fields'] ?? [] as $field) {
-                if (! isset($created[$field['signer']])) {
+                $target = $field['signer'] === 'sender' ? $sender : ($created[$field['signer']] ?? null);
+                if ($target === null) {
                     continue;
                 }
                 $envelope->signatureFields()->create([
-                    'signer_id' => $created[$field['signer']]->getKey(),
+                    'signer_id' => $target->getKey(),
                     'page' => max(1, (int) $field['page']),
                     'x' => min(max((float) $field['x'], 0), 1),
                     'y' => min(max((float) $field['y'], 0), 1),
@@ -152,7 +167,7 @@ final class EnvelopeService
 
             $this->evidence->record($envelope, 'envelope_created', [
                 'document_sha256' => $document->sha256,
-                'signers' => count($signers),
+                'signers' => count($signers) + ($sender ? 1 : 0),
                 'required_level' => $requiredLevel,
                 'verifications' => array_keys(array_filter([
                     'otp' => $otp, 'selfie' => $selfie, 'document' => $docPhoto, 'geolocation' => $geolocation,
@@ -164,7 +179,7 @@ final class EnvelopeService
     }
 
     /** Papéis aceitos, limite de testemunhas e ao menos um signatário. @param list<array<string,mixed>> $signers */
-    private function assertParticipants(array $signers): void
+    private function assertParticipants(array $signers, bool $hasSender = false): void
     {
         $roles = array_map(fn ($s) => $s['role'] ?? 'signer', $signers);
 
@@ -178,7 +193,7 @@ final class EnvelopeService
             throw FlowException::because('too_many_witnesses', 'Limite de '.config('signing.max_witnesses').' testemunhas por documento.');
         }
 
-        if (! in_array('signer', $roles, true)) {
+        if (! in_array('signer', $roles, true) && ! $hasSender) {
             throw FlowException::because('no_signers', 'Informe ao menos um signatário.');
         }
     }
@@ -217,6 +232,11 @@ final class EnvelopeService
             $tokens = [];
 
             foreach ($envelope->signers as $signer) {
+                if ($signer->isSender()) {
+                    $signer->update(['invited_at' => now()]); // o remetente não recebe link nem convite
+                    continue;
+                }
+
                 $plain = Str::random(48);
                 $signer->update([
                     'token_hash' => hash('sha256', $plain),
@@ -237,6 +257,21 @@ final class EnvelopeService
         });
 
         $this->webhooks->dispatch($envelope, 'envelope.sent');
+
+        return $tokens;
+    }
+
+    /**
+     * Envia o envelope e já assina como remetente (sem verificações): a assinatura vem de uma sessão logada ou de uma
+     * chave de API. Devolve os tokens dos demais signatários (o remetente não tem link).
+     *
+     * @return array<string,string>
+     */
+    public function sendAndSignAsSender(Envelope $envelope, SenderSignature $signature, ?RequestContext $context = null, ?int $validDays = null): array
+    {
+        $tokens = $this->send($envelope, $context, $validDays);
+
+        app(SenderSigner::class)->apply($envelope->fresh(), $signature, $context);
 
         return $tokens;
     }

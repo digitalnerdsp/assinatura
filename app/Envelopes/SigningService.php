@@ -140,7 +140,21 @@ final class SigningService
 
         $this->assertMyTurn($signer, $envelope);
 
-        $allSigned = DB::transaction(function () use ($signer, $envelope, $type, $data, $context) {
+        $this->recordSignature($signer, $type, $data, $context);
+    }
+
+    /**
+     * Grava a assinatura (já validada) e cuida da conclusão: evento de prova, selagem quando todos assinaram,
+     * webhook e convite do próximo da fila. Usado por sign() e pela assinatura do remetente, que não passa por
+     * link nem verificações. `$evidence` é somado ao evento `document_signed`; `$level` troca o nível da assinatura.
+     *
+     * @param  array<string,mixed>  $evidence
+     */
+    public function recordSignature(Signer $signer, string $type, string $data, ?RequestContext $context = null, array $evidence = [], ?string $level = null): void
+    {
+        $envelope = $signer->envelope;
+
+        $allSigned = DB::transaction(function () use ($signer, $envelope, $type, $data, $context, $evidence, $level) {
             // Trava o signatário para impedir assinatura dupla concorrente.
             $fresh = Signer::query()->whereKey($signer->getKey())->lockForUpdate()->firstOrFail();
             if ($fresh->status === SignerStatus::Signed) {
@@ -148,7 +162,7 @@ final class SigningService
             }
 
             $now = now();
-            $level = $envelope->required_level; // 'advanced' só se houve verificação adicional (já validada acima)
+            $level ??= $envelope->required_level; // 'advanced' só se houve verificação adicional (já validada acima)
 
             $fresh->signature()->create([
                 'type' => $type,
@@ -166,7 +180,7 @@ final class SigningService
                 'level' => $level,
                 'document_sha256' => $envelope->document->sha256,
                 'signature_sha256' => hash('sha256', $data),
-            ], $fresh, $context);
+            ] + $evidence, $fresh, $context);
 
             $pending = $envelope->signers()->whereIn('role', Envelope::PARTICIPANT_ROLES)->where('status', '!=', SignerStatus::Signed->value)->count();
 
