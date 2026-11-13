@@ -77,6 +77,9 @@ Route::middleware(['auth', 'tenant.active'])->group(function () {
     Route::delete('/organizacao/etiquetas/{tag}', [\App\Http\Controllers\Web\OrganizationController::class, 'destroyTag'])->name('tags.destroy');
 
     Route::get('/contatos', [\App\Http\Controllers\Web\ContactController::class, 'index'])->name('contacts.index');
+    Route::get('/contatos/sugestoes', [\App\Http\Controllers\Web\ContactController::class, 'suggest'])->middleware('throttle:120,1,contacts-suggest')->name('contacts.suggest');
+    Route::post('/contatos/importar', [\App\Http\Controllers\Web\ContactController::class, 'import'])->middleware('throttle:10,1,contacts-import')->name('contacts.import');
+    Route::get('/contatos/exportar', [\App\Http\Controllers\Web\ContactController::class, 'export'])->name('contacts.export');
     Route::post('/contatos', [\App\Http\Controllers\Web\ContactController::class, 'store'])->middleware('throttle:60,1,contacts')->name('contacts.store');
     Route::put('/contatos/{contact}', [\App\Http\Controllers\Web\ContactController::class, 'update'])->name('contacts.update');
     Route::delete('/contatos/{contact}', [\App\Http\Controllers\Web\ContactController::class, 'destroy'])->name('contacts.destroy');

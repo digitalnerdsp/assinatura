@@ -1,9 +1,12 @@
 @extends('layouts.app')
 @section('title', 'Contatos')
 @section('section', 'Contatos')
-@section('actions')<button type="button" class="btn btn-primary drive-tap" data-contact-new><i class="bx bx-user-plus"></i> Novo contato</button>@endsection
+@section('actions')<div class="d-flex flex-wrap gap-2"><a class="btn btn-outline-secondary drive-tap" href="{{ route('contacts.export') }}"><i class="bx bx-download"></i> Exportar</a><button type="button" class="btn btn-outline-secondary drive-tap" data-bs-toggle="modal" data-bs-target="#modal-import"><i class="bx bx-upload"></i> Importar</button><button type="button" class="btn btn-primary drive-tap" data-contact-new><i class="bx bx-user-plus"></i> Novo contato</button></div>@endsection
 @section('content')
 @php($popper = '{"strategy":"fixed"}')
+@if (session('import_errors'))
+    <div class="alert alert-warning border-0"><strong>Linhas não importadas:</strong><ul class="mb-0">@foreach (session('import_errors') as $err)<li>{{ $err }}</li>@endforeach</ul></div>
+@endif
 <div class="card radius-10">
     <div class="card-body">
         <form method="get" action="{{ route('contacts.index') }}" class="row g-2 mb-3">
@@ -82,6 +85,19 @@
                 </div>
             </div>
             <div class="modal-footer"><button type="button" class="btn btn-outline-secondary drive-tap" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-primary drive-tap">Salvar</button></div>
+        </form>
+    </div>
+</div>
+<div class="modal fade" id="modal-import" tabindex="-1" aria-labelledby="modal-import-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+        <form class="modal-content" method="post" action="{{ route('contacts.import') }}" enctype="multipart/form-data">
+            @csrf
+            <div class="modal-header"><h5 class="modal-title" id="modal-import-title">Importar contatos (CSV)</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button></div>
+            <div class="modal-body">
+                <p class="small text-secondary">Colunas aceitas: Nome, E-mail (obrigatório), Telefone, CPF/CNPJ, Empresa, Observação. Separe por ";" ou ",". Contatos que já existem só ganham os dados que faltavam.</p>
+                <input type="file" class="form-control" name="file" accept=".csv,text/csv" required aria-label="Arquivo CSV">
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-outline-secondary drive-tap" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-primary drive-tap">Importar</button></div>
         </form>
     </div>
 </div>

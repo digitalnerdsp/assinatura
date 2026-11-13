@@ -36,3 +36,6 @@
     .drive-docs td[data-label="Título"] { font-size: 1.05rem; }
     .drive-folders.drive-grid { grid-template-columns: 1fr; }
 }
+
+/* Sugestões de contatos no formulário de criar documento */
+.contact-suggest { position: absolute; left: 0; right: 0; top: 100%; z-index: 1056; max-height: 320px; overflow-y: auto; }

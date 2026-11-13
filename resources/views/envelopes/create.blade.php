@@ -2,7 +2,7 @@
 @section('title', 'Novo envelope')
 @section('section', 'Assinaturas')
 @section('content')
-<form method="post" action="{{ route('envelopes.store') }}" enctype="multipart/form-data" id="envelope-form">
+<form method="post" action="{{ route('envelopes.store') }}" data-suggest-url="{{ route('contacts.suggest') }}" enctype="multipart/form-data" id="envelope-form">
     @csrf
     <div class="row">
         <div class="col-12 col-xl-7">
@@ -117,6 +117,7 @@
 @endsection
 
 @push('scripts')
+<script src="{{ asset('assets/js/contact-suggest.js') }}?v=1"></script>
 <script>
 function signerRow(i) {
     return '<div class="row g-2">' +

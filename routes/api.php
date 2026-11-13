@@ -57,4 +57,9 @@ Route::prefix('v1')->middleware(['api.key', 'throttle:120,1'])->group(function (
     Route::post('tags', [OrganizationController::class, 'storeTag']);
     Route::patch('tags/{id}', [OrganizationController::class, 'updateTag']);
     Route::delete('tags/{id}', [OrganizationController::class, 'destroyTag']);
+    Route::get('contacts', [\App\Http\Controllers\Api\V1\ContactController::class, 'index']);
+    Route::post('contacts', [\App\Http\Controllers\Api\V1\ContactController::class, 'store']);
+    Route::get('contacts/{id}', [\App\Http\Controllers\Api\V1\ContactController::class, 'show']);
+    Route::patch('contacts/{id}', [\App\Http\Controllers\Api\V1\ContactController::class, 'update']);
+    Route::delete('contacts/{id}', [\App\Http\Controllers\Api\V1\ContactController::class, 'destroy']);
 });

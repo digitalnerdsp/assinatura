@@ -104,6 +104,15 @@ final class Presenter
     }
 
     /** @return array<string,mixed> */
+    public static function contact(\App\Models\Contact $c): array
+    {
+        return [
+            'id' => $c->getKey(), 'name' => $c->name, 'email' => $c->email, 'phone' => $c->phone, 'document' => $c->document,
+            'company' => $c->company, 'notes' => $c->notes, 'created_at' => $c->created_at?->toIso8601String(),
+        ];
+    }
+
+    /** @return array<string,mixed> */
     public static function tag(Tag $t): array
     {
         return ['id' => $t->getKey(), 'name' => $t->name, 'color' => $t->color];

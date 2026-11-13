@@ -4,14 +4,17 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Web;
 
+use App\Contacts\ContactCsv;
 use App\Contacts\ContactService;
 use App\Envelopes\Exceptions\FlowException;
 use App\Http\Controllers\Controller;
 use App\Models\Contact;
 use App\Models\Tag;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /** Agenda de contatos da empresa. */
 final class ContactController extends Controller
@@ -39,6 +42,42 @@ final class ContactController extends Controller
             'filters' => $filters,
             'tags' => Tag::query()->where('tenant_id', $tenantId)->orderBy('name')->get(),
         ]);
+    }
+
+    /** Sugestões para o formulário de criar documento (no máximo 8, só da empresa). */
+    public function suggest(Request $request): JsonResponse
+    {
+        $q = trim((string) $request->query('q', ''));
+        if (mb_strlen($q) < 2) {
+            return response()->json([]);
+        }
+
+        return response()->json($this->contacts->search($request->user()->tenant, mb_substr($q, 0, 100))
+            ->map(fn (Contact $c) => ['name' => $c->name, 'email' => $c->email, 'phone' => $c->phone])->values());
+    }
+
+    public function import(Request $request, ContactCsv $csv): RedirectResponse
+    {
+        $request->validate(['file' => ['required', 'file', 'max:2048', 'mimetypes:text/plain,text/csv,application/csv,application/vnd.ms-excel']], [
+            'file.mimetypes' => 'Envie um arquivo CSV (separado por ; ou ,).',
+        ]);
+
+        try {
+            $result = $csv->import($request->user()->tenant, $request->file('file')->getRealPath());
+        } catch (FlowException $e) {
+            return back()->withErrors(['file' => $e->getMessage()]);
+        }
+
+        return back()
+            ->with('status', "Importação concluída: {$result['created']} criado(s), {$result['updated']} atualizado(s), {$result['skipped']} ignorado(s).")
+            ->with('import_errors', array_slice($result['errors'], 0, 20));
+    }
+
+    public function export(Request $request, ContactCsv $csv): StreamedResponse
+    {
+        $content = $csv->export($request->user()->tenant);
+
+        return response()->streamDownload(fn () => print($content), 'contatos.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
     public function store(Request $request): RedirectResponse
