@@ -108,6 +108,19 @@ final class OrganizationController extends Controller
         return back()->with('status', 'Etiqueta criada.');
     }
 
+    public function updateTag(Request $request, Tag $tag): RedirectResponse
+    {
+        abort_unless($tag->tenant_id === $request->user()->tenant_id, 404);
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:60', Rule::unique('tags')->where('tenant_id', $tag->tenant_id)->ignore($tag->getKey())],
+            'color' => ['required', Rule::in(Tag::COLORS)],
+        ], ['name.unique' => 'Já existe uma etiqueta com este nome.']);
+
+        $tag->update(['name' => trim($data['name']), 'color' => $data['color']]);
+
+        return back()->with('status', 'Etiqueta atualizada.');
+    }
+
     public function destroyTag(Request $request, Tag $tag): RedirectResponse
     {
         abort_unless($tag->tenant_id === $request->user()->tenant_id, 404);

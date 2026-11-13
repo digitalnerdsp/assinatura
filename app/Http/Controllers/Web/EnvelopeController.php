@@ -160,6 +160,43 @@ final class EnvelopeController extends Controller
         ];
     }
 
+    /** Mover o documento para uma pasta (ou para fora das pastas). */
+    public function moveToFolder(Request $request, Envelope $envelope): RedirectResponse
+    {
+        $this->owned($request, $envelope);
+        $data = $request->validate(['folder_id' => ['nullable', 'uuid']]);
+
+        if ($envelope->isTrashed()) {
+            return back()->withErrors(['envelope' => 'Restaure o documento da lixeira antes de movê-lo.']);
+        }
+
+        $folderId = $data['folder_id'] ?? null;
+        if ($folderId !== null && ! Folder::query()->where('tenant_id', $request->user()->tenant_id)->whereKey($folderId)->exists()) {
+            return back()->withErrors(['folder_id' => 'Pasta inválida.']);
+        }
+
+        $envelope->update(['folder_id' => $folderId]);
+
+        return back()->with('status', $folderId === null ? 'Documento movido para fora das pastas.' : 'Documento movido.');
+    }
+
+    /** Define as etiquetas do documento (lista vazia remove todas). */
+    public function retag(Request $request, Envelope $envelope): RedirectResponse
+    {
+        $this->owned($request, $envelope);
+        $data = $request->validate(['tags' => ['nullable', 'array', 'max:10'], 'tags.*' => ['uuid']]);
+
+        $wanted = array_values(array_unique($data['tags'] ?? []));
+        $valid = Tag::query()->where('tenant_id', $request->user()->tenant_id)->whereIn('id', $wanted)->pluck('id')->all();
+        if (count($valid) !== count($wanted)) {
+            return back()->withErrors(['tags' => 'Etiqueta inválida.']);
+        }
+
+        $envelope->tags()->sync($valid);
+
+        return back()->with('status', 'Etiquetas atualizadas.');
+    }
+
     /** Organização do envelope: pasta e etiquetas. */
     public function organize(Request $request, Envelope $envelope): RedirectResponse
     {

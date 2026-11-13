@@ -60,6 +60,8 @@ Route::middleware(['auth', 'tenant.active'])->group(function () {
     Route::get('/documentos/minhas-assinaturas', [\App\Http\Controllers\Web\MySignaturesController::class, 'index'])->name('documents.mine');
     Route::get('/documentos/lixeira', [EnvelopeController::class, 'trashIndex'])->name('documents.trash');
 
+    Route::post('/envelopes/{envelope}/mover', [EnvelopeController::class, 'moveToFolder'])->name('envelopes.move');
+    Route::post('/envelopes/{envelope}/etiquetas', [EnvelopeController::class, 'retag'])->name('envelopes.retag');
     Route::post('/envelopes/{envelope}/organizar', [EnvelopeController::class, 'organize'])->name('envelopes.organize');
 
     // A tela de pastas e etiquetas vive em Documentos criados; o endereço antigo continua valendo.
@@ -70,6 +72,7 @@ Route::middleware(['auth', 'tenant.active'])->group(function () {
     Route::get('/organizacao/pastas/{folder}/impacto', [\App\Http\Controllers\Web\OrganizationController::class, 'impactFolder'])->name('folders.impact');
     Route::delete('/organizacao/pastas/{folder}', [\App\Http\Controllers\Web\OrganizationController::class, 'destroyFolder'])->name('folders.destroy');
     Route::post('/organizacao/etiquetas', [\App\Http\Controllers\Web\OrganizationController::class, 'storeTag'])->name('tags.store');
+    Route::put('/organizacao/etiquetas/{tag}', [\App\Http\Controllers\Web\OrganizationController::class, 'updateTag'])->name('tags.update');
     Route::delete('/organizacao/etiquetas/{tag}', [\App\Http\Controllers\Web\OrganizationController::class, 'destroyTag'])->name('tags.destroy');
 
     Route::get('/modelos', [\App\Http\Controllers\Web\TemplateController::class, 'index'])->name('templates.index');
