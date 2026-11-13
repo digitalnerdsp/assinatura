@@ -21,6 +21,22 @@
     </div>
     <div class="col-12 col-lg-6">
         <div class="card radius-10">
+            <div class="card-header"><h6 class="mb-0"><i class="bx bx-help-circle me-1"></i> Central de ajuda</h6></div>
+            <div class="card-body">
+                <form method="post" action="{{ route('admin.settings.update') }}">
+                    @csrf @method('PUT')
+                    <input type="hidden" name="registration_open" value="{{ $registrationOpen ? 1 : 0 }}">
+                    <label class="form-label" for="help_url">Endereço da Central de ajuda</label>
+                    <input type="url" class="form-control @error('help_url') is-invalid @enderror" id="help_url" name="help_url" value="{{ old('help_url', $helpUrl) }}" placeholder="https://ajuda.suaempresa.com" maxlength="300">
+                    @error('help_url')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    <div class="form-text mb-3">Aparece no menu de todos os clientes e abre em outra aba. Deixe vazio para esconder o item.</div>
+                    <button class="btn btn-primary">Salvar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-lg-6">
+        <div class="card radius-10">
             <div class="card-header"><h6 class="mb-0"><i class="bx bx-shield me-1"></i> Super administradores</h6></div>
             <div class="card-body">
                 <p class="text-secondary">Definidos pela variável de ambiente <span class="mono">SUPER_ADMIN_EMAILS</span> (separe vários por vírgula).</p>
