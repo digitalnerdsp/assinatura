@@ -15,6 +15,7 @@ uses(RefreshDatabase::class);
 function apiHeaders(Tenant $tenant): array
 {
     [, $plain] = ApiKey::issue($tenant, 'teste');
+    \App\Models\TenantSigningSetting::updateOrCreate(['tenant_id' => $tenant->id], ['sender_policy' => 'never']); // estes testes cobrem signatários; o remetente tem testes próprios
 
     return ['Authorization' => "Bearer {$plain}", 'Accept' => 'application/json'];
 }
@@ -34,6 +35,7 @@ it('rejeita chamadas sem chave ou com chave inválida/revogada', function () {
 
     $tenant = Tenant::create(['name' => 'ACME']);
     [$key, $plain] = ApiKey::issue($tenant, 'k');
+    \App\Models\TenantSigningSetting::updateOrCreate(['tenant_id' => $tenant->id], ['sender_policy' => 'never']); // estes testes cobrem signatários; o remetente tem testes próprios
     $key->update(['revoked_at' => now()]);
     $this->getJson('/api/v1/envelopes/x', ['Authorization' => "Bearer {$plain}"])->assertUnauthorized();
 });

@@ -20,7 +20,7 @@ final class MeController extends Controller
         return response()->json([
             'api_version' => 'v1',
             'tenant' => ['id' => $tenant->getKey(), 'name' => $tenant->name],
-            'key' => ['name' => $key->name, 'prefix' => $key->prefix, 'read_only' => $key->read_only],
+            'key' => ['name' => $key->name, 'prefix' => $key->prefix, 'read_only' => $key->read_only, 'can_sign_as_company' => $key->can_sign_as_company],
             'usage' => [
                 'envelopes_sent_this_month' => Envelope::query()->where('tenant_id', $tenant->getKey())->where('sent_at', '>=', now()->startOfMonth())->count(),
                 'monthly_envelope_limit' => $tenant->monthly_envelope_limit,

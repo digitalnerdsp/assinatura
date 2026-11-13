@@ -28,7 +28,7 @@ class ApiKey extends Model
     }
 
     /** @return array{0:ApiKey,1:string} modelo + chave em texto puro (mostrar uma única vez) */
-    public static function issue(Tenant $tenant, string $name, bool $readOnly = false): array
+    public static function issue(Tenant $tenant, string $name, bool $readOnly = false, bool $canSignAsCompany = false): array
     {
         $plain = 'sk_live_'.Str::random(40);
 
@@ -38,6 +38,7 @@ class ApiKey extends Model
             'prefix' => substr($plain, 0, 12),
             'key_hash' => hash('sha256', $plain),
             'read_only' => $readOnly,
+            'can_sign_as_company' => $canSignAsCompany,
         ]);
 
         return [$key, $plain];

@@ -21,9 +21,11 @@ final class ApiKeyController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $data = $request->validate(['name' => ['required', 'string', 'max:100'], 'read_only' => ['nullable', 'boolean']]);
+        $data = $request->validate(['name' => ['required', 'string', 'max:100'], 'read_only' => ['nullable', 'boolean'], 'can_sign_as_company' => ['nullable', 'boolean']]);
 
-        [, $plain] = ApiKey::issue($request->user()->tenant, $data['name'], $request->boolean('read_only'));
+        // Somente leitura nunca assina pela empresa.
+        $canSign = $request->boolean('can_sign_as_company') && ! $request->boolean('read_only');
+        [, $plain] = ApiKey::issue($request->user()->tenant, $data['name'], $request->boolean('read_only'), $canSign);
 
         // A chave só é exibida agora; depois fica apenas o hash.
         return redirect()->route('api-keys.index')->with('new_key', $plain);

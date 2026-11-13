@@ -66,6 +66,7 @@ it('a API aceita role witness e devolve o papel', function () {
     Storage::fake('local');
     $tenant = Tenant::create(['name' => 'ACME']);
     [, $plain] = ApiKey::issue($tenant, 'k');
+    \App\Models\TenantSigningSetting::updateOrCreate(['tenant_id' => $tenant->id], ['sender_policy' => 'never']); // estes testes cobrem signatários; o remetente tem testes próprios
     $h = ['Authorization' => "Bearer {$plain}", 'Accept' => 'application/json'];
     $base = [
         'title' => 'Contrato', 'document_base64' => base64_encode("%PDF-1.4\n%%EOF"), 'document_name' => 'a.pdf',

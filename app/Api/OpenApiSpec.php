@@ -84,8 +84,9 @@ final class OpenApiSpec
                                 'document_base64' => ['type' => 'string', 'format' => 'byte', 'description' => 'PDF em base64.'],
                                 'document_name' => ['type' => 'string', 'example' => 'contrato.pdf'],
                                 'signers' => $signersInput,
+                                'sender_signs' => ['type' => 'boolean', 'description' => 'A empresa (remetente) assina junto? Padrão segue a política da empresa. Exige chave com permissão de assinar pela empresa, representante cadastrado e termo de delegação aceito; senão 422 com sender_signature_not_allowed ou no_company_representative (nada é criado). A assinatura é aplicada no envio.'],
                                 'signature_fields' => ['type' => 'array', 'description' => 'Onde cada assinatura aparece no PDF. x/y em frações da página (0 a 1), origem no canto superior esquerdo.', 'items' => ['type' => 'object', 'required' => ['signer', 'page', 'x', 'y'], 'properties' => [
-                                    'signer' => ['type' => 'integer', 'description' => 'Índice do signatário na lista (começa em 0).'], 'page' => ['type' => 'integer', 'minimum' => 1],
+                                    'signer' => ['description' => 'Índice do signatário na lista (começa em 0) ou "sender" para a assinatura da empresa.', 'oneOf' => [['type' => 'integer'], ['type' => 'string', 'enum' => ['sender']]]], 'page' => ['type' => 'integer', 'minimum' => 1],
                                     'x' => ['type' => 'number', 'minimum' => 0, 'maximum' => 1], 'y' => ['type' => 'number', 'minimum' => 0, 'maximum' => 1]]]],
                             ] + $options]],
                             'multipart/form-data' => ['schema' => ['type' => 'object', 'required' => ['title', 'document'], 'properties' => ['title' => ['type' => 'string'], 'document' => ['type' => 'string', 'format' => 'binary']] + $options]],

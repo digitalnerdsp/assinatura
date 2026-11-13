@@ -9,6 +9,8 @@ use App\Enums\EnvelopeStatus;
 use App\Enums\SigningOrder;
 use App\Envelopes\EnvelopeService;
 use App\Envelopes\Exceptions\FlowException;
+use App\Envelopes\SenderPolicy;
+use App\Envelopes\SenderSignature;
 use App\Evidence\EvidenceLogger;
 use App\Evidence\RequestContext;
 use App\Http\Controllers\Controller;
@@ -105,7 +107,8 @@ final class EnvelopeController extends Controller
             'signers.*.role' => ['nullable', 'in:signer,witness'],
             'signers.*.position' => ['nullable', 'integer', 'between:1,50'],
             'signature_fields' => ['nullable', 'array', 'max:60'],
-            'signature_fields.*.signer' => ['required', 'integer', 'min:0', 'max:19'],
+            'signature_fields.*.signer' => ['required', 'regex:/^(sender|\d{1,2})$/'],
+            'sender_signs' => ['nullable', 'boolean'],
             'signature_fields.*.page' => ['required', 'integer', 'min:1', 'max:2000'],
             'signature_fields.*.x' => ['required', 'numeric', 'between:0,1'],
             'signature_fields.*.y' => ['required', 'numeric', 'between:0,1'],
@@ -114,6 +117,16 @@ final class EnvelopeController extends Controller
         [$pdf, $filename] = $this->pdf($request, $data);
         if ($pdf === null) {
             return $this->error('invalid_document', 'document_base64 não é um base64 válido.', 422);
+        }
+
+        // A empresa assina como remetente? A política decide; na API exige chave autorizada e representante com termo
+        // aceito. Tudo é conferido ANTES de criar qualquer coisa (nada de rascunho órfão).
+        $tenant = $this->tenant($request);
+        try {
+            $wants = app(SenderPolicy::class)->wantsSenderSignature($tenant, $request->has('sender_signs') ? $request->boolean('sender_signs') : null);
+            $representative = $wants ? $this->companyRepresentative($request, $tenant) : null;
+        } catch (FlowException $e) {
+            return $this->error($e->reason, $e->getMessage(), 422);
         }
 
         try {
@@ -133,7 +146,7 @@ final class EnvelopeController extends Controller
                     'document' => $request->boolean('require_document'),
                     'geolocation' => $request->boolean('require_geolocation'),
                 ], fn ($v) => $v !== null),
-                $this->options($data),
+                $this->options($data) + ['sender' => $representative],
             );
 
             if ($request->boolean('send')) {
@@ -158,7 +171,9 @@ final class EnvelopeController extends Controller
         try {
             $this->dispatchInvites($envelope, $request);
         } catch (FlowException $e) {
-            return $this->error($e->reason, $e->getMessage(), 409);
+            $permission = in_array($e->reason, ['sender_signature_not_allowed', 'no_company_representative'], true);
+
+            return $this->error($e->reason, $e->getMessage(), $permission ? 422 : 409);
         }
 
         return response()->json(Presenter::envelope($envelope->fresh()));
@@ -267,8 +282,40 @@ final class EnvelopeController extends Controller
 
     private function dispatchInvites(Envelope $envelope, Request $request): void
     {
-        $this->envelopes->send($envelope, RequestContext::fromRequest($request));
+        $context = RequestContext::fromRequest($request);
+
+        if ($envelope->signers()->where('is_sender', true)->exists()) {
+            // A empresa assina pelo representante, sem link nem verificações; a prova diz "api_key" e qual chave.
+            $representative = $this->companyRepresentative($request, $this->tenant($request));
+            $this->envelopes->sendAndSignAsSender(
+                $envelope,
+                new SenderSignature('typed', $representative['name'], 'api_key', null, (string) $request->attributes->get('api_key')->getKey()),
+                $context,
+            );
+        } else {
+            $this->envelopes->send($envelope, $context);
+        }
+
         $this->notifier->inviteActive($envelope->fresh()); // paralelo: todos; sequencial: só o primeiro
+    }
+
+    /**
+     * Quem assina pela empresa: exige chave com a permissão e representante cadastrado com o termo aceito.
+     *
+     * @return array{name:string,email:string,cpf:?string}
+     */
+    private function companyRepresentative(Request $request, Tenant $tenant): array
+    {
+        if (! $request->attributes->get('api_key')->can_sign_as_company) {
+            throw FlowException::because('sender_signature_not_allowed', 'Esta chave de API não tem permissão para assinar em nome da empresa.');
+        }
+
+        $representative = app(SenderPolicy::class)->representative($tenant);
+        if ($representative === null) {
+            throw FlowException::because('no_company_representative', 'Cadastre o representante da empresa e aceite o termo de delegação em Configurações > Assinatura da empresa.');
+        }
+
+        return $representative;
     }
 
     /** @return array{0:?string,1:string} conteúdo do PDF (null = base64 inválido) e nome do arquivo */

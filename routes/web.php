@@ -92,6 +92,9 @@ Route::middleware(['auth', 'tenant.active'])->group(function () {
     Route::delete('/perfil/foto', [\App\Http\Controllers\Web\ProfileController::class, 'destroyPhoto'])->name('profile.photo.destroy');
     Route::get('/perfil/foto/{user}', [\App\Http\Controllers\Web\ProfileController::class, 'photo'])->name('profile.photo');
 
+    Route::get('/configuracoes/assinatura-da-empresa', [\App\Http\Controllers\Web\CompanySigningController::class, 'edit'])->name('company.signing.edit');
+    Route::put('/configuracoes/assinatura-da-empresa', [\App\Http\Controllers\Web\CompanySigningController::class, 'update'])->middleware('throttle:20,1,company-signing')->name('company.signing.update');
+
     Route::get('/api-keys', [ApiKeyController::class, 'index'])->name('api-keys.index');
     Route::post('/api-keys', [ApiKeyController::class, 'store'])->name('api-keys.store');
     Route::delete('/api-keys/{apiKey}', [ApiKeyController::class, 'destroy'])->name('api-keys.destroy');

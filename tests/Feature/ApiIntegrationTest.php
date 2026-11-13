@@ -20,6 +20,7 @@ function integ(?Tenant $tenant = null, bool $readOnly = false): array
 {
     $tenant ??= Tenant::create(['name' => 'ACME']);
     [, $plain] = ApiKey::issue($tenant, 'k', $readOnly);
+    \App\Models\TenantSigningSetting::updateOrCreate(['tenant_id' => $tenant->id], ['sender_policy' => 'never']); // estes testes cobrem signatários; o remetente tem testes próprios
 
     return [$tenant, ['Authorization' => "Bearer {$plain}", 'Accept' => 'application/json']];
 }

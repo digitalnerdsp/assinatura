@@ -19,6 +19,7 @@
             @csrf
             <div class="col-md"><label for="name" class="form-label">Nome da chave</label><input id="name" type="text" class="form-control" name="name" required placeholder="ex.: ERP produção"></div>
             <div class="col-md-auto"><div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" role="switch" id="read_only" name="read_only" value="1"><label class="form-check-label" for="read_only">Somente leitura</label></div></div>
+            <div class="col-md-auto"><div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" role="switch" id="can_sign_as_company" name="can_sign_as_company" value="1"><label class="form-check-label" for="can_sign_as_company">Pode assinar em nome da empresa</label></div><div class="form-text">Use só em chaves dos seus próprios sistemas: com ela, a API assina contratos pela empresa.</div></div>
             <div class="col-md-auto"><button class="btn btn-primary"><i class="bx bx-plus"></i> Gerar chave</button></div>
         </form>
     </div>
@@ -31,7 +32,7 @@
             <tbody>
             @forelse ($keys as $k)
                 <tr>
-                    <td>{{ $k->name }}</td><td class="mono">{{ $k->prefix }}…@if ($k->read_only) <span class="badge bg-info text-dark">leitura</span>@endif</td>
+                    <td>{{ $k->name }}</td><td class="mono">{{ $k->prefix }}…@if ($k->read_only) <span class="badge bg-info text-dark">leitura</span>@endif @if ($k->can_sign_as_company) <span class="badge bg-warning text-dark">Assina pela empresa</span>@endif</td>
                     <td>{{ $k->last_used_at?->timezone('America/Sao_Paulo')->format('d/m/Y H:i') ?? 'nunca' }}</td>
                     <td class="text-end">@if ($k->revoked_at)<span class="badge bg-danger">revogada</span>@else
                         <form method="post" action="{{ route('api-keys.destroy', $k) }}" onsubmit="return confirm('Revogar esta chave?')">@csrf @method('DELETE')<button class="btn btn-sm btn-outline-danger">Revogar</button></form>@endif</td>

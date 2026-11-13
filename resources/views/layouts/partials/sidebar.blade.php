@@ -3,7 +3,7 @@
     $isAdmin = $user->isSuperAdmin();
     $item = fn (string ...$patterns) => request()->routeIs(...$patterns) ? 'mm-active' : '';
     $docsOpen = request()->routeIs('envelopes.*', 'documents.*');
-    $cfgOpen = request()->routeIs('profile.*', 'organization.*', 'folders.*', 'tags.*', 'api-keys.*', 'webhooks.*');
+    $cfgOpen = request()->routeIs('profile.*', 'company.*', 'organization.*', 'folders.*', 'tags.*', 'api-keys.*', 'webhooks.*');
     $helpUrl = \App\Models\Setting::helpUrl();
 @endphp
 <ul class="metismenu" id="menu">
@@ -24,6 +24,7 @@
         <a class="has-arrow" href="javascript:;"><div class="parent-icon"><i class="bx bx-cog"></i></div><div class="menu-title">Configurações</div></a>
         <ul class="mm-collapse {{ $cfgOpen ? 'mm-show' : '' }}">
             <li class="{{ $item('profile.*') }}"><a href="{{ route('profile.edit') }}"><i class="bx bx-right-arrow-alt"></i>Meu perfil</a></li>
+            <li class="{{ $item('company.*') }}"><a href="{{ route('company.signing.edit') }}"><i class="bx bx-right-arrow-alt"></i>Assinatura da empresa</a></li>
             <li class="{{ $item('organization.*') }}"><a href="{{ route('organization.index') }}"><i class="bx bx-right-arrow-alt"></i>Pastas e etiquetas</a></li>
             <li class="{{ $item('api-keys.*') }}"><a href="{{ route('api-keys.index') }}"><i class="bx bx-right-arrow-alt"></i>API</a></li>
             <li class="{{ $item('webhooks.*') }}"><a href="{{ route('webhooks.index') }}"><i class="bx bx-right-arrow-alt"></i>Webhooks</a></li>
