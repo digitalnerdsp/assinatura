@@ -27,7 +27,7 @@ it('mostra o menu na ordem do escopo', function () {
     menuRegister();
 
     $this->get('/painel')->assertOk()->assertSeeInOrder([
-        'Painel', 'Documentos', 'Documentos criados', 'Minhas assinaturas', 'Lixeira',
+        'Painel', 'Documentos', 'Documentos criados', 'Pastas e etiquetas', 'Minhas assinaturas', 'Lixeira',
         'Modelos', 'Configurações', 'Meu perfil', 'API', 'Webhooks', 'Verificar documento',
     ]);
 });

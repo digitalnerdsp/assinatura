@@ -34,7 +34,7 @@ function uiPage(): array
     ]);
     $envelope->tags()->attach($tag->id);
 
-    return [$user, $a, $tag, $envelope, test()->get('/envelopes')->assertOk()->getContent()];
+    return [$user, $a, $tag, $envelope, test()->get('/documentos/pastas')->assertOk()->getContent()];
 }
 
 it('traz os botões Nova pasta e Nova etiqueta e os modais em tela cheia no celular', function () {

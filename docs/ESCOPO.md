@@ -215,7 +215,7 @@ A escolha é feita por tenant (`tenant_signing_settings`): provedor, referência
 
 ## 14. Backlog priorizado (decidido em 09/11/2026)
 
-**Fase 1c entregue em 16/11/2026** (pastas com 3 níveis de subpasta abaixo da primária, etiquetas editáveis, ações por popups e menus ⋮ dentro de Documentos criados, validadas em 375 e 768 px; apagar pasta manda para a lixeira o que pode e sobe o resto; API com `parent_id`, `PATCH` e `DELETE` com a regra).
+**Fase 1c entregue em 16/11/2026, reorganizada em 17/11** (pastas com 3 níveis de subpasta abaixo da primária, etiquetas editáveis, ações por popups e menus ⋮ na página própria **Documentos › Pastas e etiquetas** com busca e filtros; **Documentos criados** voltou a ser a lista simples com pasta e etiquetas por linha, validadas em 375 e 768 px; apagar pasta manda para a lixeira o que pode e sobe o resto; API com `parent_id`, `PATCH` e `DELETE` com a regra).
 
 **Fase 1b entregue em 15/11/2026** (remetente que assina junto, sem selfie nem código, com "Minha assinatura" no perfil; testemunhas em lista à parte, que assinam por último e contam para concluir; assinatura da empresa pela API com representante, termo de delegação e permissão por chave; política da empresa `always` | `optional` | `never`, padrão `always`). Pendente: texto final do termo de delegação com o advogado; documentos gerados por modelo ainda sem testemunhas e sem remetente.
 

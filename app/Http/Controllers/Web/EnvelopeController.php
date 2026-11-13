@@ -35,7 +35,20 @@ final class EnvelopeController extends Controller
     ) {
     }
 
+    /** Documentos criados: a lista simples (com pasta e etiquetas em cada linha). */
     public function index(Request $request): View
+    {
+        return view('envelopes.index', $this->listing($request));
+    }
+
+    /** Pastas e etiquetas: navegação estilo Drive por cima da mesma lista, com busca e filtros. */
+    public function foldersIndex(Request $request): View
+    {
+        return view('envelopes.folders', $this->listing($request));
+    }
+
+    /** @return array<string,mixed> dados da lista de documentos e das pastas/etiquetas */
+    private function listing(Request $request): array
     {
         $tenantId = $request->user()->tenant_id;
         $filters = $request->validate([
@@ -79,7 +92,7 @@ final class EnvelopeController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        return view('envelopes.index', [
+        return [
             'envelopes' => $envelopes,
             'folderPaths' => app(FolderService::class)->paths($request->user()->tenant),
             'tags' => Tag::query()->where('tenant_id', $tenantId)->withCount('envelopes')->orderBy('name')->get(),
@@ -94,7 +107,7 @@ final class EnvelopeController extends Controller
             'folderPaths' => $folderService->paths($tenant),
             'folderTree' => $folderService->tree($tenant),
             'colors' => Tag::COLORS,
-        ]);
+        ];
     }
 
     public function trashIndex(Request $request): View

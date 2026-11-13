@@ -58,14 +58,15 @@ Route::middleware(['auth', 'tenant.active'])->group(function () {
     Route::post('/envelopes/{envelope}/arquivar', [EnvelopeController::class, 'archive'])->name('envelopes.archive');
     Route::post('/envelopes/{envelope}/desarquivar', [EnvelopeController::class, 'unarchive'])->name('envelopes.unarchive');
     Route::get('/documentos/minhas-assinaturas', [\App\Http\Controllers\Web\MySignaturesController::class, 'index'])->name('documents.mine');
+    Route::get('/documentos/pastas', [EnvelopeController::class, 'foldersIndex'])->name('documents.folders');
     Route::get('/documentos/lixeira', [EnvelopeController::class, 'trashIndex'])->name('documents.trash');
 
     Route::post('/envelopes/{envelope}/mover', [EnvelopeController::class, 'moveToFolder'])->name('envelopes.move');
     Route::post('/envelopes/{envelope}/etiquetas', [EnvelopeController::class, 'retag'])->name('envelopes.retag');
     Route::post('/envelopes/{envelope}/organizar', [EnvelopeController::class, 'organize'])->name('envelopes.organize');
 
-    // A tela de pastas e etiquetas vive em Documentos criados; o endereço antigo continua valendo.
-    Route::redirect('/organizacao', '/envelopes', 301)->name('organization.index');
+    // A tela de pastas e etiquetas vive em Documentos > Pastas e etiquetas; o endereço antigo continua valendo.
+    Route::redirect('/organizacao', '/documentos/pastas', 301)->name('organization.index');
     Route::post('/organizacao/pastas', [\App\Http\Controllers\Web\OrganizationController::class, 'storeFolder'])->name('folders.store');
     Route::put('/organizacao/pastas/{folder}', [\App\Http\Controllers\Web\OrganizationController::class, 'updateFolder'])->name('folders.update');
     Route::post('/organizacao/pastas/{folder}/mover', [\App\Http\Controllers\Web\OrganizationController::class, 'moveFolder'])->name('folders.move');

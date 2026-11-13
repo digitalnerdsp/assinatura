@@ -132,14 +132,17 @@ it('ações em pasta de outra empresa devolvem 404 e não alteram nada', functio
     expect($minha->fresh()->parent_id)->toBeNull();
 });
 
-it('GET /organizacao redireciona para Documentos criados', function () {
+it('GET /organizacao redireciona para a página Pastas e etiquetas', function () {
     folderWebRegister();
 
-    $this->get('/organizacao')->assertStatus(301)->assertRedirect('/envelopes');
+    $this->get('/organizacao')->assertStatus(301)->assertRedirect('/documentos/pastas');
 });
 
-it('o menu Configurações não tem mais Pastas e etiquetas', function () {
+it('Pastas e etiquetas fica no menu Documentos e não em Configurações', function () {
     folderWebRegister();
+    $html = $this->get('/painel')->assertOk()->getContent();
 
-    $this->get('/painel')->assertOk()->assertDontSee('Pastas e etiquetas');
+    preg_match('/Documentos<\/div><\/a>\s*<ul class="mm-collapse[^"]*">(.*?)<\/ul>/s', $html, $docs);
+    preg_match('/Configurações<\/div><\/a>\s*<ul class="mm-collapse[^"]*">(.*?)<\/ul>/s', $html, $cfg);
+    expect($docs[1] ?? '')->toContain('Pastas e etiquetas')->and($cfg[1] ?? '')->not->toContain('Pastas e etiquetas');
 });

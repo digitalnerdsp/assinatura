@@ -50,7 +50,8 @@ Organizar os documentos como no Google Drive: pastas com **subpastas**, caminho 
 - **Cartões de pasta** (nome e quantidade de itens) com ⋮: Abrir, Renomear, Mover, Apagar.
 - **Documentos** abaixo (lista como hoje, com pasta e etiquetas), cada um com ⋮: Abrir, **Mover para…**, **Etiquetas…**, Mover para a lixeira/Arquivar (as regras de status que já existem).
 - **Popups** (Bootstrap): criar/renomear pasta, criar/editar etiqueta, **Mover para…** (árvore de pastas com a pasta atual marcada e as inválidas desabilitadas), confirmar apagar pasta (com os números).
-- Configurações perde o item **Pastas e etiquetas**; a antiga `/organizacao` redireciona para `/envelopes` (marcadores antigos não quebram).
+- Configurações perde o item **Pastas e etiquetas**; a antiga `/organizacao` redireciona para `/documentos/pastas` (marcadores antigos não quebram).
+- **Ajuste de 17/11 (pedido do dono):** a navegação de pastas (migalhas, cartões, etiquetas, botões e popups) fica numa página própria, **Documentos › Pastas e etiquetas** (`/documentos/pastas`), com busca e filtros de status, etiqueta e arquivados que valem para a pasta aberta e as subpastas. **Documentos criados** (`/envelopes`) volta a ser a lista simples, com pasta/etiquetas e o ⋮ em cada linha; a raiz da página nova mostra todos os documentos.
 
 **Celular (obrigatório validar)**
 - Popups em **tela cheia** abaixo de 576 px, botões de ação no rodapé, alvos de toque com pelo menos 44 px.

@@ -13,6 +13,7 @@
         <a class="has-arrow" href="javascript:;"><div class="parent-icon"><i class="bx bx-folder-open"></i></div><div class="menu-title">Documentos</div></a>
         <ul class="mm-collapse {{ $docsOpen ? 'mm-show' : '' }}">
             <li class="{{ $item('envelopes.index', 'envelopes.show', 'envelopes.create') }}"><a href="{{ route('envelopes.index') }}"><i class="bx bx-right-arrow-alt"></i>Documentos criados</a></li>
+            <li class="{{ $item('documents.folders') }}"><a href="{{ route('documents.folders') }}"><i class="bx bx-right-arrow-alt"></i>Pastas e etiquetas</a></li>
             <li class="{{ $item('documents.mine') }}"><a href="{{ route('documents.mine') }}"><i class="bx bx-right-arrow-alt"></i>Minhas assinaturas</a></li>
             <li class="{{ $item('documents.trash') }}"><a href="{{ route('documents.trash') }}"><i class="bx bx-right-arrow-alt"></i>Lixeira</a></li>
         </ul>
