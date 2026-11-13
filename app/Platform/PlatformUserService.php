@@ -84,6 +84,22 @@ final class PlatformUserService
         });
     }
 
+    /** Novo link para um convite pendente da equipe; o anterior deixa de valer. */
+    public function resend(User $actor, User $target): string
+    {
+        $this->guard($actor, $target, null);
+        if ($target->platform_role === null) {
+            throw FlowException::because('not_team', 'Esta pessoa não faz parte da equipe da plataforma.');
+        }
+        if (! $target->isPendingInvite()) {
+            throw FlowException::because('not_pending', 'Esta pessoa já aceitou o convite.');
+        }
+        $token = Str::random(48);
+        $target->forceFill(['invite_token_hash' => hash('sha256', $token), 'invite_expires_at' => now()->addDays(TeamService::INVITE_DAYS)])->save();
+
+        return $token;
+    }
+
     private function guard(User $actor, User $target, ?string $role): void
     {
         $this->assertSuper($actor);

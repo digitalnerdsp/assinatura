@@ -101,10 +101,10 @@ final class TeamController extends Controller
         } catch (\Throwable $e) {
             Log::warning('Falha ao enviar convite de usuário', ['user' => $member->getKey(), 'error' => $e->getMessage()]);
 
-            return redirect()->route('team.index')->with('warning', 'O usuário foi criado, mas o e-mail não saiu. Confira as configurações de e-mail e use "Reenviar convite".');
+            return redirect()->route('team.index')->with('warning', 'O e-mail não saiu. Copie o link abaixo e envie por outro meio, ou use "Reenviar convite" depois.')->with('invite_link', $url);
         }
 
-        return redirect()->route('team.index')->with('status', $ok);
+        return redirect()->route('team.index')->with('status', $ok.' Se não chegar em alguns minutos, confira o spam ou use o link abaixo.')->with('invite_link', $url);
     }
 
     private function owner(Request $request): User

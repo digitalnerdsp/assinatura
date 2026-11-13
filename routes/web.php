@@ -53,6 +53,7 @@ Route::middleware(['auth', 'tenant.active', 'platform'])->prefix('admin')->name(
         Route::get('/usuarios', [\App\Http\Controllers\Admin\PlatformUserController::class, 'index'])->name('users.index');
         Route::post('/usuarios/promover', [\App\Http\Controllers\Admin\PlatformUserController::class, 'promote'])->middleware('throttle:20,1,platform-users')->name('users.promote');
         Route::post('/usuarios/convidar', [\App\Http\Controllers\Admin\PlatformUserController::class, 'invite'])->middleware('throttle:20,1,platform-users')->name('users.invite');
+        Route::post('/usuarios/{user}/reenviar', [\App\Http\Controllers\Admin\PlatformUserController::class, 'resend'])->middleware('throttle:20,1,platform-users')->name('users.resend');
         Route::put('/usuarios/{user}', [\App\Http\Controllers\Admin\PlatformUserController::class, 'role'])->name('users.role');
         Route::delete('/usuarios/{user}', [\App\Http\Controllers\Admin\PlatformUserController::class, 'revoke'])->name('users.revoke');
         Route::get('/email', [\App\Http\Controllers\Admin\MailController::class, 'edit'])->name('mail');

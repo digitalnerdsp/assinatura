@@ -59,15 +59,34 @@ final class PlatformUserController extends Controller
             return back()->withErrors([$e->reason === 'email_taken' ? 'email' : 'team' => $e->getMessage()])->withInput();
         }
 
+        return $this->deliver($request->user(), $member, $token, 'Convite enviado para '.$member->email.'.');
+    }
+
+    public function resend(Request $request, User $user): RedirectResponse
+    {
         try {
-            Mail::to($member->email, $member->name)->send(new PlatformInviteMail($member, $request->user(), route('invite.show', $token)));
+            $token = $this->team->resend($request->user(), $user);
+        } catch (FlowException $e) {
+            return back()->withErrors(['team' => $e->getMessage()]);
+        }
+
+        return $this->deliver($request->user(), $user, $token, 'Convite reenviado para '.$user->email.'. O link anterior deixou de valer.');
+    }
+
+    /** Envia o e-mail e sempre devolve o link para o admin poder copiar (o e-mail pode cair no spam ou ser barrado). */
+    private function deliver(User $actor, User $member, string $token, string $ok): RedirectResponse
+    {
+        $url = route('invite.show', $token);
+        try {
+            Mail::to($member->email, $member->name)->send(new PlatformInviteMail($member, $actor, $url));
         } catch (\Throwable $e) {
             Log::warning('Falha ao enviar convite da plataforma', ['user' => $member->getKey(), 'error' => $e->getMessage()]);
 
-            return redirect()->route('admin.users.index')->with('warning', 'A conta foi criada, mas o e-mail não saiu. Confira o e-mail (SMTP) da plataforma.');
+            return redirect()->route('admin.users.index')->with('warning', 'O e-mail não saiu: '.mb_substr($e->getMessage(), 0, 200).' Copie o link abaixo e envie por outro meio, ou confira o e-mail (SMTP) da plataforma.')->with('invite_link', $url);
         }
+        Log::info('Convite da plataforma enviado ao servidor de e-mail', ['user' => $member->getKey()]);
 
-        return redirect()->route('admin.users.index')->with('status', 'Convite enviado para '.$member->email.'.');
+        return redirect()->route('admin.users.index')->with('status', $ok.' Se não chegar em alguns minutos, confira o spam ou use o link abaixo.')->with('invite_link', $url);
     }
 
     public function role(Request $request, User $user): RedirectResponse

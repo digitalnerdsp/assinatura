@@ -5,6 +5,7 @@
 @section('content')
 @php($popper = '{"strategy":"fixed"}')
 @if (session('warning'))<div class="alert alert-warning border-0">{{ session('warning') }}</div>@endif
+@include('partials.invite-link')
 @error('team')<div class="alert alert-danger border-0">{{ $message }}</div>@enderror
 <div class="card radius-10">
     <div class="card-body">

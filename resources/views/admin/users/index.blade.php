@@ -8,6 +8,7 @@
 @endphp
 @if (session('warning'))<div class="alert alert-warning border-0">{{ session('warning') }}</div>@endif
 @error('team')<div class="alert alert-danger border-0">{{ $message }}</div>@enderror
+@include('partials.invite-link')
 <div class="card radius-10">
     <div class="card-body">
         <h5 class="mb-1">Equipe da plataforma</h5>
@@ -35,6 +36,9 @@
                                 <div class="dropdown">
                                     <button type="button" class="btn btn-sm btn-outline-secondary drive-tap border-0" data-bs-toggle="dropdown" data-bs-popper-config='{{ $popper }}' aria-expanded="false" aria-label="Ações de {{ $m->name }}"><i class="bx bx-dots-vertical-rounded"></i></button>
                                     <ul class="dropdown-menu dropdown-menu-end">
+                                        @if ($m->isPendingInvite())
+                                            <li><form method="post" action="{{ route('admin.users.resend', $m) }}">@csrf<button class="dropdown-item drive-tap justify-content-start"><i class="bx bx-envelope me-2"></i>Reenviar convite</button></form></li>
+                                        @endif
                                         <li>
                                             <form method="post" action="{{ route('admin.users.role', $m) }}" data-confirm="Mudar {{ $m->name }} para {{ $isSuper ? 'administrador' : 'super administrador' }}?">
                                                 @csrf @method('PUT')<input type="hidden" name="role" value="{{ $isSuper ? 'admin' : 'super_admin' }}">

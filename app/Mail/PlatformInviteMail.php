@@ -22,6 +22,6 @@ final class PlatformInviteMail extends Mailable
 
     public function content(): Content
     {
-        return new Content(view: 'mail.platform-invite');
+        return new Content(view: 'mail.platform-invite', text: 'mail.platform-invite-text');
     }
 }

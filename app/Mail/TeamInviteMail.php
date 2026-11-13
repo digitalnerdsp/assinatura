@@ -22,6 +22,6 @@ final class TeamInviteMail extends Mailable
 
     public function content(): Content
     {
-        return new Content(view: 'mail.team-invite');
+        return new Content(view: 'mail.team-invite', text: 'mail.team-invite-text');
     }
 }
