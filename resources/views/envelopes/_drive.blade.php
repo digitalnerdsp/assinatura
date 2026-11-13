@@ -22,6 +22,27 @@
     </div>
 </div>
 
+@if ($tags->isNotEmpty())
+    <div class="drive-tags d-flex flex-wrap gap-2 mb-3" id="drive-tags">
+        @foreach ($tags as $t)
+            <div class="drive-chip btn-group" data-tag-chip="{{ $t->id }}">
+                <a href="{{ route('envelopes.index', ['tag' => $t->id]) }}" title="Ver os documentos com esta etiqueta" class="badge bg-{{ $t->color }} fs-6 fw-semibold drive-tap rounded-start rounded-end-0">{{ $t->name }} <span class="ms-1">{{ $t->envelopes_count }}</span></a>
+                <div class="dropdown">
+                    <button type="button" class="badge bg-{{ $t->color }} fs-6 border-0 drive-tap rounded-start-0 rounded-end" data-bs-toggle="dropdown" data-bs-popper-config='{{ $popper }}' aria-expanded="false" aria-label="Ações da etiqueta {{ $t->name }}"><i class="bx bx-chevron-down"></i></button>
+                    <ul class="dropdown-menu">
+                        <li><button type="button" class="dropdown-item drive-tap justify-content-start" data-drive-action="edit-tag" data-id="{{ $t->id }}" data-name="{{ $t->name }}" data-color="{{ $t->color }}"><i class="bx bx-edit me-2"></i>Renomear ou mudar a cor</button></li>
+                        <li>
+                            <form method="post" action="{{ route('tags.destroy', $t) }}" onsubmit="return confirm('Apagar a etiqueta {{ addslashes($t->name) }}? Os documentos continuam, só perdem a etiqueta.')">@csrf @method('DELETE')
+                                <button class="dropdown-item drive-tap justify-content-start text-danger" data-drive-action="delete-tag"><i class="bx bx-trash me-2"></i>Apagar</button>
+                            </form>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        @endforeach
+    </div>
+@endif
+
 <div class="drive-folders drive-grid mb-3" id="drive-folders">
     @foreach ($childFolders as $f)
         @php($items = $folderCounts[$f->id] ?? 0)
@@ -44,25 +65,12 @@
             </div>
         </div>
     @endforeach
+    @includeWhen(isset($documents), 'envelopes._explorer_docs')
 </div>
 
-@if ($tags->isNotEmpty())
-    <div class="drive-tags d-flex flex-wrap gap-2 mb-3" id="drive-tags">
-        @foreach ($tags as $t)
-            <div class="drive-chip btn-group" data-tag-chip="{{ $t->id }}">
-                <a href="{{ route('documents.folders', array_filter(['folder' => $currentFolder?->id, 'tag' => $t->id] + $keep)) }}" class="badge bg-{{ $t->color }} fs-6 fw-semibold drive-tap rounded-start rounded-end-0">{{ $t->name }} <span class="ms-1">{{ $t->envelopes_count }}</span></a>
-                <div class="dropdown">
-                    <button type="button" class="badge bg-{{ $t->color }} fs-6 border-0 drive-tap rounded-start-0 rounded-end" data-bs-toggle="dropdown" data-bs-popper-config='{{ $popper }}' aria-expanded="false" aria-label="Ações da etiqueta {{ $t->name }}"><i class="bx bx-chevron-down"></i></button>
-                    <ul class="dropdown-menu">
-                        <li><button type="button" class="dropdown-item drive-tap justify-content-start" data-drive-action="edit-tag" data-id="{{ $t->id }}" data-name="{{ $t->name }}" data-color="{{ $t->color }}"><i class="bx bx-edit me-2"></i>Renomear ou mudar a cor</button></li>
-                        <li>
-                            <form method="post" action="{{ route('tags.destroy', $t) }}" onsubmit="return confirm('Apagar a etiqueta {{ addslashes($t->name) }}? Os documentos continuam, só perdem a etiqueta.')">@csrf @method('DELETE')
-                                <button class="dropdown-item drive-tap justify-content-start text-danger" data-drive-action="delete-tag"><i class="bx bx-trash me-2"></i>Apagar</button>
-                            </form>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        @endforeach
-    </div>
+@if (isset($documents) && $childFolders->isEmpty() && $documents->isEmpty())
+    <div class="text-center text-secondary py-5"><i class="bx bx-folder-open fs-1"></i><p class="mt-2 mb-0">{{ $currentFolder ? 'Esta pasta está vazia.' : 'Nenhuma pasta ainda. Use Nova pasta para começar.' }}</p></div>
+@endif
+@if (isset($documents) && $documents->hasPages())
+    <div class="mt-3">{{ $documents->links('pagination::bootstrap-5') }}</div>
 @endif

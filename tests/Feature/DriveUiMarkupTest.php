@@ -30,8 +30,8 @@ function uiPage(): array
     $doc = Document::create(['tenant_id' => $user->tenant_id, 'name' => 'a.pdf', 'storage_path' => 'documents/'.Str::uuid().'.pdf', 'sha256' => str_repeat('a', 64), 'size' => 8]);
     $envelope = Envelope::create([
         'tenant_id' => $user->tenant_id, 'document_id' => $doc->id, 'title' => 'Contrato X', 'status' => 'draft',
-        'verification_code' => strtoupper(Str::random(12)), 'folder_id' => $a->id,
-    ]);
+        'verification_code' => strtoupper(Str::random(12)),
+    ]); // sem pasta: aparece como item na raiz da página de pastas
     $envelope->tags()->attach($tag->id);
 
     return [$user, $a, $tag, $envelope, test()->get('/documentos/pastas')->assertOk()->getContent()];
@@ -93,5 +93,6 @@ it('os endereços das ações vêm das rotas (modelos com :id) e a tabela vira c
     [, , , , $html] = uiPage();
 
     expect($html)->toContain('/organizacao/pastas')->toContain('/organizacao/etiquetas')->toContain('data-url-store=');
-    expect($html)->toContain('drive-docs')->toContain('data-label="Status"');
+    expect($html)->toContain('data-doc-item=');
+    test()->get('/envelopes')->assertOk()->assertSee('drive-docs')->assertSee('data-label="Status"', false);
 });

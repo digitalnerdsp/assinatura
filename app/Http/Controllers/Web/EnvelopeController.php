@@ -41,10 +41,39 @@ final class EnvelopeController extends Controller
         return view('envelopes.index', $this->listing($request));
     }
 
-    /** Pastas e etiquetas: navegação estilo Drive por cima da mesma lista, com busca e filtros. */
+    /**
+     * Pastas e etiquetas: como o Explorador do Windows. Mostra as subpastas e os documentos que estão
+     * diretamente na pasta aberta (na raiz, os que não têm pasta). Sem busca nem filtros: só organização.
+     */
     public function foldersIndex(Request $request): View
     {
-        return view('envelopes.folders', $this->listing($request));
+        $request->validate(['folder' => ['nullable', 'string', 'max:40']]);
+        $tenant = $request->user()->tenant;
+        $tenantId = $tenant->getKey();
+        $folderService = app(FolderService::class);
+
+        $currentFolder = null;
+        $folderParam = (string) $request->query('folder', '');
+        if ($folderParam !== '') {
+            abort_unless(\Illuminate\Support\Str::isUuid($folderParam), 404);
+            $currentFolder = Folder::query()->where('tenant_id', $tenantId)->findOrFail($folderParam);
+        }
+
+        return view('envelopes.folders', [
+            'filters' => ['folder' => $currentFolder?->getKey()],
+            'currentFolder' => $currentFolder,
+            'breadcrumb' => $currentFolder ? $folderService->path($currentFolder) : collect(),
+            'childFolders' => Folder::query()->where('tenant_id', $tenantId)
+                ->when($currentFolder, fn ($q) => $q->where('parent_id', $currentFolder->getKey()), fn ($q) => $q->whereNull('parent_id'))
+                ->withCount('children')->orderByRaw('lower(name)')->get(),
+            'documents' => Envelope::query()->where('tenant_id', $tenantId)->whereNull('trashed_at')
+                ->when($currentFolder, fn ($q) => $q->where('folder_id', $currentFolder->getKey()), fn ($q) => $q->whereNull('folder_id'))
+                ->with('tags')->orderByRaw('lower(title)')->paginate(60)->withQueryString(),
+            'folderCounts' => $folderService->subtreeCounts($tenant),
+            'tags' => Tag::query()->where('tenant_id', $tenantId)->withCount('envelopes')->orderBy('name')->get(),
+            'folderTree' => $folderService->tree($tenant),
+            'colors' => Tag::COLORS,
+        ]);
     }
 
     /** @return array<string,mixed> dados da lista de documentos e das pastas/etiquetas */
@@ -94,16 +123,9 @@ final class EnvelopeController extends Controller
 
         return [
             'envelopes' => $envelopes,
-            'folderPaths' => app(FolderService::class)->paths($request->user()->tenant),
             'tags' => Tag::query()->where('tenant_id', $tenantId)->withCount('envelopes')->orderBy('name')->get(),
             'filters' => $filters,
             'onlyArchived' => $onlyArchived,
-            'currentFolder' => $currentFolder,
-            'breadcrumb' => $currentFolder ? $folderService->path($currentFolder) : collect(),
-            'childFolders' => Folder::query()->where('tenant_id', $tenantId)
-                ->when($currentFolder, fn ($q) => $q->where('parent_id', $currentFolder->getKey()), fn ($q) => $q->whereNull('parent_id'))
-                ->withCount('children')->orderByRaw('lower(name)')->get(),
-            'folderCounts' => $folderService->subtreeCounts($tenant),
             'folderPaths' => $folderService->paths($tenant),
             'folderTree' => $folderService->tree($tenant),
             'colors' => Tag::COLORS,

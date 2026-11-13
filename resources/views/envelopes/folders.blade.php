@@ -5,8 +5,6 @@
 @section('content')
 @include('envelopes._drive')
 
-@include('envelopes._list', ['listRoute' => 'documents.folders', 'showFolderSelect' => false])
-
 @include('envelopes._drive_modals')
 @endsection
 
