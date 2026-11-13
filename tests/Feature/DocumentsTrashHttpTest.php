@@ -128,3 +128,24 @@ it('a página do envelope oferece Mover para a lixeira (rascunho) e Arquivar (co
     $this->get("/envelopes/{$draft->id}")->assertOk()->assertSee('Mover para a lixeira')->assertDontSee('Arquivar');
     $this->get("/envelopes/{$done->id}")->assertOk()->assertSee('Arquivar')->assertDontSee('Mover para a lixeira');
 });
+
+it('um rascunho na lixeira não pode ser enviado e a página oferece Restaurar', function () {
+    Storage::fake('local');
+    $user = docsRegister();
+    $envelope = docsEnvelope($user, 'draft', 'Rascunho descartado');
+    $this->post("/envelopes/{$envelope->id}/lixeira");
+
+    $this->from('/envelopes')->post("/envelopes/{$envelope->id}/enviar")->assertSessionHasErrors('envelope');
+    expect($envelope->fresh()->status->value)->toBe('draft');
+
+    $this->get("/envelopes/{$envelope->id}")->assertOk()->assertSee('Este documento está na lixeira')->assertSee('Restaurar');
+});
+
+it('o Painel não lista envelopes da lixeira', function () {
+    Storage::fake('local');
+    $user = docsRegister();
+    docsEnvelope($user, 'draft', 'Visível no painel');
+    docsEnvelope($user, 'expired', 'Descartado do painel')->forceFill(['trashed_at' => now()])->save();
+
+    $this->get('/painel')->assertOk()->assertSee('Visível no painel')->assertDontSee('Descartado do painel');
+});

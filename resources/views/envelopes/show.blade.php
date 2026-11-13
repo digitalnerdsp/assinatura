@@ -10,6 +10,12 @@
     'link_regenerated' => 'Novo link gerado', 'envelope_sealed' => 'Documento selado', 'seal_failed' => 'Falha ao selar',
     'envelope_cancelled' => 'Envelope cancelado', 'envelope_expired' => 'Envelope expirado', 'reminder_sent' => 'Lembrete enviado',
 ])
+@if ($envelope->isTrashed())
+    <div class="alert alert-warning border-0 d-flex flex-wrap align-items-center gap-2">
+        <span><i class="bx bx-trash"></i> <strong>Este documento está na lixeira</strong> e será apagado em 30 dias.</span>
+        <form method="post" action="{{ route('envelopes.restore', $envelope) }}" class="ms-auto">@csrf<button class="btn btn-sm btn-outline-dark"><i class="bx bx-undo"></i> Restaurar</button></form>
+    </div>
+@endif
 <div class="card radius-10">
     <div class="card-body">
         <div class="d-flex flex-wrap align-items-center gap-2 mb-3">

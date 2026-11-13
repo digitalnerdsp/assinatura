@@ -142,3 +142,61 @@ it('agenda a limpeza diária', function () {
         ->contains(fn ($e) => str_contains((string) $e->command, 'envelopes:purge-trash'));
     expect($scheduled)->toBeTrue();
 });
+
+// ---- Passe de correção da revisão final ----
+
+it('purge apaga um envelope com trilha de evidências (gatilho append-only do PostgreSQL)', function () {
+    Storage::fake('local');
+    $envelope = trashEnvelope('expired');
+    $signer = Signer::create(['envelope_id' => $envelope->id, 'name' => 'Ana', 'email' => 'ana@ex.com']);
+    $logger = app(\App\Evidence\EvidenceLogger::class);
+    $logger->record($envelope, 'envelope_created');
+    $logger->record($envelope, 'signer_viewed', [], $signer);
+    $envelope->forceFill(['trashed_at' => now()->subDays(40)])->save();
+
+    expect(app(TrashService::class)->purge(30))->toBe(1)
+        ->and(Envelope::find($envelope->id))->toBeNull()
+        ->and(\App\Models\EvidenceEvent::where('envelope_id', $envelope->id)->count())->toBe(0);
+});
+
+it('a trilha de evidências continua protegida fora do purge', function () {
+    Storage::fake('local');
+    $envelope = trashEnvelope('draft');
+    app(\App\Evidence\EvidenceLogger::class)->record($envelope, 'envelope_created');
+
+    expect(fn () => \Illuminate\Support\Facades\DB::table('evidence_events')->where('envelope_id', $envelope->id)->delete())
+        ->toThrow(\Illuminate\Database\QueryException::class, 'append-only');
+});
+
+it('um envelope que falha no purge não impede os demais', function () {
+    Storage::fake('local');
+    \Illuminate\Support\Facades\Schema::create('purge_poison', function ($t) {
+        $t->id();
+        $t->foreignUuid('envelope_id')->constrained('envelopes')->restrictOnDelete();
+    });
+    $bad = trashEnvelope('expired');
+    $bad->forceFill(['trashed_at' => now()->subDays(40)])->save();
+    \Illuminate\Support\Facades\DB::table('purge_poison')->insert(['envelope_id' => $bad->id]);
+    $good = trashEnvelope('expired');
+    $good->forceFill(['trashed_at' => now()->subDays(40)])->save();
+
+    expect(app(TrashService::class)->purge(30))->toBe(1)
+        ->and(Envelope::find($good->id))->toBeNull()
+        ->and(Envelope::find($bad->id))->not->toBeNull();
+});
+
+it('purge remove a pasta inteira do signatário, inclusive selfies antigas', function () {
+    Storage::fake('local');
+    $envelope = trashEnvelope('expired');
+    $signer = Signer::create(['envelope_id' => $envelope->id, 'name' => 'Ana', 'email' => 'ana@ex.com']);
+    $dir = "tenants/{$envelope->tenant_id}/signers/{$signer->id}";
+    Storage::disk('local')->put("{$dir}/selfie-antiga.jpg", 'x');
+    Storage::disk('local')->put("{$dir}/selfie-atual.jpg", 'y');
+    SignerAttachment::create(['signer_id' => $signer->id, 'kind' => 'selfie', 'path' => "{$dir}/selfie-atual.jpg", 'mime' => 'image/jpeg', 'size' => 1, 'sha256' => str_repeat('c', 64)]);
+    $envelope->forceFill(['trashed_at' => now()->subDays(40)])->save();
+
+    app(TrashService::class)->purge(30);
+
+    Storage::disk('local')->assertMissing("{$dir}/selfie-antiga.jpg");
+    Storage::disk('local')->assertMissing("{$dir}/selfie-atual.jpg");
+});

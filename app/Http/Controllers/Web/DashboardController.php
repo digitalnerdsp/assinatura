@@ -17,7 +17,7 @@ final class DashboardController extends Controller
     public function index(Request $request): View
     {
         $tenant = $request->user()->tenant;
-        $base = Envelope::query()->where('tenant_id', $tenant->getKey());
+        $base = Envelope::query()->where('tenant_id', $tenant->getKey())->whereNull('trashed_at');
 
         $created = MonthlySeries::counts($base, 'created_at');
         $completed = MonthlySeries::counts($base, 'completed_at');

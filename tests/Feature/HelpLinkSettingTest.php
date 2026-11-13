@@ -57,3 +57,13 @@ it('usuário comum não consegue alterar', function () {
 
     expect(Setting::helpUrl())->toBeNull();
 });
+
+it('salvar só o formulário de Cadastros não apaga o link da Central de ajuda', function () {
+    config(['platform.super_admins' => ['admin@plataforma.com']]);
+    helpRegister('admin@plataforma.com');
+    Setting::put('help_url', 'https://ajuda.exemplo.com');
+
+    $this->put('/admin/configuracoes', ['registration_open' => 1])->assertRedirect();
+
+    expect(Setting::helpUrl())->toBe('https://ajuda.exemplo.com');
+});

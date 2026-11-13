@@ -28,7 +28,9 @@ final class SettingsController extends Controller
         ]);
 
         Setting::put('registration_open', $request->boolean('registration_open') ? '1' : '0');
-        Setting::put('help_url', $data['help_url'] ?? null);
+        if ($request->has('help_url')) { // o formulário de Cadastros não envia o campo: não apagar o link salvo
+            Setting::put('help_url', $data['help_url'] ?? null);
+        }
 
         return back()->with('status', 'Configurações salvas.');
     }

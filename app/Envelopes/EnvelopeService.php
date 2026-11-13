@@ -169,6 +169,10 @@ final class EnvelopeService
     {
         $validDays ??= (int) ($envelope->validity_days ?: config('signing.default_validity_days'));
 
+        if ($envelope->isTrashed()) {
+            throw FlowException::because('trashed', 'Este documento está na lixeira. Restaure-o antes de enviar.');
+        }
+
         if ($envelope->status !== EnvelopeStatus::Draft) {
             throw FlowException::because('not_draft', 'Somente rascunhos podem ser enviados.');
         }
