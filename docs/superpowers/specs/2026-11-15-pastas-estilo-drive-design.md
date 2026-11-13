@@ -1,6 +1,6 @@
 # Complemento — Pastas e etiquetas estilo Google Drive dentro de Documentos (Fase 1c)
 
-Data: 15/11/2026 · Status: **aguardando aprovação** · Complementa `2026-11-13-menu-modulos-planos-design.md`.
+Data: 15/11/2026 · Status: **aprovado em 15/11/2026 · entregue em 16/11/2026** · Complementa `2026-11-13-menu-modulos-planos-design.md`.
 
 ## 1. Intenção
 

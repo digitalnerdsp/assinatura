@@ -48,7 +48,7 @@
         @else
             <div class="table-responsive">
                 <table class="table align-middle mb-0 drive-docs">
-                    <thead class="table-light"><tr><th>Título</th><th>Pasta / etiquetas</th><th>Status</th><th>Signatários</th><th>Criado em</th><th class="text-end"><span class="visually-hidden">Ações</span></th></tr></thead>
+                    <thead class="table-light"><tr><th>Título</th><th>Pasta / etiquetas</th><th>Status</th><th>Signatários</th><th>Criado em</th><th class="text-end" aria-label="Ações"></th></tr></thead>
                     <tbody>
                     @foreach ($envelopes as $e)
                         <tr>

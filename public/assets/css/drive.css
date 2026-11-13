@@ -3,6 +3,7 @@
 .drive-tap { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
 .dropdown-item.drive-tap { display: flex; width: 100%; }
 .min-w-0 { min-width: 0; }
+.table-responsive { position: relative; } /* textos posicionados dentro da tabela não escapam da rolagem */
 
 /* Migalhas: rolam na horizontal se o caminho for longo */
 .drive-breadcrumb { display: flex; align-items: center; flex-wrap: nowrap; gap: .5rem; overflow-x: auto; white-space: nowrap; font-weight: 600; -webkit-overflow-scrolling: touch; padding: .25rem 0; }
