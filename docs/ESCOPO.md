@@ -227,7 +227,7 @@ teste de carga, repositório privado.
    - Termos de uso, política de privacidade, consentimento e retenção/exclusão de biometria (LGPD); revisão por advogado.
    - Recuperação de senha e verificação de e-mail.
    - Documentos em S3 (ou similar) em vez do volume do servidor.
-2. *Monetização e produto*
+2. *Monetização e produto* — **detalhado em `docs/superpowers/specs/2026-11-13-menu-modulos-planos-design.md`** (menu ZapSign, contatos, relatórios, calendário, planos e cobrança com Mercado Pago e InfinitePay, integração com a hospedagem)
    - Planos e cobrança recorrente (Asaas, Stripe ou Mercado Pago), bloqueio por inadimplência.
    - Marca própria (white label) e domínio personalizado por empresa.
    - Papéis de usuário (admin, operador, leitor) dentro de cada empresa, com log de auditoria.
