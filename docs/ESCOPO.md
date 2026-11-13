@@ -215,6 +215,8 @@ A escolha é feita por tenant (`tenant_signing_settings`): provedor, referência
 
 ## 14. Backlog priorizado (decidido em 09/11/2026)
 
+**Fase 1b entregue em 15/11/2026** (remetente que assina junto, sem selfie nem código, com "Minha assinatura" no perfil; testemunhas em lista à parte, que assinam por último e contam para concluir; assinatura da empresa pela API com representante, termo de delegação e permissão por chave; política da empresa `always` | `optional` | `never`, padrão `always`). Pendente: texto final do termo de delegação com o advogado; documentos gerados por modelo ainda sem testemunhas e sem remetente.
+
 **Fase 1 do menu entregue em 14/11/2026** (Roboto local, menu ZapSign com Documentos e Configurações, Minhas assinaturas, lixeira de 30 dias e arquivo, Central de ajuda configurável). Próximas: fase 2 (Contatos, Relatórios, Calendário, Usuários), fase 3 (planos e limites), fase 4 (cobrança), fase 5 (integração com a hospedagem).
 
 **Entregue em 09/11/2026** (itens 2 e 4 da lista de ideias; ainda sem teste em produção): lembretes e expiração, webhooks, WhatsApp/SMS, modelos com variáveis,
@@ -249,7 +251,8 @@ Referência interativa em `/api/docs` e especificação em `/api/v1/openapi.json
 
 - **Conta:** `GET /me` (confere a chave, mostra consumo e eventos de webhook).
 - **Envelopes:** listar com filtros e paginação, criar (multipart ou JSON com PDF em base64), consultar, enviar, cancelar, selar de novo, evidências, baixar selado e original. `{id}` aceita também o `external_id` do cliente; `metadata` livre volta nas respostas e nos webhooks.
-- **Signatários:** reenviar aviso e gerar novo link.
+- **Signatários:** reenviar aviso e gerar novo link. `role` aceita `signer` ou `witness` (testemunha); a resposta traz `is_sender` e `signed_via`.
+- **Assinatura da empresa:** `sender_signs` no `POST /envelopes`; com a política `always` (padrão) exige chave com a permissão `can_sign_as_company`, representante cadastrado e termo de delegação aceito, senão **422** (`sender_signature_not_allowed` ou `no_company_representative`) e nada é criado. A assinatura é aplicada no envio (`send: true` ou `POST /envelopes/{id}/send`); `signature_fields[].signer` aceita `"sender"`.
 - **Modelos:** CRUD e geração de envelope com variáveis.
 - **Webhooks:** CRUD, ativar/desativar, teste (`ping`) e histórico de entregas.
 - **Pastas e etiquetas:** listar, criar e remover.

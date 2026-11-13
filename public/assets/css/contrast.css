@@ -92,3 +92,9 @@ html:not(.dark-theme) .sidebar-wrapper .metismenu ul a:hover { color: #0b63c7; }
 html.dark-theme .sidebar-wrapper .metismenu ul a { color: #ffffff; }
 html.dark-theme .sidebar-wrapper .metismenu ul .mm-active > a,
 html.dark-theme .sidebar-wrapper .metismenu ul a:hover { color: #7db7ff; background: rgba(77, 141, 255, .18); }
+
+/* ---------- Abas (nav-pills) e botão de perigo ---------- */
+html .nav-pills .nav-link.active,
+html .nav-pills .show > .nav-link { background-color: #0b63c7; color: #ffffff; font-weight: 700; }
+html:not(.dark-theme) .btn-outline-danger { color: #c4122f; border-color: #c4122f; }
+html:not(.dark-theme) .btn-outline-danger:hover { background-color: #c4122f; color: #fff; }

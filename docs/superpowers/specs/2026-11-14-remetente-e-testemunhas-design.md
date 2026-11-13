@@ -1,6 +1,6 @@
 # Complemento — Remetente que assina junto e testemunhas (Fase 1b)
 
-Data: 14/11/2026 · Status: **aguardando aprovação** · Complementa `2026-11-13-menu-modulos-planos-design.md` e entra **antes da Fase 2**.
+Data: 14/11/2026 · Status: **aprovado em 14/11/2026 · entregue em 15/11/2026** · Complementa `2026-11-13-menu-modulos-planos-design.md` e entra **antes da Fase 2**.
 
 ## 1. Intenção
 

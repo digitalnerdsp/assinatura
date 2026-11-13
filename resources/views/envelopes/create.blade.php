@@ -185,9 +185,11 @@ let pdfDoc = null, page = 1, fields = [];
 const wrap = document.getElementById('page-wrap'), canvas = document.getElementById('page-canvas');
 
 function signerNames() {
+    let witnessNo = 0;
     return Array.from(document.querySelectorAll('.signer-name')).map((el, i) => {
         const w = el.classList.contains('witness-name');
-        return (w ? 'Testemunha: ' : '') + (el.value.trim() || ((w ? 'Testemunha ' : 'Signatário ') + (i + 1)));
+        if (w) witnessNo++;
+        return (w ? 'Testemunha: ' : '') + (el.value.trim() || (w ? 'Testemunha ' + witnessNo : 'Signatário ' + (i + 1)));
     });
 }
 function senderOn() { // o remetente assina neste documento? (linha fixa ou caixa marcada)
