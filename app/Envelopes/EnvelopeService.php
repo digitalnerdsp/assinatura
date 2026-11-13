@@ -62,6 +62,7 @@ final class EnvelopeService
         if (strlen($pdfContents) > (int) config('signing.max_pdf_mb') * 1024 * 1024) {
             throw FlowException::because('document_too_large', 'O PDF excede o limite de '.config('signing.max_pdf_mb').' MB.');
         }
+        \App\Plans\Entitlements::for($tenant)->canUpload(strlen($pdfContents))->orFail();
         $this->assertParticipants($signers, ! empty($options['sender']));
 
         $validity = max(1, min(365, (int) ($options['validity_days'] ?? config('signing.default_validity_days'))));
@@ -89,6 +90,7 @@ final class EnvelopeService
                 'sha256' => hash('sha256', $pdfContents),
                 'size' => strlen($pdfContents),
             ]);
+            app(\App\Plans\StorageUsage::class)->add($tenant, strlen($pdfContents));
 
             $envelope = Envelope::query()->create([
                 'tenant_id' => $tenant->getKey(),
@@ -266,6 +268,7 @@ final class EnvelopeService
             return $tokens;
         });
 
+        app(\App\Plans\PlanUsageMonitor::class)->check($tenant);
         $this->webhooks->dispatch($envelope, 'envelope.sent');
 
         return $tokens;

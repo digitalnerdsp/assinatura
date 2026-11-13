@@ -70,6 +70,7 @@
             </div>
 
             @include('layouts.partials.flash')
+            @include('layouts.partials.plan-banner')
             @yield('content')
         </div>
     </div>

@@ -285,10 +285,12 @@ final class SigningService
         Storage::disk('local')->put($path, $binary);
 
         DB::transaction(function () use ($signer, $kind, $path, $info, $binary, $sha, $source, $event, $context, $envelope) {
+            $previous = (int) SignerAttachment::query()->where('signer_id', $signer->getKey())->where('kind', $kind)->value('size');
             SignerAttachment::query()->updateOrCreate(
                 ['signer_id' => $signer->getKey(), 'kind' => $kind],
                 ['path' => $path, 'mime' => $info['mime'], 'size' => strlen($binary), 'sha256' => $sha, 'source' => $source],
             );
+            app(\App\Plans\StorageUsage::class)->add($envelope->tenant, strlen($binary) - $previous);
 
             $this->evidence->record($envelope, $event, [
                 'sha256' => $sha, 'size' => strlen($binary), 'mime' => $info['mime'],

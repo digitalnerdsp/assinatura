@@ -130,7 +130,7 @@ final class UsageLedger
             $start = $end;
             $end = $start->copy()->addMonth();
         }
-        $sub->forceFill(['period_start' => $start, 'period_end' => $end, 'quota_used' => 0])->save();
+        $sub->forceFill(['period_start' => $start, 'period_end' => $end, 'quota_used' => 0, 'warned_80_at' => null, 'warned_100_at' => null])->save();
     }
 
     private function overageCount(Subscription $sub): int

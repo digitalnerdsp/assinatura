@@ -23,6 +23,8 @@ Artisan::command('envelopes:purge-trash', function (\App\Envelopes\TrashService 
 })->purpose('Apaga de vez os envelopes que estão há 30 dias ou mais na lixeira');
 Schedule::command('envelopes:purge-trash')->daily()->withoutOverlapping();
 
+Schedule::command('storage:reconcile')->dailyAt('03:30')->withoutOverlapping();
+
 Artisan::command('api:prune-idempotency', function () {
     $n = \Illuminate\Support\Facades\DB::table('api_idempotency_keys')->where('created_at', '<', now()->subDay())->delete();
     $this->info("{$n} chave(s) de idempotência removida(s).");

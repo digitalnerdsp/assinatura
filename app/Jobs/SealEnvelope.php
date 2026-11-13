@@ -59,7 +59,9 @@ final class SealEnvelope implements ShouldQueue
         $path = "tenants/{$envelope->tenant_id}/final/{$envelope->getKey()}.pdf";
         Storage::disk('local')->put($path, $sealed->pdf);
 
+        $previousFinal = (int) $envelope->final_size;
         $envelope->update([
+            'final_size' => strlen($sealed->pdf),
             'status' => EnvelopeStatus::Completed,
             'completed_at' => now(),
             'final_path' => $path,
@@ -70,7 +72,9 @@ final class SealEnvelope implements ShouldQueue
         ]);
 
         try {
+            app(\App\Plans\StorageUsage::class)->add($envelope->tenant, strlen($sealed->pdf) - $previousFinal);
             app(\App\Plans\UsageLedger::class)->charge($envelope, 'complete'); // nunca impede a conclusão
+            app(\App\Plans\PlanUsageMonitor::class)->check($envelope->tenant);
         } catch (\Throwable $e) {
             report($e);
         }

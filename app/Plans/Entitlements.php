@@ -89,6 +89,11 @@ final class Entitlements
             return Decision::deny('blocked', 'O período de teste terminou. Escolha um plano para enviar novos documentos. Quem já recebeu um documento continua podendo assinar.');
         }
 
+        $storageLimit = $this->limit('storage_mb');
+        if ($storageLimit !== null && $this->storageBytes() >= $storageLimit * 1024 * 1024) {
+            return Decision::deny('storage_limit', 'O armazenamento do seu plano está cheio. Apague documentos antigos ou troque de plano para enviar novos. Quem já recebeu um documento continua podendo assinar.');
+        }
+
         $r = $this->rules();
         $mode = $r['balance'];
         $usesQuota = $mode !== 'credits' && $r['quota'] !== null;
@@ -111,6 +116,23 @@ final class Entitlements
         return Decision::deny('documents_limit', 'Você usou todos os documentos do seu plano neste período. Peça mais documentos ou troque de plano para enviar novos. Quem já recebeu um documento continua podendo assinar.');
     }
 
+    /** Novo PDF: tamanho máximo do plano e espaço que sobra no armazenamento. */
+    public function canUpload(int $bytes): Decision
+    {
+        $maxMb = $this->limit('max_pdf_mb');
+        if ($maxMb !== null && $bytes > $maxMb * 1024 * 1024) {
+            $mb = number_format($bytes / 1048576, 1, ',', '.');
+
+            return Decision::deny('pdf_too_large', "O PDF tem {$mb} MB e o seu plano aceita até {$maxMb} MB por arquivo.");
+        }
+        $storageMb = $this->limit('storage_mb');
+        if ($storageMb !== null && $this->storageBytes() + $bytes > $storageMb * 1024 * 1024) {
+            return Decision::deny('storage_limit', 'Este arquivo não cabe no armazenamento do seu plano. Apague documentos antigos ou troque de plano.');
+        }
+
+        return Decision::allow();
+    }
+
     public function canInviteUser(): Decision
     {
         $limit = $this->limit('users');
@@ -130,8 +152,40 @@ final class Entitlements
         return [
             'documents' => ['used' => $this->periodExpired() ? 0 : $this->sub->quota_used, 'limit' => $r['balance'] === 'credits' ? null : $r['quota'], 'credits' => $this->sub->credits_balance],
             'users' => ['used' => $this->usersUsed(), 'limit' => $this->limit('users')],
-            'storage' => ['used_bytes' => (int) $this->tenant->storage_bytes, 'limit_bytes' => $storageMb === null ? null : $storageMb * 1024 * 1024],
+            'storage' => ['used_bytes' => $this->storageBytes(), 'limit_bytes' => $storageMb === null ? null : $storageMb * 1024 * 1024],
         ];
+    }
+
+    /**
+     * Cada limite do plano e quanto já foi usado (em %). Só entra o que tem limite.
+     *
+     * @return list<array{key:string,label:string,used:int,limit:int,pct:int}>
+     */
+    public function pressure(): array
+    {
+        $u = $this->usage();
+        $r = $this->rules();
+        $rows = [];
+        if ($r['balance'] !== 'credits' && $r['quota'] !== null) {
+            $rows[] = ['key' => 'documents', 'label' => 'documentos do período', 'used' => $u['documents']['used'], 'limit' => $r['quota']];
+        }
+        if ($u['users']['limit'] !== null) {
+            $rows[] = ['key' => 'users', 'label' => 'usuários', 'used' => $u['users']['used'], 'limit' => $u['users']['limit']];
+        }
+        if ($u['storage']['limit_bytes'] !== null) {
+            $rows[] = ['key' => 'storage', 'label' => 'armazenamento', 'used' => $u['storage']['used_bytes'], 'limit' => $u['storage']['limit_bytes']];
+        }
+
+        return array_map(fn ($m) => $m + ['pct' => $m['limit'] <= 0 ? 100 : intdiv($m['used'] * 100, $m['limit'])], $rows);
+    }
+
+    /** O limite mais apertado, ou null quando nada tem limite. @return array{key:string,label:string,used:int,limit:int,pct:int}|null */
+    public function highest(): ?array
+    {
+        $rows = $this->pressure();
+        usort($rows, fn ($a, $b) => $b['pct'] <=> $a['pct']);
+
+        return $rows[0] ?? null;
     }
 
     public function overageUsed(): int
@@ -140,6 +194,12 @@ final class Entitlements
             ->where('note', 'like', '%excedente%')
             ->when($this->sub->period_start, fn ($q, $from) => $q->where('occurred_at', '>=', $from))
             ->count();
+    }
+
+    /** Lido do banco na hora: o contador é atualizado por consulta direta, sem passar pelo modelo em memória. */
+    private function storageBytes(): int
+    {
+        return (int) \Illuminate\Support\Facades\DB::table('tenants')->where('id', $this->tenant->getKey())->value('storage_bytes');
     }
 
     private function periodExpired(): bool

@@ -80,6 +80,8 @@ final class TrashService
         $document = $envelope->document;
         $tenantId = $envelope->tenant_id;
         $signers = $envelope->signers;
+        $freed = (int) $document?->size + (int) $signers->flatMap->attachments->sum('size');
+        $tenant = $envelope->tenant;
 
         DB::transaction(function () use ($envelope, $document): void {
             // A trilha de evidências é append-only; só esta limpeza pode apagá-la (ver a migration do gatilho).
@@ -112,6 +114,7 @@ final class TrashService
         if ($document && $disk->exists($document->storage_path)) {
             $this->warnIfFailed($disk->delete($document->storage_path), $document->storage_path);
         }
+        app(\App\Plans\StorageUsage::class)->remove($tenant, $freed);
     }
 
     private function warnIfFailed(bool $ok, string $what): void
