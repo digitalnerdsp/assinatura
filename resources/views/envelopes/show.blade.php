@@ -70,7 +70,7 @@
         <form method="post" action="{{ route('envelopes.organize', $envelope) }}" class="row g-2 align-items-end mt-2">
             @csrf
             <div class="col-md-4"><label class="form-label small text-secondary mb-1">Pasta</label>
-                <select class="form-select form-select-sm" name="folder_id"><option value="">Sem pasta</option>@foreach ($folders as $f)<option value="{{ $f->id }}" @selected($envelope->folder_id === $f->id)>{{ $f->name }}</option>@endforeach</select></div>
+                <select class="form-select form-select-sm" name="folder_id"><option value="">Sem pasta</option>@foreach ($folderPaths as $folderId => $folderPath)<option value="{{ $folderId }}" @selected($envelope->folder_id === $folderId)>{{ $folderPath }}</option>@endforeach</select></div>
             <div class="col-md-6"><label class="form-label small text-secondary mb-1">Etiquetas</label><br>
                 @forelse ($allTags as $t)<div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="t_{{ $t->id }}" name="tags[]" value="{{ $t->id }}" @checked($envelope->tags->contains('id', $t->id))><label class="form-check-label" for="t_{{ $t->id }}"><span class="badge bg-{{ $t->color }}">{{ $t->name }}</span></label></div>@empty<span class="small text-secondary">Sem etiquetas.</span>@endforelse</div>
             <div class="col-md-2"><button class="btn btn-sm btn-outline-primary w-100">Salvar</button></div>

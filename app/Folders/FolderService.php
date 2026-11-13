@@ -28,20 +28,24 @@ final class FolderService
     {
         $name = $this->cleanName($name);
 
-        if ($parent !== null) {
-            $this->assertSameTenant($tenant->getKey(), $parent);
-            if ($this->level($parent) >= self::MAX_LEVELS) {
-                throw FlowException::because('folder_too_deep', 'Limite de '.self::MAX_LEVELS.' níveis de pastas atingido.');
+        return DB::transaction(function () use ($tenant, $name, $parent): Folder {
+            $this->lockTenant($tenant->getKey());
+
+            if ($parent !== null) {
+                $this->assertSameTenant($tenant->getKey(), $parent);
+                if ($this->level($parent) >= self::MAX_LEVELS) {
+                    throw FlowException::because('folder_too_deep', 'Limite de '.self::MAX_LEVELS.' níveis de pastas atingido.');
+                }
             }
-        }
 
-        $this->assertNameFree($tenant->getKey(), $parent?->getKey(), $name, null);
+            $this->assertNameFree($tenant->getKey(), $parent?->getKey(), $name, null);
 
-        try {
-            return Folder::query()->create(['tenant_id' => $tenant->getKey(), 'parent_id' => $parent?->getKey(), 'name' => $name]);
-        } catch (UniqueConstraintViolationException) {
-            throw $this->nameTaken();
-        }
+            try {
+                return Folder::query()->create(['tenant_id' => $tenant->getKey(), 'parent_id' => $parent?->getKey(), 'name' => $name]);
+            } catch (UniqueConstraintViolationException) {
+                throw $this->nameTaken();
+            }
+        });
     }
 
     public function rename(Folder $folder, string $name): void
@@ -57,6 +61,15 @@ final class FolderService
     }
 
     public function move(Folder $folder, ?Folder $newParent): void
+    {
+        DB::transaction(function () use ($folder, $newParent): void {
+            // Duas mudanças ao mesmo tempo (A dentro de B e B dentro de A) passariam pela checagem de ciclo: trava por empresa.
+            $this->lockTenant($folder->tenant_id);
+            $this->doMove($folder, $newParent);
+        });
+    }
+
+    private function doMove(Folder $folder, ?Folder $newParent): void
     {
         if ($newParent !== null) {
             $this->assertSameTenant($folder->tenant_id, $newParent);
@@ -108,7 +121,7 @@ final class FolderService
         $rows = DB::select(
             'WITH RECURSIVE sub AS (
                 SELECT id FROM folders WHERE id = ? AND tenant_id = ?
-                UNION ALL
+                UNION
                 SELECT f.id FROM folders f JOIN sub s ON f.parent_id = s.id WHERE f.tenant_id = ?
             ) SELECT id FROM sub',
             [$folder->getKey(), $folder->tenant_id, $folder->tenant_id],
@@ -206,6 +219,7 @@ final class FolderService
     public function delete(Folder $folder): array
     {
         return DB::transaction(function () use ($folder): array {
+            $this->lockTenant($folder->tenant_id);
             $ids = $this->descendantIds($folder);
             $mine = fn () => Envelope::query()->where('tenant_id', $folder->tenant_id)->whereIn('folder_id', $ids);
 
@@ -225,12 +239,20 @@ final class FolderService
             'WITH RECURSIVE sub(id, d) AS (
                 SELECT id, 1 FROM folders WHERE id = ? AND tenant_id = ?
                 UNION ALL
-                SELECT f.id, s.d + 1 FROM folders f JOIN sub s ON f.parent_id = s.id WHERE f.tenant_id = ?
+                SELECT f.id, s.d + 1 FROM folders f JOIN sub s ON f.parent_id = s.id WHERE f.tenant_id = ? AND s.d < 20
             ) SELECT max(d) AS h FROM sub',
             [$folder->getKey(), $folder->tenant_id, $folder->tenant_id],
         );
 
         return (int) ($row->h ?? 1);
+    }
+
+    /** Trava (até o fim da transação) as mudanças de estrutura de pastas da empresa. */
+    private function lockTenant(string $tenantId): void
+    {
+        if (DB::getDriverName() === 'pgsql') {
+            DB::select('SELECT pg_advisory_xact_lock(hashtext(?))', [$tenantId]);
+        }
     }
 
     private function cleanName(string $name): string

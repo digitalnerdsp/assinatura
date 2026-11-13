@@ -90,5 +90,5 @@
 @endsection
 
 @push('scripts')
-<script src="{{ asset('assets/js/drive.js') }}?v=1"></script>
+<script src="{{ asset('assets/js/drive.js') }}?v=2"></script>
 @endpush

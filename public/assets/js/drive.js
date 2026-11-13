@@ -10,6 +10,7 @@
     var $$ = function (sel, ctx) { return Array.prototype.slice.call((ctx || document).querySelectorAll(sel)); };
     var show = function (id) { bootstrap.Modal.getOrCreateInstance(document.getElementById(id)).show(); };
     var urlFor = function (tpl, id) { return tpl.replace('__ID__', encodeURIComponent(id)); };
+    var impactSeq = 0; // só a resposta mais recente do "impacto" vale (uma atrasada não pode trocar os números)
 
     function setMethod(form, method) {
         var m = form.querySelector('input[name=_method]');
@@ -130,10 +131,12 @@
             impact.textContent = 'Calculando…';
             confirm.disabled = true;
             show('modal-delete-folder');
+            var mine = ++impactSeq;
 
             fetch(urlFor(m.dataset.urlImpact, el.dataset.id), { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
                 .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
                 .then(function (d) {
+                    if (mine !== impactSeq) return;
                     var where = d.destination ? '“' + d.destination + '”' : 'a lista de documentos, sem pasta';
                     var text = d.trash + (d.trash === 1 ? ' documento vai' : ' documentos vão') + ' para a lixeira (rascunhos, cancelados e expirados). ' +
                         d.keep + (d.keep === 1 ? ' continua' : ' continuam') + ' e passa' + (d.keep === 1 ? '' : 'm') + ' para ' + where + '.';
@@ -142,6 +145,7 @@
                     confirm.disabled = false;
                 })
                 .catch(function () {
+                    if (mine !== impactSeq) return;
                     impact.textContent = 'Não foi possível calcular o que será afetado. Feche e tente de novo.';
                 });
         },
@@ -195,6 +199,27 @@
         if (!m) return;
         m.addEventListener('shown.bs.modal', function () { var i = m.querySelector('[name=name]'); if (i) { i.focus(); i.select(); } });
     });
+
+    // ---- um envio por vez: toque duplo não repete a ação (o 2º pedido cairia em 404 ou "nome já existe")
+    function unlock(form) {
+        form.removeAttribute('data-sending');
+        $$('button:not([type=button])', form).forEach(function (b) { b.disabled = b.id === 'delete-confirm'; });
+    }
+    document.addEventListener('submit', function (e) {
+        var form = e.target;
+        if (!form || (form.method || '').toLowerCase() !== 'post') return;
+        if (form.getAttribute('data-sending') === '1') { e.preventDefault(); return; }
+        form.setAttribute('data-sending', '1');
+        $$('button:not([type=button])', form).forEach(function (b) { b.disabled = true; });
+    });
+    $$('.modal').forEach(function (m) {
+        m.addEventListener('hidden.bs.modal', function () {
+            impactSeq++; // cancela um "impacto" ainda em andamento
+            var form = m.querySelector('form');
+            if (form) unlock(form); // o botão de apagar só habilita quando os números chegarem
+        });
+    });
+    window.addEventListener('pageshow', function () { $$('form[method=post]').forEach(unlock); });
 
     // ---- grade / lista (preferência neste navegador)
     var box = document.getElementById('drive-folders');

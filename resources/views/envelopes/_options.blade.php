@@ -48,7 +48,7 @@
             <label for="folder_id" class="form-label">Pasta</label>
             <select id="folder_id" class="form-select" name="folder_id">
                 <option value="">Sem pasta</option>
-                @foreach ($folders as $f)<option value="{{ $f->id }}" @selected(old('folder_id') === $f->id)>{{ $f->name }}</option>@endforeach
+                @foreach ($folderPaths as $folderId => $folderPath)<option value="{{ $folderId }}" @selected(old('folder_id') === $folderId)>{{ $folderPath }}</option>@endforeach
             </select>
         </div>
         <div>

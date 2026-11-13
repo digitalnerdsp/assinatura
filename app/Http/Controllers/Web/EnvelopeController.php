@@ -81,7 +81,7 @@ final class EnvelopeController extends Controller
 
         return view('envelopes.index', [
             'envelopes' => $envelopes,
-            'folders' => Folder::query()->where('tenant_id', $tenantId)->orderBy('name')->get(),
+            'folderPaths' => app(FolderService::class)->paths($request->user()->tenant),
             'tags' => Tag::query()->where('tenant_id', $tenantId)->withCount('envelopes')->orderBy('name')->get(),
             'filters' => $filters,
             'onlyArchived' => $onlyArchived,
@@ -154,7 +154,7 @@ final class EnvelopeController extends Controller
         $user = $request->user();
 
         return [
-            'folders' => Folder::query()->where('tenant_id', $tenantId)->orderBy('name')->get(),
+            'folderPaths' => app(FolderService::class)->paths($request->user()->tenant),
             'tags' => Tag::query()->where('tenant_id', $tenantId)->orderBy('name')->get(),
             'senderPolicy' => app(SenderPolicy::class)->policy($user->tenant),
             'senderUser' => $user,
@@ -319,7 +319,7 @@ final class EnvelopeController extends Controller
         $tenantId = $request->user()->tenant_id;
 
         return view('envelopes.show', [
-            'folders' => Folder::query()->where('tenant_id', $tenantId)->orderBy('name')->get(),
+            'folderPaths' => app(FolderService::class)->paths($request->user()->tenant),
             'allTags' => Tag::query()->where('tenant_id', $tenantId)->orderBy('name')->get(),
             'activeIds' => $envelope->status->isOpenForSigning() ? $envelope->activeSigners()->pluck('id')->all() : [],
             'envelope' => $envelope,
