@@ -47,6 +47,7 @@ final class EnvelopeController extends Controller
 
         $page = Envelope::query()
             ->where('tenant_id', $this->tenant($request)->getKey())
+            ->whereNull('trashed_at')
             ->with(['signers', 'document', 'folder', 'tags'])
             ->when($f['status'] ?? null, fn ($q, $v) => $q->where('status', $v))
             ->when($f['external_id'] ?? null, fn ($q, $v) => $q->where('external_id', $v))

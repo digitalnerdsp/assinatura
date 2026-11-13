@@ -1,11 +1,12 @@
 @extends('layouts.app')
-@section('title', 'Envelopes')
-@section('section', 'Assinaturas')
-@section('actions')<a href="{{ route('envelopes.create') }}" class="btn btn-primary"><i class="bx bx-plus"></i> Novo envelope</a>@endsection
+@section('title', 'Documentos criados')
+@section('section', 'Documentos')
+@section('actions')<a href="{{ route('envelopes.create') }}" class="btn btn-primary"><i class="bx bx-plus"></i> Criar documento</a>@endsection
 @section('content')
 <div class="card radius-10">
     <div class="card-body">
         <form method="get" action="{{ route('envelopes.index') }}" class="row g-2 mb-3">
+            @if ($onlyArchived)<input type="hidden" name="arquivados" value="1">@endif
             <div class="col-12 col-md-4"><input type="search" class="form-control" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Buscar por título, signatário, e-mail ou código"></div>
             <div class="col-6 col-md-2">
                 <select class="form-select" name="status">
@@ -32,11 +33,15 @@
             </div>
         </form>
 
+        <div class="mb-3 small">
+            @if ($onlyArchived)<strong>Arquivados</strong> · <a href="{{ route('envelopes.index') }}">Ver ativos</a>@else<a href="{{ route('envelopes.index', ['arquivados' => 1]) }}"><i class="bx bx-archive"></i> Ver arquivados</a>@endif
+        </div>
+
         @if ($envelopes->isEmpty())
             <div class="text-center py-5">
                 <i class="bx bx-file fs-1 text-secondary"></i>
-                <p class="text-secondary mt-2">{{ array_filter($filters) ? 'Nenhum envelope encontrado com esses filtros.' : 'Nenhum envelope ainda. Crie o primeiro para enviar um PDF para assinatura.' }}</p>
-                @unless (array_filter($filters))<a class="btn btn-primary" href="{{ route('envelopes.create') }}">Criar envelope</a>@endunless
+                <p class="text-secondary mt-2">{{ array_filter($filters) ? 'Nenhum documento encontrado com esses filtros.' : 'Nenhum documento ainda. Crie o primeiro para enviar um PDF para assinatura.' }}</p>
+                @unless (array_filter($filters))<a class="btn btn-primary" href="{{ route('envelopes.create') }}">Criar documento</a>@endunless
             </div>
         @else
             <div class="table-responsive">

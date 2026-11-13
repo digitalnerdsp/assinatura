@@ -21,6 +21,14 @@
                 @if (in_array($envelope->status->value, ['draft', 'sent', 'in_progress']))
                     <form method="post" action="{{ route('envelopes.cancel', $envelope) }}" onsubmit="return confirm('Cancelar este envelope?')">@csrf<button class="btn btn-sm btn-outline-danger"><i class="bx bx-x"></i> Cancelar</button></form>
                 @endif
+                @if ($envelope->isTrashable() && ! $envelope->isTrashed())
+                    <form method="post" action="{{ route('envelopes.trash', $envelope) }}" onsubmit="return confirm('Mover este documento para a lixeira? Ele será apagado em 30 dias.')">@csrf<button class="btn btn-sm btn-outline-secondary"><i class="bx bx-trash"></i> Mover para a lixeira</button></form>
+                @endif
+                @if ($envelope->isArchivable() && ! $envelope->isArchived())
+                    <form method="post" action="{{ route('envelopes.archive', $envelope) }}">@csrf<button class="btn btn-sm btn-outline-secondary"><i class="bx bx-archive"></i> Arquivar</button></form>
+                @elseif ($envelope->isArchived())
+                    <form method="post" action="{{ route('envelopes.unarchive', $envelope) }}">@csrf<button class="btn btn-sm btn-outline-secondary"><i class="bx bx-archive-out"></i> Desarquivar</button></form>
+                @endif
             </div>
         </div>
 

@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('title', 'Painel')
 @section('section', 'Assinaturas')
-@section('actions')<a href="{{ route('envelopes.create') }}" class="btn btn-primary"><i class="bx bx-plus"></i> Novo envelope</a>@endsection
+@section('actions')<a href="{{ route('envelopes.create') }}" class="btn btn-primary"><i class="bx bx-plus"></i> Criar documento</a>@endsection
 @section('content')
 <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4">
     @include('partials.kpi', ['label' => 'Envelopes no mês', 'value' => $kpi['month'], 'icon' => 'bxs-file', 'tone' => 'info', 'grad' => 'blues', 'delta' => $kpi['monthDelta'], 'hint' => $kpi['total'].' no total'])
@@ -83,7 +83,7 @@
                             <td class="text-nowrap">{{ $e->created_at->timezone('America/Sao_Paulo')->format('d/m/Y') }}</td>
                         </tr>
                     @empty
-                        <tr><td colspan="3" class="text-secondary p-4">Nenhum envelope ainda. <a href="{{ route('envelopes.create') }}">Crie o primeiro</a>.</td></tr>
+                        <tr><td colspan="3" class="text-secondary p-4">Nenhum documento ainda. <a href="{{ route('envelopes.create') }}">Crie o primeiro</a>.</td></tr>
                     @endforelse
                     </tbody>
                 </table>

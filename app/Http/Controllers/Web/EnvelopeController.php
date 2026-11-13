@@ -28,6 +28,7 @@ final class EnvelopeController extends Controller
         private readonly EnvelopeService $envelopes,
         private readonly SignerNotifier $notifier,
         private readonly EvidenceLogger $evidence,
+        private readonly \App\Envelopes\TrashService $trash,
     ) {
     }
 
@@ -39,10 +40,13 @@ final class EnvelopeController extends Controller
             'status' => ['nullable', Rule::enum(\App\Enums\EnvelopeStatus::class)],
             'folder' => ['nullable', 'string', 'max:40'],
             'tag' => ['nullable', 'uuid'],
+            'arquivados' => ['nullable', 'boolean'],
         ]);
+        $onlyArchived = $request->boolean('arquivados');
 
         $envelopes = Envelope::query()
             ->where('tenant_id', $tenantId)
+            ->when($onlyArchived, fn ($q) => $q->whereNotNull('archived_at')->whereNull('trashed_at'), fn ($q) => $q->visible())
             ->with(['tags', 'folder'])
             ->withCount('signers')
             ->when($filters['q'] ?? null, function ($query, string $q) {
@@ -67,7 +71,52 @@ final class EnvelopeController extends Controller
             'folders' => Folder::query()->where('tenant_id', $tenantId)->orderBy('name')->get(),
             'tags' => Tag::query()->where('tenant_id', $tenantId)->orderBy('name')->get(),
             'filters' => $filters,
+            'onlyArchived' => $onlyArchived,
         ]);
+    }
+
+    public function trashIndex(Request $request): View
+    {
+        $items = Envelope::query()
+            ->where('tenant_id', $request->user()->tenant_id)
+            ->whereNotNull('trashed_at')
+            ->latest('trashed_at')
+            ->paginate(20);
+
+        return view('documents.trash', ['items' => $items, 'days' => 30]);
+    }
+
+    public function trash(Request $request, Envelope $envelope): RedirectResponse
+    {
+        return $this->transition($request, $envelope, fn () => $this->trash->trash($envelope), 'Movido para a lixeira.');
+    }
+
+    public function restore(Request $request, Envelope $envelope): RedirectResponse
+    {
+        return $this->transition($request, $envelope, fn () => $this->trash->restore($envelope), 'Documento restaurado.');
+    }
+
+    public function archive(Request $request, Envelope $envelope): RedirectResponse
+    {
+        return $this->transition($request, $envelope, fn () => $this->trash->archive($envelope), 'Documento arquivado.');
+    }
+
+    public function unarchive(Request $request, Envelope $envelope): RedirectResponse
+    {
+        return $this->transition($request, $envelope, fn () => $this->trash->unarchive($envelope), 'Documento desarquivado.');
+    }
+
+    private function transition(Request $request, Envelope $envelope, callable $action, string $message): RedirectResponse
+    {
+        $this->owned($request, $envelope);
+
+        try {
+            $action();
+        } catch (FlowException $e) {
+            return back()->withErrors(['envelope' => $e->getMessage()]);
+        }
+
+        return back()->with('status', $message);
     }
 
     public function create(Request $request): View

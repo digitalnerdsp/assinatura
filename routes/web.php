@@ -53,6 +53,12 @@ Route::middleware(['auth', 'tenant.active'])->group(function () {
     Route::get('/envelopes/{envelope}/anexos/{attachment}', [EnvelopeController::class, 'attachment'])->name('envelopes.attachment');
     Route::get('/envelopes/{envelope}/selado', [EnvelopeController::class, 'final'])->name('envelopes.final');
 
+    Route::post('/envelopes/{envelope}/lixeira', [EnvelopeController::class, 'trash'])->name('envelopes.trash');
+    Route::post('/envelopes/{envelope}/restaurar', [EnvelopeController::class, 'restore'])->name('envelopes.restore');
+    Route::post('/envelopes/{envelope}/arquivar', [EnvelopeController::class, 'archive'])->name('envelopes.archive');
+    Route::post('/envelopes/{envelope}/desarquivar', [EnvelopeController::class, 'unarchive'])->name('envelopes.unarchive');
+    Route::get('/documentos/lixeira', [EnvelopeController::class, 'trashIndex'])->name('documents.trash');
+
     Route::post('/envelopes/{envelope}/organizar', [EnvelopeController::class, 'organize'])->name('envelopes.organize');
 
     Route::get('/organizacao', [\App\Http\Controllers\Web\OrganizationController::class, 'index'])->name('organization.index');
