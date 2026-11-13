@@ -371,7 +371,7 @@ it('organiza e busca envelopes por pasta, etiqueta, status e texto', function ()
     $this->get('/envelopes?q=galpão')->assertSee('Aluguel do galpão')->assertDontSee('Contrato de serviço');
     $this->get('/envelopes?q=zeca@loja')->assertSee('Aluguel do galpão')->assertDontSee('Contrato de serviço');
     $this->get('/envelopes?q=ANA')->assertSee('Contrato de serviço'); // sem diferenciar maiúsculas, acha o signatário
-    $this->get('/envelopes?status=completed')->assertSee('Nenhum envelope encontrado');
+    $this->get('/envelopes?status=completed')->assertSee('Nenhum documento encontrado');
     $this->get('/envelopes?q=100%25')->assertOk(); // curingas do LIKE são escapados
 });
 
