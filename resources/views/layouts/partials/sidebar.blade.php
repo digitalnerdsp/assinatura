@@ -21,6 +21,8 @@
 
     <li class="{{ $item('templates.*') }}"><a href="{{ route('templates.index') }}"><div class="parent-icon"><i class="bx bx-copy-alt"></i></div><div class="menu-title">Modelos</div></a></li>
 
+    <li class="{{ $item('contacts.*') }}"><a href="{{ route('contacts.index') }}"><div class="parent-icon"><i class="bx bx-id-card"></i></div><div class="menu-title">Contatos</div></a></li>
+
     <li class="{{ $cfgOpen ? 'mm-active' : '' }}">
         <a class="has-arrow" href="javascript:;"><div class="parent-icon"><i class="bx bx-cog"></i></div><div class="menu-title">Configurações</div></a>
         <ul class="mm-collapse {{ $cfgOpen ? 'mm-show' : '' }}">

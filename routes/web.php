@@ -76,6 +76,11 @@ Route::middleware(['auth', 'tenant.active'])->group(function () {
     Route::put('/organizacao/etiquetas/{tag}', [\App\Http\Controllers\Web\OrganizationController::class, 'updateTag'])->name('tags.update');
     Route::delete('/organizacao/etiquetas/{tag}', [\App\Http\Controllers\Web\OrganizationController::class, 'destroyTag'])->name('tags.destroy');
 
+    Route::get('/contatos', [\App\Http\Controllers\Web\ContactController::class, 'index'])->name('contacts.index');
+    Route::post('/contatos', [\App\Http\Controllers\Web\ContactController::class, 'store'])->middleware('throttle:60,1,contacts')->name('contacts.store');
+    Route::put('/contatos/{contact}', [\App\Http\Controllers\Web\ContactController::class, 'update'])->name('contacts.update');
+    Route::delete('/contatos/{contact}', [\App\Http\Controllers\Web\ContactController::class, 'destroy'])->name('contacts.destroy');
+
     Route::get('/modelos', [\App\Http\Controllers\Web\TemplateController::class, 'index'])->name('templates.index');
     Route::get('/modelos/novo', [\App\Http\Controllers\Web\TemplateController::class, 'create'])->name('templates.create');
     Route::post('/modelos', [\App\Http\Controllers\Web\TemplateController::class, 'store'])->name('templates.store');

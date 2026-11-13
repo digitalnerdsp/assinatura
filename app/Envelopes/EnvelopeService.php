@@ -167,6 +167,9 @@ final class EnvelopeService
                 ]);
             }
 
+            // Signatários e testemunhas viram contatos da empresa (o remetente não).
+            app(\App\Contacts\ContactService::class)->rememberFromSigners($tenant, array_values($signers));
+
             $this->evidence->record($envelope, 'envelope_created', [
                 'document_sha256' => $document->sha256,
                 'signers' => count($signers) + ($sender ? 1 : 0),
