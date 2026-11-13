@@ -30,6 +30,7 @@ class TenantSigningSetting extends Model
         return [
             'credential_ref' => 'encrypted:array',
             'certificate_valid_to' => 'datetime',
+            'delegation_accepted_at' => 'datetime',
         ];
     }
 }

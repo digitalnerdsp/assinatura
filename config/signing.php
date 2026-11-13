@@ -19,6 +19,9 @@ return [
     ],
 
     // Tamanho máximo do PDF enviado (MB). O sealer e o PHP precisam suportar esse valor.
+    // Máximo de testemunhas por envelope.
+    'max_witnesses' => (int) env('SIGNING_MAX_WITNESSES', 10),
+
     'max_pdf_mb' => (int) env('SIGNING_MAX_PDF_MB', 20),
 
     // Validade padrão do envelope e intervalo padrão de lembretes (dias).

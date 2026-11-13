@@ -18,6 +18,9 @@ class Envelope extends Model
 {
     use HasUuids;
 
+    /** Papéis que assinam e contam para concluir o documento. */
+    public const PARTICIPANT_ROLES = ['signer', 'witness'];
+
     protected $guarded = [];
 
     protected function casts(): array

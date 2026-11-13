@@ -19,7 +19,7 @@ class ApiKey extends Model
 
     protected function casts(): array
     {
-        return ['last_used_at' => 'datetime', 'revoked_at' => 'datetime', 'read_only' => 'boolean'];
+        return ['last_used_at' => 'datetime', 'revoked_at' => 'datetime', 'read_only' => 'boolean', 'can_sign_as_company' => 'boolean'];
     }
 
     public function tenant(): BelongsTo

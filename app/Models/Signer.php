@@ -18,6 +18,16 @@ class Signer extends Model
 
     protected $hidden = ['token_hash', 'otp_hash', 'token_encrypted'];
 
+    public function isSender(): bool
+    {
+        return (bool) $this->is_sender;
+    }
+
+    public function isWitness(): bool
+    {
+        return $this->role === 'witness';
+    }
+
     /** Link público de assinatura, se o token ainda estiver disponível (envelopes antigos não têm). */
     public function signUrl(): ?string
     {
@@ -42,6 +52,7 @@ class Signer extends Model
             'signed_at' => 'datetime',
             'geolocation_at' => 'datetime',
             'invited_at' => 'datetime',
+            'is_sender' => 'boolean',
             'last_reminded_at' => 'datetime',
         ];
     }
