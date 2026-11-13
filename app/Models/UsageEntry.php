@@ -18,6 +18,6 @@ class UsageEntry extends Model
 
     protected function casts(): array
     {
-        return ['occurred_at' => 'datetime', 'delta' => 'integer', 'balance_after' => 'integer'];
+        return ['occurred_at' => 'datetime', 'delta' => 'integer', 'balance_after' => 'integer', 'overage' => 'boolean'];
     }
 }

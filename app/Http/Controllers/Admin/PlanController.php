@@ -27,6 +27,7 @@ final class PlanController extends Controller
     {
         return view('admin.plans.index', [
             'plans' => Plan::query()->withCount('subscriptions')->with('prices')->orderBy('position')->orderBy('name')->get(),
+            'noDefault' => ! Plan::query()->where('is_default', true)->where('active', true)->exists(),
         ]);
     }
 
@@ -70,6 +71,9 @@ final class PlanController extends Controller
             return back()->withErrors(['plan' => 'O plano Legado não pode ser editado.']);
         }
         $data = $this->validated($request);
+        if ($plan->is_default && ! $data['active']) {
+            return back()->withErrors(['plan' => 'Este é o plano padrão das empresas novas. Escolha outro plano como padrão antes de desativar este.'])->withInput();
+        }
 
         try {
             $mapped = $this->form->plan($request->all());
@@ -99,6 +103,9 @@ final class PlanController extends Controller
     {
         if ($plan->isLegacy()) {
             return back()->withErrors(['plan' => 'O plano Legado não pode ser apagado.']);
+        }
+        if ($plan->is_default) {
+            return back()->withErrors(['plan' => 'Este é o plano padrão das empresas novas. Escolha outro plano como padrão antes de apagar ou desativar este.']);
         }
         if ($plan->subscriptions()->exists()) {
             $plan->update(['active' => false, 'is_default' => false, 'is_public' => false]);

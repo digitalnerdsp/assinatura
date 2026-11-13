@@ -102,14 +102,9 @@ final class Entitlements
             return Decision::allow(); // sem limite
         }
 
-        $used = $this->periodExpired() ? 0 : $s->quota_used;
-        if (($usesQuota && $used < $r['quota']) || ($usesCredits && $s->credits_balance > 0)) {
-            return Decision::allow();
-        }
-        if ($r['on_empty'] === 'overage') {
-            return Decision::allow();
-        }
-        if ($r['on_empty'] === 'cap' && $this->overageUsed() < $r['cap']) {
+        // Desconto ao concluir: o que já foi enviado e ainda está aberto ocupa a cota (senão dá para enviar 500 com cota 2).
+        $reserved = $r['when'] === 'complete' ? self::reservedOpen($this->tenant->getKey()) : 0;
+        if (self::hasRoom($r, $this->periodExpired() ? 0 : $s->quota_used, $s->credits_balance, $reserved, $this->overageUsed())) {
             return Decision::allow();
         }
 
@@ -188,12 +183,44 @@ final class Entitlements
         return $rows[0] ?? null;
     }
 
+    /** Excedente em uso no período: envios acima da cota menos os devolvidos (a devolução leva a mesma marca, com delta +1). */
     public function overageUsed(): int
     {
-        return UsageEntry::query()->where('tenant_id', $this->tenant->getKey())
-            ->where('note', 'like', '%excedente%')
-            ->when($this->sub->period_start, fn ($q, $from) => $q->where('occurred_at', '>=', $from))
+        return self::overageSum($this->tenant->getKey(), $this->sub->period_start);
+    }
+
+    public static function overageSum(string $tenantId, ?\Carbon\CarbonInterface $since): int
+    {
+        $sum = (int) UsageEntry::query()->where('tenant_id', $tenantId)->where('overage', true)
+            ->when($since, fn ($q, $from) => $q->where('occurred_at', '>=', $from))->sum('delta');
+
+        return max(0, -$sum);
+    }
+
+    /** Documentos enviados e ainda abertos que ainda não foram descontados (só importa quando o desconto é ao concluir). */
+    public static function reservedOpen(string $tenantId, ?string $exceptEnvelopeId = null): int
+    {
+        return \App\Models\Envelope::query()->where('tenant_id', $tenantId)
+            ->whereIn('status', ['sent', 'in_progress', 'sealing'])
+            ->when($exceptEnvelopeId, fn ($q, $id) => $q->where('id', '!=', $id))
+            ->whereNotIn('id', fn ($q) => $q->select('envelope_id')->from('usage_entries')->whereNotNull('envelope_id')->whereIn('kind', ['quota', 'credit']))
             ->count();
+    }
+
+    /** Cabe mais um documento? Saldo (cota que sobra + créditos) acima do que já está reservado, ou excedente liberado. */
+    public static function hasRoom(array $r, int $quotaUsed, int $credits, int $reserved, int $overageUsed): bool
+    {
+        if ($r['balance'] !== 'credits' && $r['quota'] === null) {
+            return true; // sem limite
+        }
+        $usesQuota = $r['balance'] !== 'credits' && $r['quota'] !== null;
+        $usesCredits = $r['balance'] !== 'quota';
+        $available = ($usesQuota ? max(0, $r['quota'] - $quotaUsed) : 0) + ($usesCredits ? $credits : 0);
+        if ($available > $reserved || $r['on_empty'] === 'overage') {
+            return true;
+        }
+
+        return $r['on_empty'] === 'cap' && $overageUsed < $r['cap'];
     }
 
     /** Lido do banco na hora: o contador é atualizado por consulta direta, sem passar pelo modelo em memória. */

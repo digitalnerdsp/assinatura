@@ -114,8 +114,12 @@ it('edita, escolhe o padrão, e plano em uso só é desativado, nunca apagado', 
     $this->delete('/admin/planos/'.$a->id)->assertRedirect()->assertSessionHas('status');
     expect($a->fresh())->not->toBeNull()->and($a->fresh()->active)->toBeFalse();
 
+    $this->delete('/admin/planos/'.$b->id)->assertSessionHasErrors('plan'); // o padrão não se apaga
+    expect(Plan::find($b->id))->not->toBeNull();
+    $this->post('/admin/planos', planForm(['name' => 'C']))->assertSessionHasNoErrors();
+    $this->post('/admin/planos/'.Plan::where('slug', 'c')->value('id').'/padrao')->assertRedirect();
     $this->delete('/admin/planos/'.$b->id)->assertRedirect();
-    expect(Plan::find($b->id))->toBeNull(); // sem empresas: apaga (e deixa de ser o padrão)
+    expect(Plan::find($b->id))->toBeNull(); // sem empresas e já não é o padrão: apaga
 
     $legacy = app(PlanService::class)->legacy();
     $this->delete('/admin/planos/'.$legacy->id)->assertSessionHasErrors('plan');

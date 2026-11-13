@@ -27,6 +27,15 @@ final class UsageLedger
             $sub = $this->lock($envelope);
             $r = Entitlements::rulesFrom(app(PlanService::class)->effective($sub));
             if ($r['when'] !== $when) {
+                if ($r['when'] === 'complete' && $when === 'send') {
+                    // Desconto ao concluir: na hora de enviar, com a trava, confere se ainda cabe contando os documentos abertos.
+                    $this->rollPeriod($sub);
+                    $reserved = Entitlements::reservedOpen($envelope->tenant_id, (string) $envelope->getKey());
+                    if (! Entitlements::hasRoom($r, $sub->quota_used, $sub->credits_balance, $reserved, $this->overageCount($sub))) {
+                        throw FlowException::because('documents_limit', 'Você usou todos os documentos do seu plano neste período. Peça mais documentos ou troque de plano para enviar novos.');
+                    }
+                }
+
                 return;
             }
             if (UsageEntry::query()->where('envelope_id', $envelope->getKey())->whereIn('kind', ['quota', 'credit'])->exists()) {
@@ -71,9 +80,9 @@ final class UsageLedger
             if ($usesQuota) {
                 $sub->quota_used++;
                 $sub->save();
-                $this->entry($envelope, 'quota', -1, $quota - $sub->quota_used, $note);
+                $this->entry($envelope, 'quota', -1, $quota - $sub->quota_used, $note, true);
             } else {
-                $this->entry($envelope, 'adjust', -1, $sub->credits_balance, $note);
+                $this->entry($envelope, 'adjust', -1, $sub->credits_balance, $note, true);
             }
         });
     }
@@ -106,7 +115,7 @@ final class UsageLedger
                 $balance = $sub->credits_balance;
             }
             $sub->save();
-            $this->entry($envelope, 'refund', 1, $balance, 'Devolvido: documento cancelado ou expirado sem assinatura');
+            $this->entry($envelope, 'refund', 1, $balance, 'Devolvido: documento cancelado ou expirado sem assinatura', (bool) $charge->overage);
         });
     }
 
@@ -135,15 +144,14 @@ final class UsageLedger
 
     private function overageCount(Subscription $sub): int
     {
-        return UsageEntry::query()->where('tenant_id', $sub->tenant_id)->where('note', 'like', '%excedente%')
-            ->when($sub->period_start, fn ($q, $from) => $q->where('occurred_at', '>=', $from))->count();
+        return Entitlements::overageSum($sub->tenant_id, $sub->period_start);
     }
 
-    private function entry(Envelope $envelope, string $kind, int $delta, int $balanceAfter, string $note): void
+    private function entry(Envelope $envelope, string $kind, int $delta, int $balanceAfter, string $note, bool $overage = false): void
     {
         UsageEntry::query()->create([
             'tenant_id' => $envelope->tenant_id, 'envelope_id' => $envelope->getKey(),
-            'kind' => $kind, 'delta' => $delta, 'balance_after' => $balanceAfter, 'note' => $note, 'occurred_at' => now(),
+            'kind' => $kind, 'delta' => $delta, 'balance_after' => $balanceAfter, 'note' => $note, 'overage' => $overage, 'occurred_at' => now(),
         ]);
     }
 }

@@ -82,7 +82,7 @@ final class PlanService
     {
         $legacy = $this->legacy();
         $n = 0;
-        Tenant::query()->whereDoesntHave('subscription')->each(function (Tenant $t) use ($legacy, &$n) {
+        Tenant::query()->whereDoesntHave('subscription')->eachById(function (Tenant $t) use ($legacy, &$n) {
             $this->assign($t, $legacy);
             $n++;
         });

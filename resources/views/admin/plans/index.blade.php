@@ -9,6 +9,7 @@
     $lim = fn ($v) => $v === null ? 'ilimitado' : number_format((int) $v, 0, ',', '.');
 @endphp
 @error('plan')<div class="alert alert-danger border-0">{{ $message }}</div>@enderror
+@if ($noDefault)<div class="alert alert-warning border-0"><strong>Nenhum plano padrão ativo.</strong> Enquanto não houver, as empresas novas entram no plano Legado (sem limite e sem cobrança). Escolha um plano e use “Tornar padrão”.</div>@endif
 <div class="card radius-10">
     <div class="card-body">
         <p class="text-secondary small">Cada empresa fica em um plano. Os limites, recursos e regras daqui valem para todas as empresas do plano, e podem ser sobrescritos por empresa em <a href="{{ route('admin.subscriptions.index') }}">Assinaturas</a>. O plano marcado como <strong>Padrão</strong> é o das empresas que se cadastram.</p>

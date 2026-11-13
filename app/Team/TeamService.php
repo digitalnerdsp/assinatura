@@ -97,6 +97,7 @@ final class TeamService
     public function reactivate(User $owner, User $member): void
     {
         $this->guard($owner, $member);
+        \App\Plans\Entitlements::for($owner->tenant)->canInviteUser()->orFail(); // reativar também ocupa uma vaga
         $member->forceFill(['deactivated_at' => null])->save();
     }
 
