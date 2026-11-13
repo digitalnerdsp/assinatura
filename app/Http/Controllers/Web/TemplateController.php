@@ -90,7 +90,7 @@ final class TemplateController extends Controller
 
         return view('templates.use', [
             'template' => $template,
-            'folders' => Folder::query()->where('tenant_id', $tenantId)->orderBy('name')->get(),
+            'folderPaths' => app(\App\Folders\FolderService::class)->paths($request->user()->tenant),
             'tags' => Tag::query()->where('tenant_id', $tenantId)->orderBy('name')->get(),
         ]);
     }
