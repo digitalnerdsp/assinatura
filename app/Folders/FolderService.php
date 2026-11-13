@@ -134,6 +134,55 @@ final class FolderService
         return $build('', 1);
     }
 
+    /**
+     * Caminho legível de cada pasta da empresa ("A › B"), ordenado.
+     *
+     * @return array<string,string> id => caminho
+     */
+    public function paths(Tenant $tenant): array
+    {
+        $all = Folder::query()->where('tenant_id', $tenant->getKey())->get(['id', 'parent_id', 'name'])->keyBy('id');
+        $paths = [];
+
+        foreach ($all as $folder) {
+            $names = [$folder->name];
+            $current = $folder;
+            for ($guard = 0; $current->parent_id !== null && isset($all[$current->parent_id]) && $guard < 10; $guard++) {
+                $current = $all[$current->parent_id];
+                array_unshift($names, $current->name);
+            }
+            $paths[$folder->getKey()] = implode(' › ', $names);
+        }
+
+        asort($paths, SORT_NATURAL | SORT_FLAG_CASE);
+
+        return $paths;
+    }
+
+    /**
+     * Documentos visíveis (fora da lixeira e do arquivo) em cada pasta, somando as subpastas.
+     *
+     * @return array<string,int> id da pasta => quantidade
+     */
+    public function subtreeCounts(Tenant $tenant): array
+    {
+        $all = Folder::query()->where('tenant_id', $tenant->getKey())->get(['id', 'parent_id'])->keyBy('id');
+        $direct = Envelope::query()->visible()->where('tenant_id', $tenant->getKey())->whereNotNull('folder_id')
+            ->selectRaw('folder_id, count(*) as total')->groupBy('folder_id')->pluck('total', 'folder_id');
+
+        $totals = [];
+        foreach ($all as $folder) {
+            $own = (int) ($direct[$folder->getKey()] ?? 0);
+            $current = $folder;
+            for ($guard = 0; $current !== null && $guard < 10; $guard++) {
+                $totals[$current->getKey()] = ($totals[$current->getKey()] ?? 0) + $own;
+                $current = $current->parent_id !== null ? ($all[$current->parent_id] ?? null) : null;
+            }
+        }
+
+        return $totals;
+    }
+
     /** @return array{trash:int,keep:int,folders:int,destination:?string} */
     public function impact(Folder $folder): array
     {

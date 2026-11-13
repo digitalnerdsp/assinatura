@@ -3,6 +3,8 @@
 @section('section', 'Documentos')
 @section('actions')<a href="{{ route('envelopes.create') }}" class="btn btn-primary"><i class="bx bx-plus"></i> Criar documento</a>@endsection
 @section('content')
+@include('envelopes._drive')
+
 <div class="card radius-10">
     <div class="card-body">
         <form method="get" action="{{ route('envelopes.index') }}" class="row g-2 mb-3">
@@ -18,7 +20,7 @@
                 <select class="form-select" name="folder">
                     <option value="">Todas as pastas</option>
                     <option value="none" @selected(($filters['folder'] ?? '') === 'none')>Sem pasta</option>
-                    @foreach ($folders as $f)<option value="{{ $f->id }}" @selected(($filters['folder'] ?? '') === $f->id)>{{ $f->name }}</option>@endforeach
+                    @foreach ($folderPaths as $folderId => $folderPath)<option value="{{ $folderId }}" @selected(($filters['folder'] ?? '') === $folderId)>{{ $folderPath }}</option>@endforeach
                 </select>
             </div>
             <div class="col-6 col-md-2">
@@ -52,7 +54,7 @@
                         <tr>
                             <td><a href="{{ route('envelopes.show', $e) }}" class="fw-semibold">{{ $e->title }}</a></td>
                             <td>
-                                @if ($e->folder)<span class="text-secondary small me-1"><i class="bx bx-folder"></i> {{ $e->folder->name }}</span>@endif
+                                @if ($e->folder_id && isset($folderPaths[$e->folder_id]))<span class="text-secondary small me-1"><i class="bx bx-folder"></i> {{ $folderPaths[$e->folder_id] }}</span>@endif
                                 @foreach ($e->tags as $t)<span class="badge bg-{{ $t->color }} me-1">{{ $t->name }}</span>@endforeach
                             </td>
                             <td>@include('partials.status-badge', ['status' => $e->status->value])</td>

@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Web;
 
 use App\Enums\SigningOrder;
 use App\Envelopes\EnvelopeService;
+use App\Folders\FolderService;
 use App\Envelopes\SenderPolicy;
 use App\Envelopes\SenderSignature;
 use App\Envelopes\Exceptions\FlowException;
@@ -46,6 +47,17 @@ final class EnvelopeController extends Controller
         ]);
         $onlyArchived = $request->boolean('arquivados');
 
+        // Pasta aberta: a lista mostra os documentos dela e das subpastas. Id inválido ou de outra empresa: lista vazia.
+        $folderService = app(FolderService::class);
+        $tenant = $request->user()->tenant;
+        $folderParam = $filters['folder'] ?? null;
+        $currentFolder = null;
+        $folderIds = null;
+        if ($folderParam !== null && $folderParam !== '' && $folderParam !== 'none') {
+            $currentFolder = \Illuminate\Support\Str::isUuid($folderParam) ? Folder::query()->where('tenant_id', $tenantId)->find($folderParam) : null;
+            $folderIds = $currentFolder ? $folderService->descendantIds($currentFolder) : [];
+        }
+
         $envelopes = Envelope::query()
             ->where('tenant_id', $tenantId)
             ->when($onlyArchived, fn ($q) => $q->whereNotNull('archived_at')->whereNull('trashed_at'), fn ($q) => $q->visible())
@@ -60,9 +72,8 @@ final class EnvelopeController extends Controller
                     ->orWhereHas('document', fn ($d) => $d->whereRaw('LOWER(name) LIKE ?', [$like])));
             })
             ->when($filters['status'] ?? null, fn ($query, string $status) => $query->where('status', $status))
-            ->when($filters['folder'] ?? null, fn ($query, string $folder) => $folder === 'none'
-                ? $query->whereNull('folder_id')
-                : $query->where('folder_id', $folder))
+            ->when($folderParam === 'none', fn ($query) => $query->whereNull('folder_id'))
+            ->when($folderIds !== null, fn ($query) => $query->whereIn('folder_id', $folderIds))
             ->when($filters['tag'] ?? null, fn ($query, string $tag) => $query->whereHas('tags', fn ($t) => $t->where('tags.id', $tag)))
             ->latest()
             ->paginate(20)
@@ -71,9 +82,16 @@ final class EnvelopeController extends Controller
         return view('envelopes.index', [
             'envelopes' => $envelopes,
             'folders' => Folder::query()->where('tenant_id', $tenantId)->orderBy('name')->get(),
-            'tags' => Tag::query()->where('tenant_id', $tenantId)->orderBy('name')->get(),
+            'tags' => Tag::query()->where('tenant_id', $tenantId)->withCount('envelopes')->orderBy('name')->get(),
             'filters' => $filters,
             'onlyArchived' => $onlyArchived,
+            'currentFolder' => $currentFolder,
+            'breadcrumb' => $currentFolder ? $folderService->path($currentFolder) : collect(),
+            'childFolders' => Folder::query()->where('tenant_id', $tenantId)
+                ->when($currentFolder, fn ($q) => $q->where('parent_id', $currentFolder->getKey()), fn ($q) => $q->whereNull('parent_id'))
+                ->withCount('children')->orderByRaw('lower(name)')->get(),
+            'folderCounts' => $folderService->subtreeCounts($tenant),
+            'folderPaths' => $folderService->paths($tenant),
         ]);
     }
 
