@@ -46,7 +46,10 @@ final class ReportBuilder
             'document_sha256' => $envelope->document->sha256,
             'chain_hash' => $events->last()?->hash,
             'generated_at' => $this->at(now()).' (BRT)',
-            'signers' => $envelope->signers->map(fn (Signer $s) => $this->signer($s, $events))->values()->all(),
+            // remetente, signatários e testemunhas (nessa ordem; dentro de cada grupo, por posição)
+            'signers' => $envelope->signers
+                ->sortBy(fn (Signer $s) => [$s->isSender() ? 0 : ($s->isWitness() ? 2 : 1), $s->position, $s->getKey()])
+                ->map(fn (Signer $s) => $this->signer($s, $events))->values()->all(),
             'events' => $this->events($envelope, $events),
             'placements' => $this->placements($envelope),
         ];
@@ -111,7 +114,7 @@ final class ReportBuilder
 
         return [
             'name' => $s->name,
-            'role' => 'signatário',
+            'role' => $s->isSender() ? 'remetente' : ($s->isWitness() ? 'testemunha' : 'signatário'),
             'email' => $s->email,
             'cpf' => $this->maskCpf($s->cpf),
             'status' => $this->statusLabel($s),

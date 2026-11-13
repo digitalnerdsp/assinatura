@@ -122,3 +122,18 @@ def test_placement_with_corrupt_image_falls_back_to_name(client):
     r = seal(client, pdf_pages([A4]), {**REPORT, "placements": p})
     assert r.status_code == 200, r.text
     assert "Carla Dias" in PdfReader(io.BytesIO(base64.b64decode(r.json()["pdf_base64"]))).pages[0].extract_text()
+
+
+def test_witnesses_get_their_own_heading(client):
+    report = {**REPORT, "signers": REPORT["signers"] + [
+        {"name": "Carlos Testemunha", "role": "testemunha", "email": "c@ex.com", "cpf": None, "status": "Assinado",
+         "signed_at": "09/11/2026 13:50:00", "signature": "Digitada - nível simples", "ip": "203.0.113.10",
+         "device": "Mozilla/5.0", "checks": [], "geo": None},
+    ]}
+    r = seal(client, pdf_pages([A4]), report)
+    assert r.status_code == 200 and r.json()["decorated"] is True
+    reader = PdfReader(io.BytesIO(base64.b64decode(r.json()["pdf_base64"])))
+    text = "".join(p.extract_text() for p in reader.pages[1:])
+
+    assert "Testemunhas" in text and "Carlos Testemunha" in text
+    assert text.index("Ana Souza") < text.index("Testemunhas") < text.index("Carlos Testemunha")

@@ -131,3 +131,19 @@ it('a selagem envia o relatório ao provider e registra se foi anexado', functio
     $sealedEvent = $envelope->evidenceEvents()->where('type', 'envelope_sealed')->first();
     expect($sealedEvent->payload['report_attached'])->toBeFalse();
 });
+
+it('o relatório identifica remetente, signatário e testemunhas, nessa ordem', function () {
+    Storage::fake('local');
+    $tenant = Tenant::create(['name' => 'ACME Ltda']);
+    $envelope = app(EnvelopeService::class)->create($tenant, null, "%PDF-1.4\n%%EOF\n", 'c.pdf', 'Contrato', [
+        ['name' => 'Testemunha B', 'email' => 'tb@ex.com', 'role' => 'witness'],
+        ['name' => 'Parte', 'email' => 'parte@ex.com', 'role' => 'signer'],
+        ['name' => 'Testemunha A', 'email' => 'ta@ex.com', 'role' => 'witness'],
+    ]);
+    $envelope->signers()->create(['name' => 'Empresa X', 'email' => 'x@ex.com', 'role' => 'signer', 'position' => 0, 'is_sender' => true]);
+
+    $report = app(ReportBuilder::class)->build($envelope->fresh());
+
+    expect(collect($report['signers'])->pluck('role')->all())->toBe(['remetente', 'signatário', 'testemunha', 'testemunha'])
+        ->and(collect($report['signers'])->pluck('name')->all())->toBe(['Empresa X', 'Parte', 'Testemunha B', 'Testemunha A']);
+});

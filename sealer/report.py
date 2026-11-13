@@ -187,7 +187,11 @@ def _report_pdf(report: dict) -> bytes:
     ], st, widths=(105, 292)))  # deixa ~110 pt livres à direita para o QR grande
 
     el.append(Paragraph("Signatários", st["h2"]))
+    witnesses_heading_done = False
     for s in report.get("signers", []):
+        if s.get("role") == "testemunha" and not witnesses_heading_done:
+            el.append(Paragraph("Testemunhas", st["h2"]))
+            witnesses_heading_done = True
         rows = [
             ("Nome", f"{s.get('name', '-')} ({s.get('role', 'signer')})", False),
             ("E-mail", s.get("email"), False),
