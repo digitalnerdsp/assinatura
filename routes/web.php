@@ -16,6 +16,10 @@ Route::middleware('guest')->group(function () {
     Route::post('/cadastro', [AuthController::class, 'register'])->middleware('throttle:10,1,auth');
 });
 
+// Convite de usuário (público; o token é a credencial)
+Route::get('/convite/{token}', [\App\Http\Controllers\Web\InviteController::class, 'show'])->middleware('throttle:30,1,invite')->name('invite.show');
+Route::post('/convite/{token}', [\App\Http\Controllers\Web\InviteController::class, 'accept'])->middleware('throttle:10,1,invite-accept')->name('invite.accept');
+
 Route::middleware('auth')->post('/sair', [AuthController::class, 'logout'])->name('logout');
 
 // Painel da plataforma (super admin)
@@ -83,6 +87,13 @@ Route::middleware(['auth', 'tenant.active'])->group(function () {
     Route::post('/contatos', [\App\Http\Controllers\Web\ContactController::class, 'store'])->middleware('throttle:60,1,contacts')->name('contacts.store');
     Route::put('/contatos/{contact}', [\App\Http\Controllers\Web\ContactController::class, 'update'])->name('contacts.update');
     Route::delete('/contatos/{contact}', [\App\Http\Controllers\Web\ContactController::class, 'destroy'])->name('contacts.destroy');
+
+    Route::get('/configuracoes/usuarios', [\App\Http\Controllers\Web\TeamController::class, 'index'])->name('team.index');
+    Route::post('/configuracoes/usuarios', [\App\Http\Controllers\Web\TeamController::class, 'invite'])->middleware('throttle:20,1,team-invite')->name('team.invite');
+    Route::post('/configuracoes/usuarios/{user}/reenviar', [\App\Http\Controllers\Web\TeamController::class, 'resend'])->middleware('throttle:20,1,team-invite')->name('team.resend');
+    Route::post('/configuracoes/usuarios/{user}/desativar', [\App\Http\Controllers\Web\TeamController::class, 'deactivate'])->name('team.deactivate');
+    Route::post('/configuracoes/usuarios/{user}/reativar', [\App\Http\Controllers\Web\TeamController::class, 'reactivate'])->name('team.reactivate');
+    Route::delete('/configuracoes/usuarios/{user}', [\App\Http\Controllers\Web\TeamController::class, 'destroy'])->name('team.destroy');
 
     Route::get('/calendario', [\App\Http\Controllers\Web\CalendarController::class, 'index'])->name('calendar.index');
     Route::get('/relatorios', [\App\Http\Controllers\Web\ReportController::class, 'index'])->name('reports.index');

@@ -66,6 +66,14 @@ final class AuthController extends Controller
             return back()->withErrors(['email' => 'E-mail ou senha incorretos.'])->onlyInput('email');
         }
 
+        if (! Auth::user()->isActive() || Auth::user()->isPendingInvite()) {
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return back()->withErrors(['email' => 'Seu acesso foi desativado. Fale com o responsável da empresa.'])->onlyInput('email');
+        }
+
         $request->session()->regenerate();
 
         return redirect()->intended(route('dashboard'));

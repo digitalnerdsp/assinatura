@@ -3,7 +3,7 @@
     $isAdmin = $user->isSuperAdmin();
     $item = fn (string ...$patterns) => request()->routeIs(...$patterns) ? 'mm-active' : '';
     $docsOpen = request()->routeIs('envelopes.*', 'documents.*');
-    $cfgOpen = request()->routeIs('profile.*', 'company.*', 'api-keys.*', 'webhooks.*');
+    $cfgOpen = request()->routeIs('profile.*', 'company.*', 'api-keys.*', 'webhooks.*', 'team.*');
     $helpUrl = \App\Models\Setting::helpUrl();
 @endphp
 <ul class="metismenu" id="menu">
@@ -32,6 +32,7 @@
         <ul class="mm-collapse {{ $cfgOpen ? 'mm-show' : '' }}">
             <li class="{{ $item('profile.*') }}"><a href="{{ route('profile.edit') }}"><i class="bx bx-right-arrow-alt"></i>Meu perfil</a></li>
             <li class="{{ $item('company.*') }}"><a href="{{ route('company.signing.edit') }}"><i class="bx bx-right-arrow-alt"></i>Assinatura da empresa</a></li>
+            <li class="{{ $item('team.*') }}"><a href="{{ route('team.index') }}"><i class="bx bx-right-arrow-alt"></i>Usuários</a></li>
             <li class="{{ $item('api-keys.*') }}"><a href="{{ route('api-keys.index') }}"><i class="bx bx-right-arrow-alt"></i>API</a></li>
             <li class="{{ $item('webhooks.*') }}"><a href="{{ route('webhooks.index') }}"><i class="bx bx-right-arrow-alt"></i>Webhooks</a></li>
         </ul>

@@ -11,7 +11,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 #[Fillable(['name', 'email', 'password', 'tenant_id', 'role'])]
-#[Hidden(['password', 'remember_token', 'signature_data'])]
+#[Hidden(['password', 'remember_token', 'signature_data', 'invite_token_hash'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
@@ -33,6 +33,17 @@ class User extends Authenticatable
         return asset('assets/images/avatars/avatar-'.((crc32($this->email) % 5) + 1).'.png');
     }
 
+    public function isActive(): bool
+    {
+        return $this->deactivated_at === null;
+    }
+
+    /** Convidado que ainda não criou a senha. */
+    public function isPendingInvite(): bool
+    {
+        return $this->invite_token_hash !== null;
+    }
+
     public function isSuperAdmin(): bool
     {
         return in_array(mb_strtolower($this->email), config('platform.super_admins', []), true);
@@ -52,6 +63,8 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'deactivated_at' => 'datetime',
+            'invite_expires_at' => 'datetime',
             'password' => 'hashed',
         ];
     }

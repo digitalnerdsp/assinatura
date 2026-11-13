@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
-/** Desconecta usuários de empresas suspensas pelo super admin. */
+/** Desconecta usuários de empresas suspensas pelo super admin e usuários desativados pelo dono da empresa. */
 final class EnsureTenantActive
 {
     public function handle(Request $request, Closure $next): Response
@@ -22,6 +22,14 @@ final class EnsureTenantActive
             $request->session()->regenerateToken();
 
             return redirect()->route('login')->withErrors(['email' => 'Esta conta está suspensa. Entre em contato com o suporte.']);
+        }
+
+        if ($user && ! $user->isActive()) {
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->route('login')->withErrors(['email' => 'Seu acesso foi desativado. Fale com o responsável da empresa.']);
         }
 
         return $next($request);
