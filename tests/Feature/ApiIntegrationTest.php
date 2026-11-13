@@ -318,7 +318,7 @@ it('cria, lista e remove pastas e etiquetas; usa na criação do envelope', func
     $this->getJson("/api/v1/envelopes?folder_id={$folder['id']}", $h)->assertJsonPath('meta.total', 1);
     $this->getJson("/api/v1/envelopes?tag_id={$tag['id']}", $h)->assertJsonPath('meta.total', 1);
 
-    $this->deleteJson("/api/v1/folders/{$folder['id']}", [], $h)->assertNoContent();
+    $this->deleteJson("/api/v1/folders/{$folder['id']}", [], $h)->assertOk()->assertJsonStructure(["trashed", "kept", "folders"]);
     $this->deleteJson("/api/v1/tags/{$tag['id']}", [], $h)->assertNoContent();
     $this->getJson("/api/v1/envelopes/{$env['id']}", $h)->assertJsonPath('folder', null)->assertJsonPath('tags', []);
     $this->getJson('/api/v1/folders', $h)->assertJsonCount(0, 'data');

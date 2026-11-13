@@ -51,8 +51,10 @@ Route::prefix('v1')->middleware(['api.key', 'throttle:120,1'])->group(function (
     // Pastas e etiquetas
     Route::get('folders', [OrganizationController::class, 'folders']);
     Route::post('folders', [OrganizationController::class, 'storeFolder']);
+    Route::patch('folders/{id}', [OrganizationController::class, 'updateFolder']);
     Route::delete('folders/{id}', [OrganizationController::class, 'destroyFolder']);
     Route::get('tags', [OrganizationController::class, 'tags']);
     Route::post('tags', [OrganizationController::class, 'storeTag']);
+    Route::patch('tags/{id}', [OrganizationController::class, 'updateTag']);
     Route::delete('tags/{id}', [OrganizationController::class, 'destroyTag']);
 });

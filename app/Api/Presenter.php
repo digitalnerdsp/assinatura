@@ -93,9 +93,14 @@ final class Presenter
     }
 
     /** @return array<string,mixed> */
-    public static function folder(Folder $f): array
+    public static function folder(Folder $f, ?array $paths = null): array
     {
-        return ['id' => $f->getKey(), 'name' => $f->name];
+        return [
+            'id' => $f->getKey(),
+            'name' => $f->name,
+            'parent_id' => $f->parent_id,
+            'path' => str_replace(' › ', ' / ', $paths[$f->getKey()] ?? $f->name),
+        ];
     }
 
     /** @return array<string,mixed> */

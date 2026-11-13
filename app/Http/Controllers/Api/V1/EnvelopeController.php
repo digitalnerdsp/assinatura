@@ -53,7 +53,7 @@ final class EnvelopeController extends Controller
             ->with(['signers', 'document', 'folder', 'tags'])
             ->when($f['status'] ?? null, fn ($q, $v) => $q->where('status', $v))
             ->when($f['external_id'] ?? null, fn ($q, $v) => $q->where('external_id', $v))
-            ->when($f['folder_id'] ?? null, fn ($q, $v) => $v === 'none' ? $q->whereNull('folder_id') : $q->where('folder_id', $v))
+            ->when($f['folder_id'] ?? null, fn ($q, $v) => $v === 'none' ? $q->whereNull('folder_id') : $q->whereIn('folder_id', $this->folderTreeIds($request, $v)))
             ->when($f['tag_id'] ?? null, fn ($q, $v) => $q->whereHas('tags', fn ($t) => $t->where('tags.id', $v)))
             ->when($f['created_from'] ?? null, fn ($q, $v) => $q->where('created_at', '>=', $v))
             ->when($f['created_to'] ?? null, fn ($q, $v) => $q->where('created_at', '<=', $v))
@@ -374,6 +374,14 @@ final class EnvelopeController extends Controller
     private function error(string $code, string $message, int $status): JsonResponse
     {
         return response()->json(['error' => $code, 'message' => $message], $status);
+    }
+
+    /** A pasta e as subpastas (da empresa); id inválido ou de outra empresa = nenhuma. @return list<string> */
+    private function folderTreeIds(Request $request, string $folderId): array
+    {
+        $folder = \Illuminate\Support\Str::isUuid($folderId) ? \App\Models\Folder::query()->where('tenant_id', $this->tenant($request)->getKey())->find($folderId) : null;
+
+        return $folder ? app(\App\Folders\FolderService::class)->descendantIds($folder) : [];
     }
 
     private function tenant(Request $request): Tenant
