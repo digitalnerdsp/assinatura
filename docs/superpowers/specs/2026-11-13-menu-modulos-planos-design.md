@@ -194,7 +194,8 @@ Fluxo definido com você: **hospedagem → assinatura → hospedagem**.
 | Fase | Entrega | Depende de |
 |---|---|---|
 | 1 | Roboto local, novo menu, Documentos (Criados, Minhas assinaturas, Lixeira), Configurações agrupada | — |
-| 2 | Contatos, Relatórios, Calendário, Usuários da empresa | 1 |
+| 1b | Remetente que assina junto e testemunhas (ver `2026-11-14-remetente-e-testemunhas-design.md`) | 1 |
+| 2 | Contatos, Relatórios, Calendário, Usuários da empresa | 1b |
 | 3 | Planos (com teste grátis e regras de consumo), assinaturas, `Entitlements`, limites e armazenamento, **marca própria (logo e cores)**, telas de administrador e de uso (ainda sem cobrança automática; pagamento manual) | 2 (usuários) |
 | 4 | Faturas, Mercado Pago e InfinitePay, rotina de cobrança, bloqueio, add-ons e cupons, Planos e preços | 3 |
 | 5 | Guia e teste de integração com a hospedagem | só a API atual, que já está pronta |

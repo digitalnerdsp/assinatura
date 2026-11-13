@@ -11,7 +11,9 @@ import hmac
 import io
 import json
 import logging
+import hashlib
 import os
+import tempfile
 from datetime import datetime, timedelta, timezone
 
 from asn1crypto import keys as asn1_keys
@@ -98,14 +100,59 @@ def _build_self_signed() -> signers.SimpleSigner:
     )
 
 
-def _pkcs12_from_ref(secret_ref: str) -> signers.SimpleSigner:
-    """secret_ref -> variáveis SEALER_PFX_<REF>_PATH e SEALER_PFX_<REF>_PASSWORD (ou montagem de secret)."""
-    ref = "".join(c for c in secret_ref.upper() if c.isalnum() or c == "_")
+_PFX_FILES: dict[tuple[str, str], str] = {}
+
+
+def _ref_key(secret_ref: str) -> str:
+    return "".join(c for c in secret_ref.upper() if c.isalnum() or c == "_")
+
+
+def _materialized_pfx(ref: str) -> str | None:
+    """Caminho do .pfx do e-CNPJ: SEALER_PFX_<REF>_PATH (arquivo montado) ou SEALER_PFX_<REF>_B64 (conteúdo em base64,
+    o jeito mais simples no Coolify), gravado uma única vez em arquivo privado (0600) numa pasta temporária (0700)."""
     path = os.environ.get(f"SEALER_PFX_{ref}_PATH")
+    if path and os.path.isfile(path):
+        return path
+    b64 = os.environ.get(f"SEALER_PFX_{ref}_B64", "").strip()
+    if not b64:
+        return None
+    key = (ref, hashlib.sha256(b64.encode()).hexdigest())
+    cached = _PFX_FILES.get(key)
+    if cached and os.path.isfile(cached):
+        return cached
+    try:
+        data = base64.b64decode(b64, validate=False)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=f"SEALER_PFX_{ref}_B64 não é base64 válido") from exc
+    folder = tempfile.mkdtemp(prefix="sealer-")
+    target = os.path.join(folder, "cert.pfx")
+    fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "wb") as fh:
+        fh.write(data)
+    _PFX_FILES[key] = target
+    return target
+
+
+def _pkcs12_from_ref(secret_ref: str) -> signers.SimpleSigner:
+    """secret_ref -> SEALER_PFX_<REF>_PATH ou _B64, mais SEALER_PFX_<REF>_PASSWORD. A senha nunca vai em resposta nem em log."""
+    ref = _ref_key(secret_ref)
+    path = _materialized_pfx(ref)
+    if not path:
+        raise HTTPException(
+            status_code=500,
+            detail=f"certificado não configurado: defina SEALER_PFX_{ref}_B64 (ou _PATH) e SEALER_PFX_{ref}_PASSWORD",
+        )
     password = os.environ.get(f"SEALER_PFX_{ref}_PASSWORD", "")
-    if not path or not os.path.isfile(path):
-        raise HTTPException(status_code=500, detail="credential not configured")
-    return signers.SimpleSigner.load_pkcs12(pfx_file=path, passphrase=password.encode() or None)
+    unreadable = HTTPException(
+        status_code=500, detail="não foi possível abrir o certificado: senha incorreta ou arquivo .pfx inválido",
+    )
+    try:
+        signer = signers.SimpleSigner.load_pkcs12(pfx_file=path, passphrase=password.encode() or None)
+    except Exception as exc:  # noqa: BLE001
+        raise unreadable from exc
+    if signer is None:  # o pyHanko devolve None (sem lançar erro) quando a senha está errada
+        raise unreadable
+    return signer
 
 
 def load_signer(credential: dict) -> signers.SimpleSigner:

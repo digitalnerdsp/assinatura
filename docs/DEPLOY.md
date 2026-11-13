@@ -27,6 +27,21 @@ construídos nem executados** (o ambiente de desenvolvimento não tinha Docker).
 - Sem SMTP, pegue o link de assinatura nos logs do serviço `worker`/`app` (mensagens de e-mail).
 - Com `SIGNING_ALLOW_LOCAL_TEST=true` e `SIGNING_PLATFORM_PROVIDER=local_test`, a selagem usa certificado de teste.
 
+## Selar com o e-CNPJ (certificado A1 ICP-Brasil)
+
+1. Converta o arquivo para base64, em uma linha. No PowerShell: `[Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\caminho\ecnpj.pfx"))`.
+2. No Coolify, em **Environment Variables**, crie (marque a senha e o base64 como secretos):
+   | Variável | Valor |
+   |---|---|
+   | `SEALER_PFX_ECNPJ_B64` | o texto em base64 do passo 1 |
+   | `SEALER_PFX_ECNPJ_PASSWORD` | a senha do certificado |
+   | `SIGNING_PLATFORM_PROVIDER` | `platform_a1` |
+   | `SIGNING_ALLOW_LOCAL_TEST` | `false` |
+3. Redeploy. Em **Plataforma → Selagem do PDF**, use **Testar conexão e certificado**: deve mostrar o titular (sua empresa), o emissor, a validade e o final "· ICP-Brasil".
+4. Crie e conclua um envelope e abra o PDF no Adobe Reader e em validar.iti.gov.br: a assinatura deve aparecer como válida e confiável.
+
+O sealer nunca devolve a senha em respostas nem em log. Para trocar de certificado, mude as duas variáveis e faça o redeploy.
+
 ## Antes de produção
 
 - Trocar o provider para `platform_a1` / `platform_hsm` com o e-CNPJ ICP-Brasil.

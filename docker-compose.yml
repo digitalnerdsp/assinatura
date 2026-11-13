@@ -30,6 +30,7 @@ x-app-env: &app-env
   MAIL_FROM_NAME: ${APP_NAME:-Assinaturas}
   SIGNING_PLATFORM_PROVIDER: ${SIGNING_PLATFORM_PROVIDER:-local_test}
   SIGNING_ALLOW_LOCAL_TEST: ${SIGNING_ALLOW_LOCAL_TEST:-false}
+  SIGNING_PLATFORM_A1_SECRET_REF: ${SIGNING_PLATFORM_A1_SECRET_REF:-ecnpj}
   SEALER_URL: http://sealer:8080
   SEALER_TOKEN: ${SEALER_TOKEN:?defina SEALER_TOKEN}
   SUPER_ADMIN_EMAILS: ${SUPER_ADMIN_EMAILS:-}
@@ -130,6 +131,9 @@ services:
       SEALER_TOKEN: ${SEALER_TOKEN:?defina SEALER_TOKEN}
       SEALER_ALLOW_TEST: ${SIGNING_ALLOW_LOCAL_TEST:-false}
       SEALER_TSA_URL: ${SEALER_TSA_URL:-}
+      # e-CNPJ A1 (ICP-Brasil): o .pfx em base64 e a senha. Só o sealer enxerga; o nome do meio (ECNPJ) é o SIGNING_PLATFORM_A1_SECRET_REF.
+      SEALER_PFX_ECNPJ_B64: ${SEALER_PFX_ECNPJ_B64:-}
+      SEALER_PFX_ECNPJ_PASSWORD: ${SEALER_PFX_ECNPJ_PASSWORD:-}
     restart: unless-stopped
     # sem "ports": só acessível pela rede interna do compose
 
