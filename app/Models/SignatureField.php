@@ -12,6 +12,9 @@ class SignatureField extends Model
 {
     use HasUuids;
 
+    /** Tipos de campo que o assistente aceita (assinatura; visto e texto entram na Tarefa 8). */
+    public const TYPES = ['signature'];
+
     protected $guarded = [];
 
     protected function casts(): array

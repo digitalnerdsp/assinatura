@@ -38,6 +38,8 @@ class Envelope extends Model
             'require_selfie' => 'boolean',
             'require_document' => 'boolean',
             'require_geolocation' => 'boolean',
+            'allow_refuse' => 'boolean',
+            'wizard_step' => 'integer',
             'notify_channels' => 'array',
             'metadata' => 'array',
         ];
