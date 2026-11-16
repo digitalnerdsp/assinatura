@@ -33,7 +33,7 @@ final class DashboardController extends Controller
         $monthStart = now()->startOfMonth();
         $usedThisMonth = (clone $base)->where('sent_at', '>=', $monthStart)->count();
 
-        return view('dashboard', [
+        return view(app(\App\Themes\ThemeManager::class)->page('dashboard'), [
             'tenant' => $tenant,
             'kpi' => [
                 'month' => end($created),

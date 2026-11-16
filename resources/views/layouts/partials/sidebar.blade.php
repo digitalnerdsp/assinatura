@@ -58,6 +58,7 @@
         @if ($isSuper)
         <li class="{{ $item('admin.plans.*') }}"><a href="{{ route('admin.plans.index') }}"><div class="parent-icon"><i class="bx bx-layer"></i></div><div class="menu-title">Planos</div></a></li>
         <li class="{{ $item('admin.users.*') }}"><a href="{{ route('admin.users.index') }}"><div class="parent-icon"><i class="bx bx-user-check"></i></div><div class="menu-title">Usuários da plataforma</div></a></li>
+        <li class="{{ $item('admin.themes.*') }}"><a href="{{ route('admin.themes.index') }}"><div class="parent-icon"><i class="bx bx-palette"></i></div><div class="menu-title">Temas</div></a></li>
         <li class="{{ $item('admin.mail*') }}"><a href="{{ route('admin.mail') }}"><div class="parent-icon"><i class="bx bx-envelope"></i></div><div class="menu-title">E-mail (SMTP)</div></a></li>
         <li class="{{ $item('admin.settings*') }}"><a href="{{ route('admin.settings') }}"><div class="parent-icon"><i class="bx bx-cog"></i></div><div class="menu-title">Configurações</div></a></li>
         @endif

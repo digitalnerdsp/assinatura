@@ -33,5 +33,11 @@ class AppServiceProvider extends ServiceProvider
             \App\Support\MailSettings::apply();
         } catch (\Throwable) {
         }
+
+        // Tema ativo da plataforma (namespace "theme::"); sem tabela ainda (antes das migrations) segue no padrão.
+        try {
+            $this->app->make(\App\Themes\ThemeManager::class)->registerActive();
+        } catch (\Throwable) {
+        }
     }
 }

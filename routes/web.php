@@ -17,7 +17,8 @@ Route::middleware('guest')->group(function () {
 });
 
 // Logo da empresa (público: aparece na página de assinatura); só com o recurso no plano
-Route::get('/marca/{tenant}/logo', [\App\Http\Controllers\Web\BrandController::class, 'logo'])->whereUuid('tenant')->middleware('throttle:120,1,brand-logo')->name('brand.logo');
+Route::get('/temas/{slug}/{version}/{path}', \App\Http\Controllers\ThemeAssetController::class)->where(['slug' => '[a-z0-9-]+', 'version' => '\d+\.\d+\.\d+', 'path' => '.+'])->middleware('throttle:600,1,theme-assets')->name('theme.asset');
+Route::get('/marca/{tenant}/logo',[\App\Http\Controllers\Web\BrandController::class, 'logo'])->whereUuid('tenant')->middleware('throttle:120,1,brand-logo')->name('brand.logo');
 
 // Convite de usuário (público; o token é a credencial)
 Route::get('/convite/{token}', [\App\Http\Controllers\Web\InviteController::class, 'show'])->middleware('throttle:30,1,invite')->name('invite.show');
@@ -50,6 +51,11 @@ Route::middleware(['auth', 'tenant.active', 'platform'])->prefix('admin')->name(
         Route::put('/planos/{plan}', [\App\Http\Controllers\Admin\PlanController::class, 'update'])->whereUuid('plan')->name('plans.update');
         Route::post('/planos/{plan}/padrao', [\App\Http\Controllers\Admin\PlanController::class, 'makeDefault'])->whereUuid('plan')->name('plans.default');
         Route::delete('/planos/{plan}', [\App\Http\Controllers\Admin\PlanController::class, 'destroy'])->whereUuid('plan')->name('plans.destroy');
+        Route::get('/temas', [\App\Http\Controllers\Admin\ThemeController::class, 'index'])->name('themes.index');
+        Route::post('/temas', [\App\Http\Controllers\Admin\ThemeController::class, 'store'])->middleware('throttle:10,1,admin-themes')->name('themes.store');
+        Route::post('/temas/padrao', [\App\Http\Controllers\Admin\ThemeController::class, 'reset'])->name('themes.reset');
+        Route::post('/temas/{theme}/ativar', [\App\Http\Controllers\Admin\ThemeController::class, 'activate'])->whereUuid('theme')->name('themes.activate');
+        Route::delete('/temas/{theme}', [\App\Http\Controllers\Admin\ThemeController::class, 'destroy'])->whereUuid('theme')->name('themes.destroy');
         Route::get('/usuarios', [\App\Http\Controllers\Admin\PlatformUserController::class, 'index'])->name('users.index');
         Route::post('/usuarios/promover', [\App\Http\Controllers\Admin\PlatformUserController::class, 'promote'])->middleware('throttle:20,1,platform-users')->name('users.promote');
         Route::post('/usuarios/convidar', [\App\Http\Controllers\Admin\PlatformUserController::class, 'invite'])->middleware('throttle:20,1,platform-users')->name('users.invite');
