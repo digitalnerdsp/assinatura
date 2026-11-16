@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Protótipo · Assistente de criação de documento</title>
+<style>
+:root{--bg:#f4f6fa;--card:#fff;--ink:#1b2430;--muted:#556070;--line:#dde3ec;--brand:#1565c0;--brand-ink:#fff;--link:#1565c0;--drop:#dde7f6;--ok:#17703f;--field:#f1f3f6;--sheet:#eceff3;--box:#e0f2f4;--boxline:#5f9aa2;--dis:#e3e6eb;--dis-ink:#8a93a1;--warn:#fff4d6;--shadow:0 2px 8px rgba(20,30,50,.14)}
+[data-theme=dark]{--bg:#0e1420;--card:#172131;--ink:#e9eef6;--muted:#a6b2c3;--line:#2b3649;--brand:#5aa9ff;--brand-ink:#08182b;--link:#7bb8ff;--drop:#1d2b44;--ok:#5fd394;--field:#1f2b3d;--sheet:#0e1420;--box:#17383d;--boxline:#63a6af;--dis:#263145;--dis-ink:#8392a8;--warn:#3a3114;--shadow:0 2px 10px rgba(0,0,0,.5)}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+button{font:inherit;cursor:pointer}
+a{color:var(--link)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.app{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+.side{background:var(--card);border-right:1px solid var(--line);padding:16px 12px}
+.brand{font-weight:700;font-size:18px;padding:4px 8px 16px}
+.side a.m{display:block;padding:9px 12px;border-radius:8px;color:var(--ink);text-decoration:none}
+.side a.m.on{background:color-mix(in srgb,var(--brand) 12%,transparent);font-weight:600}
+.side .sub{margin:2px 0 6px 14px;border-left:2px solid var(--line)}
+.side .sub a{display:block;padding:7px 12px;color:var(--muted);text-decoration:none;font-size:14px}
+.side .sub a.on{color:var(--link);font-weight:600;border-left:2px solid var(--brand);margin-left:-2px}
+.main{min-width:0}
+.top{display:flex;align-items:center;gap:12px;padding:10px 20px;background:var(--card);border-bottom:1px solid var(--line)}
+.top .sp{flex:1}
+.burger{display:none;background:none;border:0;font-size:22px;color:var(--ink)}
+.pill{border:0;border-radius:999px;padding:9px 20px;font-weight:600;letter-spacing:.02em}
+.pri{background:var(--brand);color:var(--brand-ink)}
+.pri[disabled]{background:var(--dis);color:var(--dis-ink);cursor:not-allowed}
+.sec{background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
+.ghost{background:none;border:0;color:var(--link);font-weight:600;padding:4px}
+.content{padding:20px}
+.card{background:var(--card);border-radius:10px;box-shadow:var(--shadow);max-width:1180px;margin:0 auto}
+.stepper-h{display:flex;align-items:center;padding:18px 24px;border-bottom:1px solid var(--line)}
+.stepper-h .st{display:flex;align-items:center;gap:10px;white-space:nowrap;color:var(--muted);font-size:14px;padding:6px 8px;border-radius:6px}
+.stepper-h .ln{flex:1;height:1px;background:var(--line);margin:0 12px}
+.st.cur{color:var(--ink);font-weight:600}
+.dot{width:24px;height:24px;border-radius:50%;display:inline-grid;place-items:center;font-size:12px;font-weight:700;background:#5c6472;color:#fff;flex:none}
+.st.cur .dot{background:var(--brand);color:var(--brand-ink)}
+.st.edit .dot{background:var(--brand);color:var(--brand-ink)}
+.stepper-v{display:none;list-style:none;margin:0;padding:12px 16px}
+.stepper-v li{position:relative;padding-left:40px}
+.stepper-v li::before{content:"";position:absolute;left:11px;top:30px;bottom:-8px;width:2px;background:var(--line)}
+.stepper-v li:last-child::before{display:none}
+.stepper-v .st{display:flex;align-items:center;gap:10px;min-height:34px;color:var(--muted);font-size:14px}
+.stepper-v .dot{position:absolute;left:0;top:5px}
+.panel{padding:24px}
+h1{font-weight:400;font-size:30px;margin:0 0 4px;display:inline-block}
+h2{font-weight:500;font-size:17px;margin:26px 0 12px}
+.help{margin-left:14px;font-size:13px;font-weight:600;white-space:nowrap;display:inline-block}
+@media (max-width:900px){.help{margin-left:0;display:block;margin-top:2px}}
+.folder{display:flex;align-items:center;gap:10px;margin:14px 0 4px}
+.drop{border-radius:12px;background:var(--drop);min-height:240px;display:grid;place-items:center;text-align:center;padding:24px;border:2px dashed transparent}
+.drop.over{border-color:var(--brand)}
+.drop .ic{width:34px;height:34px;border:2px solid var(--link);border-radius:50%;display:inline-grid;place-items:center;color:var(--link);font-weight:700;margin-bottom:8px}
+.again{width:100%;border:0;border-radius:8px;background:var(--drop);color:var(--ink);padding:9px;font-weight:600}
+.frow{display:flex;align-items:center;gap:10px;background:color-mix(in srgb,var(--drop) 60%,transparent);border-radius:8px;padding:9px 12px;margin-top:8px}
+.frow .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.frow .grip{color:var(--muted);letter-spacing:-2px}
+.ib{background:none;border:0;color:var(--ink);font-size:18px;padding:4px 8px;border-radius:6px}
+.ib:hover{background:var(--field)}
+.foot{display:flex;justify-content:flex-end;gap:12px;margin-top:28px}
+.foot.mid{justify-content:center;border-top:1px solid var(--line);padding-top:22px}
+.hrow{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.sw{display:inline-flex;align-items:center;gap:10px;cursor:pointer;user-select:none}
+.sw input{position:absolute;opacity:0}
+.sw .tr{width:36px;height:14px;border-radius:8px;background:#8b94a3;position:relative;flex:none}
+.sw .tr::after{content:"";position:absolute;top:-3px;left:-2px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.4);transition:left .15s}
+.sw input:checked+.tr{background:color-mix(in srgb,var(--brand) 55%,transparent)}
+.sw input:checked+.tr::after{left:18px;background:var(--brand)}
+.sw input:focus-visible+.tr{outline:2px solid var(--brand);outline-offset:4px}
+.opts{display:flex;gap:22px;align-items:center;flex-wrap:wrap;margin:18px 0}
+.obs{color:var(--muted);display:inline-flex;gap:6px;align-items:center}
+.srow{margin:18px 0;padding:0}
+.srow.adv{border:1px solid var(--line);border-radius:10px;padding:16px}
+.fl{position:relative;max-width:340px}
+.fl input,.fl select,.fl textarea{width:100%;background:var(--field);border:0;border-bottom:1px solid var(--muted);padding:20px 12px 6px;font:inherit;color:var(--ink);border-radius:4px 4px 0 0}
+.fl label{position:absolute;left:12px;top:15px;color:var(--muted);transition:all .12s;pointer-events:none;font-size:15px}
+.fl input:focus+label,.fl input:not(:placeholder-shown)+label,.fl select+label,.fl textarea:focus+label,.fl textarea:not(:placeholder-shown)+label{top:5px;font-size:11.5px}
+.fl input:focus,.fl select:focus,.fl textarea:focus{outline:2px solid var(--brand);outline-offset:0}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;align-items:start}
+.grid3 .fl{max-width:none}
+.err{color:#c62828;font-size:13px;margin-top:4px}
+[data-theme=dark] .err{color:#ff8a80}
+.note{background:color-mix(in srgb,var(--brand) 12%,transparent);border-radius:8px;padding:10px 14px;margin:14px 0;font-size:14px}
+.chk{display:flex;gap:10px;align-items:center;margin:9px 0}
+.chk input{width:18px;height:18px;accent-color:var(--brand)}
+.howto{font-size:14px;margin:14px 0}
+.bar{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}
+.viewer{background:var(--sheet);padding:22px 12px;display:grid;grid-auto-rows:max-content;gap:18px;justify-items:center;border:1px solid var(--line);border-radius:6px;max-height:70vh;overflow:auto}
+.page{position:relative;width:min(100%,620px);flex:none;aspect-ratio:210/297;background:#fff;color:#222;box-shadow:0 1px 6px rgba(0,0,0,.25);cursor:crosshair;overflow:hidden;touch-action:pan-y}
+.page canvas{width:100%;height:100%;display:block}
+.page .txt{padding:9% 9%;font-size:clamp(8px,1.5vw,12px);line-height:1.6;pointer-events:none}
+.page .txt b{display:block;font-size:1.25em;margin-bottom:.8em}
+.page .ln2{height:.55em;background:#e3e5e9;border-radius:3px;margin:.75em 0}
+.fld{position:absolute;background:var(--box);border:2px dashed var(--boxline);border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;color:#1e3b40;cursor:grab;touch-action:none;user-select:none}
+.fld .who{font-size:.9em;opacity:.9}
+.fld .sg{font:italic 1.5em "Brush Script MT","Segoe Script",cursive;border-bottom:1px solid #4a7a82;padding:0 .4em}
+.fld.sel{outline:2px solid var(--brand);outline-offset:2px}
+.fld .c{position:absolute;width:22px;height:22px;border-radius:50%;background:#fff;color:#333;border:1px solid #999;display:none;place-items:center;font-size:12px;padding:0;line-height:1;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.fld.sel .c{display:grid}
+.c.cp{left:-12px;top:-12px}.c.rm{right:-12px;top:-12px}.c.rs{right:-12px;bottom:-12px;cursor:nwse-resize}
+.fld .leg{position:absolute;left:0;top:100%;margin-top:3px;font-size:8.5px;color:#333;width:150px;text-align:left;line-height:1.25;pointer-events:none}
+.pop{position:fixed;z-index:30;background:var(--card);color:var(--ink);border-radius:8px;box-shadow:0 6px 24px rgba(0,0,0,.35);padding:12px;width:290px;border:1px solid var(--line)}
+.pop .x{position:absolute;right:6px;top:4px}
+.pop select{width:calc(100% - 30px);margin:2px 0 10px;background:var(--field);color:var(--ink);border:0;border-bottom:1px solid var(--muted);padding:8px;font:inherit}
+.types{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.types button{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 4px;color:var(--ink);display:grid;gap:4px;justify-items:center;font-size:13px}
+.types button:hover{border-color:var(--brand)}
+.types button:last-child{grid-column:1/-1}
+.types .gl{font-size:22px}
+.tip{font-size:12px;background:#4a4f63;color:#fff;border-radius:6px;padding:8px;margin-top:8px;display:none}
+.pop.sheet{left:0!important;right:0;bottom:0;top:auto!important;width:auto;border-radius:14px 14px 0 0;padding:16px 16px 22px}
+.toast{position:fixed;right:16px;top:16px;z-index:60;background:#1b7f4b;color:#fff;padding:12px 18px;border-radius:8px;box-shadow:var(--shadow);max-width:340px}
+.back{position:fixed;inset:0;background:rgba(10,15,25,.55);z-index:50;display:grid;place-items:center;padding:16px}
+.modal{background:var(--card);border-radius:10px;max-width:560px;width:100%;padding:24px;box-shadow:0 10px 40px rgba(0,0,0,.4)}
+.modal h3{font-weight:500;font-size:20px;margin:0 0 12px}
+.mrow{display:flex;gap:12px;justify-content:center;margin-top:18px;flex-wrap:wrap}
+.ill{border:2px dashed var(--boxline);background:var(--box);border-radius:8px;padding:10px 18px;font:italic 20px "Segoe Script","Brush Script MT",cursive;color:#1e3b40;white-space:nowrap}
+.list button.it{display:flex;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:10px 4px;color:var(--ink);gap:10px;align-items:center}
+.list button.it:hover{background:var(--field)}
+.chip{display:inline-block;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:700;background:#ffe9a8;color:#4a3a00}
+.sent .rowx{display:flex;gap:10px;align-items:center;border-top:1px solid var(--line);padding:12px 0;flex-wrap:wrap}
+.linkbox{flex:1;min-width:200px;background:var(--field);border-radius:6px;padding:8px 10px;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.proto{background:var(--warn);color:var(--ink);padding:8px 16px;font-size:13px;text-align:center}
+@media (max-width:900px){
+ .app{grid-template-columns:1fr}.side{display:none}.side.open{display:block;position:fixed;z-index:40;inset:0 auto 0 0;width:260px}
+ .burger{display:block}.content{padding:12px}
+ .stepper-h{display:none}.stepper-v{display:block}
+ .panel{padding:8px 16px 24px}
+ h1{font-size:28px}
+ .foot{justify-content:stretch;flex-direction:column-reverse}.foot .pill{width:100%}
+ .foot.mid{flex-direction:column-reverse}
+ .fl{max-width:none}
+ .page .leg{display:none}
+}
+</style>
+</head>
+<body>
+<div class="proto">Protótipo só de visual — nada é salvo. Os links dos signatários só existem depois do envio.</div>
+<div class="app">
+  <nav class="side" id="side" aria-label="Menu">
+    <div class="brand">Assinaturas</div>
+    <a class="m" href="#" tabindex="0">Painel</a>
+    <a class="m on" href="#">Documentos</a>
+    <div class="sub"><a class="on" href="#">Documentos criados</a><a href="#">Pastas e etiquetas</a><a href="#">Minhas assinaturas</a><a href="#">Lixeira</a></div>
+    <a class="m" href="#">Modelos</a><a class="m" href="#">Contatos</a><a class="m" href="#">Relatórios</a>
+  </nav>
+  <div class="main">
+    <header class="top">
+      <button class="burger" id="burger" aria-label="Abrir menu">☰</button>
+      <span class="sp"></span>
+      <button class="ghost" id="theme" aria-label="Alternar claro e escuro">🌙 Escuro</button>
+      <button class="pill pri" type="button">+ Criar documento</button>
+    </header>
+    <div class="content">
+      <div class="card" id="card">
+        <div class="stepper-h" id="sh" aria-label="Passos"></div>
+        <ol class="stepper-v" id="sv"></ol>
+        <div class="panel" id="panel"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  'use strict';
+  var STEPS = ['Selecionar documento', 'Adicionar signatários', 'Posicionar assinaturas', 'Enviar documento'];
+  var CONTACTS = [['Ana Souza', 'ana@exemplo.com'], ['Bruno Lima', 'bruno@exemplo.com'], ['Carla Dias', 'carla@exemplo.com']];
+  var FOLDERS = ['Documentos', 'Contratos', 'RH'];
+  var S = { step: 1, done: 0, file: null, buf: null, folder: 'Documentos', signers: [{ name: '', email: '', phone: '', cpf: '', role: 'signer' }], sender: false, adv: false, order: false,
+    verif: { otp: false, selfie: false, doc: false, geo: false }, fields: [], placed: false, auto: true, message: '', remind: true, remindDays: 3, limit: false, limitDate: '', refuse: false, sel: null, sent: false };
+  var uid = 0;
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var panel = $('#panel');
+  var mq = window.matchMedia('(max-width:900px)');
+  function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  function toast(msg) { var t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'status'); t.textContent = msg; document.body.appendChild(t); setTimeout(function () { t.remove(); }, 2600); }
+  function modal(html, onMount) {
+    var b = document.createElement('div'); b.className = 'back'; b.innerHTML = '<div class="modal" role="dialog" aria-modal="true">' + html + '</div>';
+    b.addEventListener('click', function (e) { if (e.target === b) b.remove(); });
+    document.body.appendChild(b); if (onMount) onMount(b); return b;
+  }
+  function who(i) { var s = S.signers[i]; return s.name.trim() || ('Signatário ' + (i + 1)); }
+
+  /* ---------- stepper ---------- */
+  function dotFor(n) {
+    if (n === S.step) return S.done >= n ? '✎' : n;
+    if (n <= S.done) return S.step < n ? '✓' : '✓';
+    return n;
+  }
+  function stepCls(n) { return 'st' + (n === S.step ? ' cur' : '') + (n === S.step && S.done >= n ? ' edit' : ''); }
+  function renderStepper() {
+    var h = '';
+    STEPS.forEach(function (t, i) {
+      var n = i + 1; if (i) h += '<span class="ln"></span>';
+      h += '<span class="' + stepCls(n) + '"><span class="dot" aria-hidden="true">' + dotFor(n) + '</span>' + t + '</span>';
+    });
+    $('#sh').innerHTML = h;
+    var v = '';
+    STEPS.forEach(function (t, i) {
+      var n = i + 1;
+      v += '<li data-n="' + n + '"><span class="' + stepCls(n) + '"><span class="dot" aria-hidden="true">' + dotFor(n) + '</span>' + t + '</span><div class="slot"></div></li>';
+    });
+    $('#sv').innerHTML = v;
+    if (mq.matches) { $('#sv li[data-n="' + S.step + '"] .slot').appendChild(panel); }
+    else { $('#card').appendChild(panel); }
+  }
+
+  /* ---------- helpers de tela ---------- */
+  function go(n) { S.step = n; S.sel = null; render(); window.scrollTo(0, 0); }
+  function fl(id, label, val, type, extra) {
+    return '<div class="fl"><input id="' + id + '" type="' + (type || 'text') + '" placeholder=" " value="' + esc(val || '') + '" ' + (extra || '') + '><label for="' + id + '">' + label + '</label></div>';
+  }
+  function sw(id, label, on) { return '<label class="sw"><input type="checkbox" id="' + id + '"' + (on ? ' checked' : '') + '><span class="tr"></span><span>' + label + '</span></label>'; }
+
+  /* ---------- passo 1 ---------- */
+  function step1() {
+    var h = '<h1>Novo documento</h1><a href="#" class="help" id="help">? Preciso de ajuda</a>' +
+      '<div class="folder"><span aria-hidden="true">📁</span><strong style="font-weight:500">' + esc(S.folder) + '</strong><button class="ghost" id="chg" type="button">Alterar pasta</button></div>' +
+      '<h2>Qual documento será assinado?</h2>';
+    if (!S.file) {
+      h += '<div class="drop" id="drop"><div><div class="ic" aria-hidden="true">↑</div><div>Arraste e solte ou <a href="#" id="pick">busque pelo arquivo</a></div><div style="margin-top:4px"><strong>PDF</strong> até 10 MB</div><div style="margin-top:14px"><button type="button" class="ghost" id="sample">Usar um PDF de exemplo</button></div></div></div>';
+    } else {
+      h += '<button type="button" class="again" id="pick2">⬆ Subir outro arquivo</button>' +
+        '<div class="frow"><span class="grip" aria-hidden="true">⋮⋮</span><strong>1</strong><span class="nm" title="' + esc(S.file) + '">' + esc(S.file) + '</span><button class="ib" type="button" aria-label="Abrir em outra aba">↗</button><button class="ib" type="button" id="rm" aria-label="Remover arquivo">✕</button></div>' +
+        '<div class="fl" style="margin-top:14px;max-width:420px"><input id="title" placeholder=" " value="' + esc(S.file.replace(/\.pdf$/i, '')) + '"><label for="title">Nome do documento</label></div>';
+    }
+    h += '<input type="file" id="file" accept="application/pdf" class="sr" tabindex="-1">' +
+      '<div class="foot"><button class="pill pri" id="next" type="button"' + (S.file ? '' : ' disabled') + '>CONTINUAR →</button></div>';
+    panel.innerHTML = h;
+    var fi = $('#file');
+    function pick(e) { e && e.preventDefault(); fi.click(); }
+    ['#pick', '#pick2'].forEach(function (s) { var el = $(s); if (el) el.onclick = pick; });
+    fi.onchange = function () { var f = fi.files[0]; if (!f) return; if (!/pdf$/i.test(f.name) && f.type !== 'application/pdf') { toast('Envie um arquivo PDF.'); return; } if (f.size > 10 * 1048576) { toast('O PDF passa de 10 MB.'); return; }
+      var r = new FileReader(); r.onload = function () { S.file = f.name; S.buf = r.result; S.fields = []; S.placed = false; step1(); }; r.readAsArrayBuffer(f); };
+    var sm = $('#sample'); if (sm) sm.onclick = function () { S.file = 'Contrato de prestação de serviços.pdf'; S.buf = null; step1(); };
+    var rm = $('#rm'); if (rm) rm.onclick = function () { S.file = null; S.buf = null; S.fields = []; S.placed = false; S.done = 0; renderStepper(); step1(); };
+    var d = $('#drop'); if (d) { d.ondragover = function (e) { e.preventDefault(); d.classList.add('over'); }; d.ondragleave = function () { d.classList.remove('over'); }; d.ondrop = function (e) { e.preventDefault(); d.classList.remove('over'); fi.files = e.dataTransfer.files; fi.onchange(); }; }
+    $('#chg').onclick = folderModal;
+    $('#help').onclick = function (e) { e.preventDefault(); toast('Ajuda: envie o PDF e clique em Continuar.'); };
+    $('#next').onclick = function () { if (S.fields.length && S.file) { /* mantém */ } S.done = Math.max(S.done, 1); go(2); };
+  }
+  function folderModal() {
+    var m = modal('<h3>Pasta de destino</h3><div class="list" id="fl">' + FOLDERS.map(function (f) { return '<button class="it" type="button" data-f="' + esc(f) + '">📁 ' + esc(f) + (f === S.folder ? ' ✓' : '') + '</button>'; }).join('') + '</div>' +
+      '<div class="fl" style="margin-top:16px;max-width:none"><input id="nf" placeholder=" "><label for="nf">+ Criar pasta nova</label></div><div class="mrow"><button class="pill sec" type="button" id="c1">CANCELAR</button><button class="pill pri" type="button" id="c2">SALVAR</button></div>', function (b) {
+      var pick = S.folder;
+      b.querySelectorAll('[data-f]').forEach(function (x) { x.onclick = function () { pick = x.dataset.f; b.querySelectorAll('[data-f]').forEach(function (y) { y.textContent = '📁 ' + y.dataset.f + (y === x ? ' ✓' : ''); }); $('#nf', b).value = ''; }; });
+      $('#c1', b).onclick = function () { b.remove(); };
+      $('#c2', b).onclick = function () { var n = $('#nf', b).value.trim(); if (n) { FOLDERS.push(n); pick = n; toast('Pasta criada.'); } S.folder = pick; b.remove(); step1(); };
+    });
+    return m;
+  }
+
+  /* ---------- passo 2 ---------- */
+  function signerRow(i) {
+    var s = S.signers[i];
+    var h = '<div class="srow' + (S.adv ? ' adv' : '') + '" data-i="' + i + '">';
+    if (!S.adv) {
+      h += '<div style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap">' + fl('n' + i, 'Nome do signatário', s.name, 'text', 'data-k="name" data-i="' + i + '"') + (S.signers.length > 1 ? '<button class="ib" type="button" data-rm="' + i + '" aria-label="Remover signatário">✕</button>' : '') + '</div>';
+    } else {
+      h += '<div class="hrow" style="margin-bottom:10px"><strong>Signatário ' + (i + 1) + '</strong>' + (S.signers.length > 1 ? '<button class="ib" type="button" data-rm="' + i + '" aria-label="Remover signatário">✕</button>' : '') + '</div><div class="grid3">' +
+        fl('n' + i, 'Nome do signatário *', s.name, 'text', 'data-k="name" data-i="' + i + '"') + fl('e' + i, 'E-mail do signatário (opcional)', s.email, 'email', 'data-k="email" data-i="' + i + '"') +
+        '<div class="fl"><select id="r' + i + '" data-k="role" data-i="' + i + '"><option value="signer"' + (s.role === 'signer' ? ' selected' : '') + '>Assinar</option><option value="witness"' + (s.role === 'witness' ? ' selected' : '') + '>Assinar como testemunha</option></select><label for="r' + i + '">Função do signatário</label></div>' +
+        fl('p' + i, 'Celular (opcional)', s.phone, 'tel', 'data-k="phone" data-i="' + i + '"') + fl('c' + i, 'CPF (opcional)', s.cpf, 'text', 'data-k="cpf" data-i="' + i + '"') + '</div>';
+    }
+    return h + '</div>';
+  }
+  function step2() {
+    var h = '<div class="hrow"><h1>Quem irá assinar?</h1>' + sw('adv', 'Autenticação avançada', S.adv) + '</div>' +
+      '<div class="opts">' + sw('me', 'Eu vou assinar esse documento', S.sender) + '<button class="ghost" id="ct" type="button">👤 Contatos</button><span class="obs" title="Em breve">🚫 Observadores <small>(em breve)</small></span></div>';
+    if (S.adv) h += '<div class="note">Depois de preencher um campo, você pode impedir que o signatário o altere.</div>';
+    if (S.sender) h += '<div class="srow" style="color:var(--muted)"><strong style="color:var(--ink)">Você (remetente)</strong> assina com a sua assinatura salva em Meu perfil.</div>';
+    S.signers.forEach(function (_, i) { h += signerRow(i); });
+    h += '<button class="pill pri" id="add" type="button">+ Signatário(a)</button>';
+    if (S.signers.length + (S.sender ? 1 : 0) > 1) h += '<div style="margin-top:18px">' + sw('ord', 'Assinar em ordem (um de cada vez)', S.order) + '</div>';
+    if (S.adv) h += '<h2>Verificações do documento</h2><div class="note" style="margin-top:0">Valem para todos os signatários. Sem nenhuma marcada, vale só o link.</div>' +
+      [['otp', 'Código de confirmação por e-mail'], ['selfie', 'Selfie (câmera)'], ['doc', 'Foto do documento (RG/CNH)'], ['geo', 'Localização (GPS)']].map(function (v) { return '<label class="chk"><input type="checkbox" data-v="' + v[0] + '"' + (S.verif[v[0]] ? ' checked' : '') + '> ' + v[1] + '</label>'; }).join('');
+    h += '<div class="foot mid"><button class="pill sec" id="back" type="button">← VOLTAR</button><button class="pill pri" id="next" type="button">CONTINUAR →</button></div>';
+    panel.innerHTML = h;
+    panel.querySelectorAll('[data-k]').forEach(function (el) { el.oninput = el.onchange = function () { S.signers[+el.dataset.i][el.dataset.k] = el.value; }; });
+    panel.querySelectorAll('[data-rm]').forEach(function (b) { b.onclick = function () { var i = +b.dataset.rm; S.signers.splice(i, 1); S.fields = S.fields.filter(function (f) { return f.signer !== i; }).map(function (f) { if (f.signer > i) f.signer--; return f; }); step2(); }; });
+    panel.querySelectorAll('[data-v]').forEach(function (c) { c.onchange = function () { S.verif[c.dataset.v] = c.checked; }; });
+    $('#adv').onchange = function () { S.adv = this.checked; step2(); };
+    $('#me').onchange = function () { S.sender = this.checked; step2(); };
+    var o = $('#ord'); if (o) o.onchange = function () { S.order = this.checked; };
+    $('#add').onclick = function () { if (S.signers.length >= 20) return; S.signers.push({ name: '', email: '', phone: '', cpf: '', role: 'signer' }); step2(); var l = panel.querySelectorAll('[data-k="name"]'); l[l.length - 1].focus(); };
+    $('#ct').onclick = function () {
+      modal('<h3>Contatos</h3><div class="list">' + CONTACTS.map(function (c, i) { return '<button class="it" type="button" data-c="' + i + '"><span>👤</span><span><strong>' + esc(c[0]) + '</strong><br><small>' + esc(c[1]) + '</small></span></button>'; }).join('') + '</div>', function (b) {
+        b.querySelectorAll('[data-c]').forEach(function (x) { x.onclick = function () { var c = CONTACTS[+x.dataset.c]; var empty = S.signers.length === 1 && !S.signers[0].name; var t = { name: c[0], email: c[1], phone: '', cpf: '', role: 'signer' }; if (empty) S.signers[0] = t; else S.signers.push(t); b.remove(); step2(); }; });
+      });
+    };
+    $('#back').onclick = function () { go(1); };
+    $('#next').onclick = function () {
+      var bad = S.signers.some(function (s) { return !s.name.trim(); });
+      if (bad && !(S.sender && S.signers.length === 1 && !S.signers[0].name.trim())) { toast('Informe o nome de cada signatário.'); var e = panel.querySelector('[data-k="name"]'); if (e) e.focus(); return; }
+      if (S.sender && S.signers.length === 1 && !S.signers[0].name.trim()) S.signers = [];
+      if (!S.signers.length && !S.sender) { toast('Adicione ao menos um signatário.'); return; }
+      S.done = Math.max(S.done, 2); go(3);
+    };
+  }
+
+  /* ---------- passo 3 ---------- */
+  var SIZES = { signature: [0.32, 0.075], initials: [0.15, 0.075], text: [0.32, 0.04] };
+  var NAMES = { signature: 'Assinatura', initials: 'Visto', text: 'Texto' };
+  function people() { var a = S.signers.map(function (s, i) { return { i: i, n: s.name.trim() || 'Signatário ' + (i + 1) }; }); if (S.sender) a.unshift({ i: -1, n: 'Você (remetente)' }); return a; }
+  function pname(i) { var p = people().filter(function (x) { return x.i === i; })[0]; return p ? p.n : '—'; }
+  function pageHtml(n) {
+    if (S.buf) return '';
+    var lines = ''; for (var k = 0; k < 14; k++) lines += '<div class="ln2" style="width:' + (60 + ((k * 37) % 40)) + '%"></div>';
+    return '<div class="txt"><b>' + (n === 1 ? 'Contrato de prestação de serviços' : 'Cláusula ' + n) + '</b>' + lines + '</div>';
+  }
+  function step3() {
+    var h = '<h1 style="font-size:24px">Posicione as assinaturas no documento <small style="color:var(--muted);font-weight:400;font-size:15px">(Opcional)</small></h1><a href="#" class="help" id="help">? Preciso de ajuda</a>' +
+      '<div class="bar"><button class="pill sec" id="edit" type="button">← Editar documento</button><button class="pill sec" id="skip" type="button">Continuar sem posicionar</button><button class="pill pri" id="save" type="button"' + (S.fields.length ? '' : ' disabled') + '>' + (S.placed ? 'Salvar alterações →' : 'Salvar e continuar →') + '</button></div>' +
+      '<div class="howto">Como funciona:<br><strong>1. Clique ou toque</strong> no ponto do documento onde a assinatura deve ficar.<br><strong>2. Escolha o signatário</strong> e o tipo de campo; depois arraste ou redimensione.</div>' +
+      '<div class="viewer" id="viewer" aria-label="Documento"></div><div class="foot" style="justify-content:flex-start"><button class="pill pri" id="save2" type="button"' + (S.fields.length ? '' : ' disabled') + '>Salvar e continuar →</button></div>';
+    panel.innerHTML = h;
+    renderPages();
+    $('#edit').onclick = function () { go(1); };
+    $('#help').onclick = function (e) { e.preventDefault(); toast('Ajuda: toque no documento para posicionar.'); };
+    $('#skip').onclick = function () {
+      if (S.fields.length) { next(); return; }
+      modal('<div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap"><h3 style="flex:1;min-width:200px">Continuar sem posicionar assinaturas?</h3><div class="ill">Assinatura ✕</div></div><p>Reparamos que você ainda não posicionou assinaturas no corpo do documento, então elas ficarão apenas no relatório de assinaturas. Para posicionar, é só clicar sobre o local desejado no documento. Deseja continuar mesmo assim?</p><div class="mrow"><button class="pill sec" id="m1" type="button">POSICIONAR AGORA</button><button class="pill pri" id="m2" type="button">CONTINUAR</button></div>', function (b) {
+        $('#m1', b).onclick = function () { b.remove(); }; $('#m2', b).onclick = function () { b.remove(); next(); };
+      });
+    };
+    function next() { S.done = Math.max(S.done, 3); go(4); }
+    function save() { if (!S.fields.length) return; S.placed = true; toast('Assinaturas posicionadas com sucesso'); next(); }
+    $('#save').onclick = save; $('#save2').onclick = save;
+  }
+  function renderPages() {
+    var v = $('#viewer'); v.innerHTML = '';
+    var total = 3;
+    function build(n, canvas) {
+      var p = document.createElement('div'); p.className = 'page'; p.dataset.p = n;
+      p.innerHTML = (canvas ? '' : pageHtml(n)); if (canvas) p.appendChild(canvas);
+      var lay = document.createElement('div'); lay.style.cssText = 'position:absolute;inset:0'; lay.className = 'lay'; p.appendChild(lay);
+      v.appendChild(p);
+      p.addEventListener('click', function (e) { if (e.target.closest('.fld')) return; clearSel(); openPop(p, e); });
+      paintFields(p);
+    }
+    if (S.buf && window.pdfjsLib) {
+      pdfjsLib.getDocument({ data: S.buf.slice(0) }).promise.then(function (doc) {
+        var chain = Promise.resolve();
+        for (var n = 1; n <= doc.numPages; n++) (function (n) { chain = chain.then(function () { return doc.getPage(n).then(function (pg) {
+          var vp = pg.getViewport({ scale: 1.4 }); var c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
+          var holder = build; return pg.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise.then(function () { holder(n, c); var last = v.lastChild; last.style.aspectRatio = vp.width + '/' + vp.height; });
+        }); }); })(n);
+      }).catch(function () { S.buf = null; renderPages(); });
+    } else { for (var n = 1; n <= total; n++) build(n); }
+  }
+  function clearSel() { S.sel = null; document.querySelectorAll('.fld.sel').forEach(function (f) { f.classList.remove('sel'); }); }
+  function paintFields(p) {
+    var lay = $('.lay', p); lay.innerHTML = '';
+    S.fields.filter(function (f) { return f.page === +p.dataset.p; }).forEach(function (f) { lay.appendChild(fieldEl(f, p)); });
+  }
+  function fieldEl(f, p) {
+    var d = document.createElement('div'); d.className = 'fld' + (S.sel === f.id ? ' sel' : ''); d.dataset.id = f.id;
+    d.style.cssText = 'left:' + f.x * 100 + '%;top:' + f.y * 100 + '%;width:' + f.w * 100 + '%;height:' + f.h * 100 + '%';
+    var mid = f.type === 'signature' ? '<span class="sg">Assinatura</span>' : f.type === 'initials' ? '<span class="sg">Visto</span>' : '<span>Texto</span>';
+    d.innerHTML = '<span class="who">' + esc(pname(f.signer)) + '</span>' + mid + (f.type === 'signature' ? '<span class="leg">Assinado digitalmente por: ' + esc(pname(f.signer)) + '<br>Data: DD/MM/AAAA hh:mm</span>' : '') +
+      '<button class="c cp" type="button" aria-label="Duplicar campo">⧉</button><button class="c rm" type="button" aria-label="Remover campo">✕</button><button class="c rs" type="button" aria-label="Redimensionar">⤡</button>';
+    d.addEventListener('click', function (e) { e.stopPropagation(); });
+    d.addEventListener('pointerdown', function (e) {
+      var rect = p.getBoundingClientRect();
+      if (e.target.closest('.rm')) { S.fields = S.fields.filter(function (x) { return x !== f; }); afterChange(); return; }
+      if (e.target.closest('.cp')) { var c = Object.assign({}, f, { id: ++uid, x: Math.min(.9, f.x + .03), y: Math.min(.95, f.y + .03) }); S.fields.push(c); S.sel = c.id; afterChange(); return; }
+      var resize = !!e.target.closest('.rs'); S.sel = f.id;
+      document.querySelectorAll('.fld.sel').forEach(function (x) { x.classList.remove('sel'); }); d.classList.add('sel');
+      var sx = e.clientX, sy = e.clientY, ox = f.x, oy = f.y, ow = f.w, oh = f.h; d.setPointerCapture(e.pointerId);
+      function mv(ev) { var dx = (ev.clientX - sx) / rect.width, dy = (ev.clientY - sy) / rect.height;
+        if (resize) { f.w = Math.max(.08, Math.min(1 - f.x, ow + dx)); f.h = Math.max(.03, Math.min(1 - f.y, oh + dy)); }
+        else { f.x = Math.max(0, Math.min(1 - f.w, ox + dx)); f.y = Math.max(0, Math.min(1 - f.h, oy + dy)); }
+        d.style.cssText = 'left:' + f.x * 100 + '%;top:' + f.y * 100 + '%;width:' + f.w * 100 + '%;height:' + f.h * 100 + '%'; }
+      function up() { d.removeEventListener('pointermove', mv); d.removeEventListener('pointerup', up); }
+      d.addEventListener('pointermove', mv); d.addEventListener('pointerup', up); e.preventDefault();
+    });
+    return d;
+  }
+  function afterChange() {
+    document.querySelectorAll('.page').forEach(paintFields);
+    var on = S.fields.length > 0; ['#save', '#save2'].forEach(function (s) { var b = $(s); if (b) b.disabled = !on; });
+  }
+  function closePop() { var p = $('#pop'); if (p) p.remove(); }
+  function openPop(page, e) {
+    closePop();
+    var rect = page.getBoundingClientRect(); var fx = (e.clientX - rect.left) / rect.width, fy = (e.clientY - rect.top) / rect.height;
+    var ps = people(); if (!ps.length) { toast('Adicione um signatário no passo 2.'); return; }
+    var p = document.createElement('div'); p.id = 'pop'; p.className = 'pop' + (mq.matches ? ' sheet' : ''); p.setAttribute('role', 'dialog');
+    p.innerHTML = '<button class="ib x" type="button" aria-label="Fechar">✕</button><div style="display:flex;gap:8px;align-items:center">👥<select id="ps" aria-label="Signatário">' + ps.map(function (x) { return '<option value="' + x.i + '">' + esc(x.n) + '</option>'; }).join('') + '</select></div>' +
+      '<div class="types"><button type="button" data-t="signature"><span class="gl">✒️</span>Assinatura</button><button type="button" data-t="initials"><span class="gl">✍️</span>Visto</button><button type="button" data-t="text" id="tt"><span class="gl"><b>Tт</b></span>Texto</button></div><div class="tip" id="tip">Utilize para escrever sobre o documento. É aceito qualquer tipo de texto. O documento será editado.</div>';
+    document.body.appendChild(p);
+    if (!mq.matches) { var x = Math.min(window.innerWidth - 310, Math.max(8, e.clientX)), y = Math.min(window.innerHeight - 240, Math.max(8, e.clientY)); p.style.left = x + 'px'; p.style.top = y + 'px'; }
+    $('.x', p).onclick = closePop;
+    var tt = $('#tt', p); tt.onmouseenter = function () { $('#tip', p).style.display = 'block'; }; tt.onmouseleave = function () { $('#tip', p).style.display = 'none'; };
+    p.querySelectorAll('[data-t]').forEach(function (b) { b.onclick = function () {
+      var t = b.dataset.t, sz = SIZES[t]; var f = { id: ++uid, signer: +$('#ps', p).value, type: t, page: +page.dataset.p, w: sz[0], h: sz[1], x: Math.max(0, Math.min(1 - sz[0], fx - sz[0] / 2)), y: Math.max(0, Math.min(1 - sz[1], fy - sz[1] / 2)) };
+      S.fields.push(f); S.sel = f.id; closePop(); afterChange(); toast('Posicione o item selecionado no(s) seu(s) documento(s)');
+    }; });
+  }
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closePop(); document.querySelectorAll('.back').forEach(function (b) { b.remove(); }); } });
+  document.addEventListener('click', function (e) { var p = $('#pop'); if (p && !p.contains(e.target) && !e.target.closest('.page')) closePop(); });
+
+  /* ---------- passo 4 ---------- */
+  function step4() {
+    var h = '<h1 style="font-size:26px">Envie o documento</h1><a href="#" class="help" id="help">? Preciso de ajuda</a>' +
+      '<h2 style="font-weight:400">Como enviar o documento para assinatura?</h2>' +
+      '<p style="color:var(--link);font-weight:600;margin:0 0 16px">Com o envio automático ligado, cada signatário recebe o link por e-mail. Desligado, os links aparecem no documento assim que ele for liberado, para você copiar e enviar por qualquer canal (inclusive WhatsApp).</p>' +
+      sw('auto', 'Ativar envio automático dos links', S.auto);
+    var ps = S.signers.map(function (s, i) { return { s: s, i: i }; });
+    ps.forEach(function (o) {
+      h += '<div class="hrow" style="margin:18px 0 6px;align-items:flex-start"><strong>' + esc(who(o.i)) + (o.s.role === 'witness' ? ' <small style="font-weight:400;color:var(--muted)">(testemunha)</small>' : '') + '</strong>' +
+        '<div style="display:flex;gap:0;flex:1;max-width:520px;min-width:240px"><div class="fl" style="flex:1;max-width:none"><input id="em' + o.i + '" type="email" placeholder=" " value="' + esc(o.s.email) + '" data-i="' + o.i + '"><label for="em' + o.i + '">E-mail do signatário' + (S.auto ? ' *' : ' (opcional)') + '</label></div>' +
+        '<div class="fl" style="width:130px"><select aria-label="Via"><option>E-mail</option><option disabled>WhatsApp</option><option disabled>SMS</option></select><label>Via</label></div></div></div><div class="err" id="er' + o.i + '" style="text-align:right"></div>';
+    });
+    if (!S.signers.length) h += '<p style="color:var(--muted)">Só você assina este documento.</p>';
+    h += '<div class="fl" style="max-width:none;margin-top:18px"><textarea id="msg" rows="3" maxlength="500" placeholder=" ">' + esc(S.message) + '</textarea><label for="msg">(Opcional) Mensagem personalizada</label></div><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted)"><span>Mensagem será enviada no corpo do e-mail.</span><span id="cnt">' + S.message.length + ' / 500</span></div>' +
+      '<div class="chk" style="margin-top:16px"><input type="checkbox" id="rem"' + (S.remind ? ' checked' : '') + '><label for="rem">Ativar lembretes automáticos a cada</label><select id="rd" aria-label="Dias" style="background:var(--field);color:var(--ink);border:0;border-bottom:1px solid var(--muted);padding:4px">' + [1, 2, 3, 5, 7, 10, 14].map(function (d) { return '<option' + (d === S.remindDays ? ' selected' : '') + '>' + d + '</option>'; }).join('') + '</select> dias.</div>' +
+      '<div class="chk"><input type="checkbox" id="lim"' + (S.limit ? ' checked' : '') + '><label for="lim">Data limite para assinatura do documento</label><input type="date" id="ld" value="' + S.limitDate + '"' + (S.limit ? '' : ' hidden') + ' style="background:var(--field);color:var(--ink);border:0;border-bottom:1px solid var(--muted);padding:4px"></div>' +
+      '<div class="chk"><input type="checkbox" id="ref"' + (S.refuse ? ' checked' : '') + '><label for="ref">Permitir recusar o documento</label></div>' +
+      '<div class="foot"><button class="pill sec" id="back" type="button">← VOLTAR</button><button class="pill pri" id="send" type="button">ENVIAR E FINALIZAR</button></div>';
+    panel.innerHTML = h;
+    $('#help').onclick = function (e) { e.preventDefault(); toast('Ajuda: confira os e-mails e envie.'); };
+    $('#auto').onchange = function () { S.auto = this.checked; keep(); step4(); };
+    function keep() { panel.querySelectorAll('[data-i]').forEach(function (el) { if (el.id && el.id.indexOf('em') === 0) S.signers[+el.dataset.i].email = el.value; }); S.message = $('#msg').value; }
+    $('#msg').oninput = function () { $('#cnt').textContent = this.value.length + ' / 500'; };
+    $('#rem').onchange = function () { S.remind = this.checked; $('#rd').disabled = !this.checked; };
+    $('#rd').onchange = function () { S.remindDays = +this.value; }; $('#rd').disabled = !S.remind;
+    $('#lim').onchange = function () { S.limit = this.checked; $('#ld').hidden = !this.checked; if (this.checked && !$('#ld').value) { var d = new Date(Date.now() + 30 * 864e5); S.limitDate = d.toISOString().slice(0, 10); $('#ld').value = S.limitDate; } };
+    $('#ld').onchange = function () { S.limitDate = this.value; };
+    $('#ref').onchange = function () { S.refuse = this.checked; };
+    $('#back').onclick = function () { keep(); go(3); };
+    $('#send').onclick = function () {
+      keep(); var ok = true;
+      S.signers.forEach(function (s, i) { var er = $('#er' + i); er.textContent = ''; if (S.auto && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s.email.trim())) { er.textContent = 'Informe um e-mail válido para enviar o link automaticamente.'; ok = false; } });
+      if (!ok) { toast('Confira os e-mails.'); return; }
+      S.done = 4; S.sent = true; sentView();
+    };
+  }
+  function sentView() {
+    $('#sh').innerHTML = ''; $('#sv').innerHTML = ''; $('#card').appendChild(panel);
+    var h = '<div class="sent"><h1 style="font-size:26px">' + esc(S.file ? S.file.replace(/\.pdf$/i, '') : 'Documento') + '</h1> <span class="chip">EM CURSO</span>' +
+      '<div class="note" style="margin-top:14px">Documento liberado para assinatura' + (S.auto ? '. Os convites foram enviados por e-mail.' : '. Copie o link de cada signatário e envie como preferir.') + '</div>' +
+      '<div style="color:var(--muted);font-size:13px;margin-bottom:6px">PASTA: ' + esc(S.folder) + ' · 0/' + (S.signers.length + (S.sender ? 1 : 0)) + ' ASSINATURAS · ' + S.fields.length + ' CAMPO(S) POSICIONADO(S)' + (S.refuse ? ' · RECUSA PERMITIDA' : '') + '</div>';
+    if (S.sender) h += '<div class="rowx"><strong style="min-width:150px">Você (remetente)</strong><span class="chip" style="background:#cdeed9;color:#0d4a28">Assinou</span></div>';
+    S.signers.forEach(function (s, i) { var u = 'https://exemplo.com.br/assinar/' + (Math.random().toString(36).slice(2, 10)) + Math.random().toString(36).slice(2, 10);
+      h += '<div class="rowx"><strong style="min-width:150px">' + esc(who(i)) + '</strong><span style="color:var(--muted);font-size:13px">Não abriu o link.</span><div class="linkbox">' + u + '</div><button class="ghost" type="button" data-cp="' + u + '">Copiar link</button><button class="ghost" type="button" data-wa="1">Enviar por WhatsApp</button></div>'; });
+    h += '<div class="foot" style="justify-content:flex-start"><button class="pill pri" id="again" type="button">Criar outro documento</button></div></div>';
+    panel.innerHTML = h; toast('Documento enviado com sucesso');
+    panel.querySelectorAll('[data-cp]').forEach(function (b) { b.onclick = function () { toast('Link copiado.'); }; });
+    panel.querySelectorAll('[data-wa]').forEach(function (b) { b.onclick = function () { toast('Abriria o WhatsApp com o link.'); }; });
+    $('#again').onclick = function () { location.reload(); };
+  }
+
+  function render() {
+    renderStepper();
+    [null, step1, step2, step3, step4][S.step]();
+  }
+  mq.addEventListener('change', function () { if (!S.sent) renderStepper(); });
+  $('#burger').onclick = function () { $('#side').classList.toggle('open'); };
+  var themeBtn = $('#theme');
+  themeBtn.onclick = function () { var d = document.documentElement.getAttribute('data-theme') === 'dark'; document.documentElement.setAttribute('data-theme', d ? 'light' : 'dark'); themeBtn.textContent = d ? '🌙 Escuro' : '☀️ Claro'; };
+  var sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+  sc.onload = function () { pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; };
+  document.head.appendChild(sc);
+  render();
+  window.__S = S;
+})();
+</script>
+</body>
+</html>
