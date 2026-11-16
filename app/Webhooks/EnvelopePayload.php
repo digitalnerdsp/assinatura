@@ -17,7 +17,7 @@ final class EnvelopePayload
         $envelope->load('signers');
 
         $data = [
-            'envelope' => [
+            'document' => [
                 'id' => $envelope->getKey(),
                 'external_id' => $envelope->external_id,
                 'metadata' => $envelope->metadata,

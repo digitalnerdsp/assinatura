@@ -58,14 +58,14 @@ function fixPaletteDataUrl(int $w, int $h): string
 it('reenviar um envelope já enviado não reescreve a identidade de quem assinou', function () {
     $owner = fixOwner();
     $envelope = fixEnvelope($owner->tenant, options: ['sender' => ['name' => 'Dono da Empresa', 'email' => 'dono@acme.com']]);
-    $this->post("/envelopes/{$envelope->id}/enviar")->assertRedirect();
+    $this->post("/documentos/{$envelope->id}/enviar")->assertRedirect();
 
     $colega = User::create(['name' => 'Colega', 'email' => 'colega@acme.com', 'password' => 'senha-muito-forte', 'tenant_id' => $owner->tenant_id, 'role' => 'member']);
     $colega->forceFill(['signature_type' => 'typed', 'signature_data' => 'Colega Assina'])->save();
     auth()->logout();
     $this->actingAs($colega->fresh());
 
-    $this->from('/envelopes')->post("/envelopes/{$envelope->id}/enviar")->assertSessionHasErrors('envelope');
+    $this->from('/documentos')->post("/documentos/{$envelope->id}/enviar")->assertSessionHasErrors('envelope');
 
     $sender = $envelope->signers()->where('is_sender', true)->firstOrFail();
     expect($sender->name)->toBe('Dono da Empresa')->and($sender->email)->toBe('dono@acme.com')
@@ -84,7 +84,7 @@ it('rascunho criado no painel e enviado pela API assina como o representante', f
     [, $plain] = ApiKey::issue($tenant, 'k', false, true);
     $envelope = fixEnvelope($tenant, options: ['sender' => ['name' => 'Fulano do Painel', 'email' => 'fulano@acme.com', 'cpf' => '999.999.999-99']]);
 
-    $this->postJson("/api/v1/envelopes/{$envelope->id}/send", [], ['Authorization' => "Bearer {$plain}", 'Accept' => 'application/json'])->assertOk();
+    $this->postJson("/api/v1/documents/{$envelope->id}/send", [], ['Authorization' => "Bearer {$plain}", 'Accept' => 'application/json'])->assertOk();
 
     $sender = $envelope->signers()->where('is_sender', true)->firstOrFail();
     expect($sender->name)->toBe('Maria Representante')->and($sender->email)->toBe('maria@acme.com')
@@ -95,7 +95,7 @@ it('rascunho criado pela API e liberado no painel assina como quem liberou, sem 
     $owner = fixOwner();
     $envelope = fixEnvelope($owner->tenant, options: ['sender' => ['name' => 'Maria Representante', 'email' => 'maria@acme.com', 'cpf' => '123.456.789-09']]);
 
-    $this->post("/envelopes/{$envelope->id}/enviar")->assertRedirect();
+    $this->post("/documentos/{$envelope->id}/enviar")->assertRedirect();
 
     $sender = $envelope->signers()->where('is_sender', true)->firstOrFail();
     expect($sender->name)->toBe('Dono da Empresa')->and($sender->email)->toBe('dono@acme.com')->and($sender->cpf)->toBeNull();
@@ -130,7 +130,7 @@ it('o webhook identifica o papel e o remetente em cada signatário', function ()
 
     $payload = EnvelopePayload::make($envelope, $witness);
 
-    $byName = collect($payload['envelope']['signers'])->keyBy('name');
+    $byName = collect($payload['document']['signers'])->keyBy('name');
     expect($byName['Empresa X']['is_sender'])->toBeTrue()->and($byName['Empresa X']['role'])->toBe('signer')
         ->and($byName['Testemunha']['role'])->toBe('witness')->and($byName['Parte']['is_sender'])->toBeFalse()
         ->and($payload['signer']['role'])->toBe('witness')->and($payload['signer']['is_sender'])->toBeFalse();
@@ -168,7 +168,7 @@ it('se a assinatura do remetente falha, o envio inteiro é desfeito', function (
 
     $fresh = $envelope->fresh();
     expect($fresh->status->value)->toBe('draft')->and($fresh->sent_at)->toBeNull()
-        ->and($fresh->evidenceEvents()->where('type', 'envelope_sent')->count())->toBe(0);
+        ->and($fresh->evidenceEvents()->where('type', 'document_sent')->count())->toBe(0);
 });
 
 it('o remetente nunca recebe link, nem por gerar novo link nem por reenviar', function () {

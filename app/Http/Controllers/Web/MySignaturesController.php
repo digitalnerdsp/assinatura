@@ -12,7 +12,7 @@ use Illuminate\View\View;
 /**
  * Documentos em que o usuário logado é signatário (pelo e-mail dele).
  *
- * Só da PRÓPRIA empresa: o cadastro ainda não verifica o e-mail, então listar envelopes de outras
+ * Só da PRÓPRIA empresa: o cadastro ainda não verifica o e-mail, então listar documentos de outras
  * empresas deixaria qualquer pessoa ler (e assinar) documentos alheios cadastrando o e-mail da vítima.
  */
 final class MySignaturesController extends Controller

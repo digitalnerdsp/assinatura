@@ -128,7 +128,7 @@ it('a selagem envia o relatório ao provider e registra se foi anexado', functio
     expect($captured->report['code'])->toBe($envelope->verification_code)
         ->and($captured->report['signers'])->toHaveCount(1);
 
-    $sealedEvent = $envelope->evidenceEvents()->where('type', 'envelope_sealed')->first();
+    $sealedEvent = $envelope->evidenceEvents()->where('type', 'document_sealed')->first();
     expect($sealedEvent->payload['report_attached'])->toBeFalse();
 });
 

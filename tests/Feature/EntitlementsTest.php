@@ -225,8 +225,8 @@ it('a API responde 403 plan_limit_reached e GET /me mostra plano e consumo', fun
     $h = ['Authorization' => "Bearer {$plain}", 'Accept' => 'application/json'];
     $payload = fn () => ['title' => 'NDA', 'send' => true, 'document' => UploadedFile::fake()->createWithContent('a.pdf', "%PDF-1.4\n%%EOF\n"), 'signers' => [['name' => 'Ana', 'email' => 'ana@ex.com']]];
 
-    $this->post('/api/v1/envelopes', $payload(), $h)->assertCreated();
-    $this->post('/api/v1/envelopes', $payload(), $h)->assertForbidden()->assertJson(['error' => 'plan_limit_reached', 'reason' => 'documents_limit']);
+    $this->post('/api/v1/documents', $payload(), $h)->assertCreated();
+    $this->post('/api/v1/documents', $payload(), $h)->assertForbidden()->assertJson(['error' => 'plan_limit_reached', 'reason' => 'documents_limit']);
 
     $me = $this->getJson('/api/v1/me', $h)->assertOk()->json();
     expect($me['plan']['name'])->toBe('Plano Pro')->and($me['plan']['status'])->toBe('active')

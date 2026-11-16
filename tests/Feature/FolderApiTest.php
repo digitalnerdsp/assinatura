@@ -131,7 +131,7 @@ it('o filtro folder_id da lista de envelopes inclui as subpastas', function () {
     folderApiDoc($tenant, $a1, 'draft', 'Na A1');
     folderApiDoc($tenant, null, 'draft', 'Sem pasta');
 
-    $titles = collect($this->getJson('/api/v1/envelopes?folder_id='.$a->id, $h)->assertOk()->json('data'))->pluck('title')->sort()->values()->all();
+    $titles = collect($this->getJson('/api/v1/documents?folder_id='.$a->id, $h)->assertOk()->json('data'))->pluck('title')->sort()->values()->all();
 
     expect($titles)->toBe(['Na A', 'Na A1']);
 });

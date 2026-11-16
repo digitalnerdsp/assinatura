@@ -37,7 +37,7 @@
         <p class="text-secondary">Envie o PDF que você recebeu. Calculamos o hash no servidor e comparamos; o arquivo não é guardado.</p>
         @if ($match === 'final')<div class="alert alert-success border-0">O arquivo é idêntico ao documento selado.</div>
         @elseif ($match === 'original')<div class="alert alert-success border-0">O arquivo é idêntico ao documento original enviado para assinatura.</div>
-        @elseif ($match === 'none')<div class="alert alert-danger border-0">O arquivo NÃO corresponde a este envelope. Hash calculado: <span class="mono">{{ $uploadedHash }}</span></div>@endif
+        @elseif ($match === 'none')<div class="alert alert-danger border-0">O arquivo NÃO corresponde a este documento. Hash calculado: <span class="mono">{{ $uploadedHash }}</span></div>@endif
         <form method="post" action="{{ route('verify.check', $envelope->verification_code) }}" enctype="multipart/form-data" class="row g-2">
             @csrf
             <div class="col-md"><input type="file" class="form-control" name="file" accept="application/pdf" required></div>

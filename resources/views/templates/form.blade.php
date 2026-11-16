@@ -39,7 +39,7 @@
     </div>
 </form>
 @if ($template->exists)
-    <form method="post" action="{{ route('templates.destroy', $template) }}" onsubmit="return confirm('Remover este modelo? Os envelopes já gerados não são afetados.')">
+    <form method="post" action="{{ route('templates.destroy', $template) }}" onsubmit="return confirm('Remover este modelo? Os documentos já gerados não são afetados.')">
         @csrf @method('DELETE')<button class="btn btn-outline-danger btn-sm"><i class="bx bx-trash"></i> Remover modelo</button>
     </form>
 @endif

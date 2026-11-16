@@ -20,7 +20,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Throwable;
 
-/** Modelos com {{variáveis}}: cadastro e geração de envelopes. */
+/** Modelos com {{variáveis}}: cadastro e geração de documentos. */
 final class TemplateController extends Controller
 {
     public function __construct(
@@ -65,7 +65,7 @@ final class TemplateController extends Controller
         return response()->json(null, 204);
     }
 
-    /** Gera um envelope a partir do modelo. Corpo: title, variables{}, signers[] e as mesmas opções de POST /envelopes. */
+    /** Gera um documento a partir do modelo. Corpo: title, variables{}, signers[] e as mesmas opções de POST /envelopes. */
     public function generate(Request $request, string $id): JsonResponse
     {
         $template = $this->find($request, $id);

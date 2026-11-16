@@ -15,7 +15,7 @@ use Throwable;
 
 /**
  * Idempotência por cabeçalho "Idempotency-Key": repetir o mesmo POST devolve a resposta original (com o cabeçalho
- * "Idempotent-Replayed: true") em vez de criar outro envelope. Reusar a chave com um corpo diferente é erro 422.
+ * "Idempotent-Replayed: true") em vez de criar outro documento. Reusar a chave com um corpo diferente é erro 422.
  * Só respostas 2xx e 4xx de validação/negócio são guardadas; 5xx não, para permitir nova tentativa.
  */
 final class Idempotent

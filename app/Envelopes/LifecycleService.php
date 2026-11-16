@@ -10,7 +10,7 @@ use App\Models\Envelope;
 use App\Notifications\SignerNotifier;
 use App\Webhooks\WebhookDispatcher;
 
-/** Rotinas agendadas: expiração de envelopes e lembretes para quem ainda não assinou. */
+/** Rotinas agendadas: expiração de documentos e lembretes para quem ainda não assinou. */
 final class LifecycleService
 {
     public function __construct(
@@ -20,7 +20,7 @@ final class LifecycleService
     ) {
     }
 
-    /** Marca o envelope como expirado se o prazo passou. Retorna true se mudou. */
+    /** Marca o documento como expirado se o prazo passou. Retorna true se mudou. */
     public function expire(Envelope $envelope): bool
     {
         if ($envelope->expires_at === null || ! $envelope->expires_at->isPast() || ! $envelope->status->isOpenForSigning()) {
@@ -28,14 +28,14 @@ final class LifecycleService
         }
 
         $envelope->update(['status' => EnvelopeStatus::Expired]);
-        $this->evidence->record($envelope, 'envelope_expired', []);
+        $this->evidence->record($envelope, 'document_expired', []);
         app(\App\Plans\UsageLedger::class)->refund($envelope);
-        $this->webhooks->dispatch($envelope, 'envelope.expired');
+        $this->webhooks->dispatch($envelope, 'document.expired');
 
         return true;
     }
 
-    /** @return int quantidade de envelopes expirados */
+    /** @return int quantidade de documentos expirados */
     public function expireDue(): int
     {
         $count = 0;

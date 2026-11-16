@@ -56,7 +56,7 @@ function growthRegister(string $email = 'dono@acme.com', string $company = 'ACME
 
 function growthWebEnvelope(): Envelope
 {
-    test()->post('/envelopes', [
+    test()->post('/documentos', [
         'title' => 'Contrato de serviço', 'document' => growthPdf(), 'signing_order' => 'parallel',
         'signers' => [['name' => 'Ana', 'email' => 'ana@ex.com'], ['name' => 'Beto', 'email' => 'beto@ex.com']],
     ])->assertSessionHasNoErrors()->assertRedirect();
@@ -126,15 +126,15 @@ it('envia lembrete só depois do intervalo e respeita o limite', function () {
     $envelope = growthEnvelope(Tenant::create(['name' => 'ACME']), options: ['reminder_every_days' => 2]);
     $envelope->signers()->update(['invited_at' => now()->subDays(1)]);
 
-    $this->artisan('envelopes:remind')->expectsOutputToContain('0 lembrete');
+    $this->artisan('documents:remind')->expectsOutputToContain('0 lembrete');
     Mail::assertNothingSent();
 
     $envelope->signers()->update(['invited_at' => now()->subDays(3)]);
-    $this->artisan('envelopes:remind')->expectsOutputToContain('2 lembrete');
+    $this->artisan('documents:remind')->expectsOutputToContain('2 lembrete');
     Mail::assertSent(SignatureRequestedMail::class, 2);
     Mail::assertSent(SignatureRequestedMail::class, fn ($m) => $m->reminder === true);
 
-    $this->artisan('envelopes:remind')->expectsOutputToContain('0 lembrete'); // acabou de lembrar
+    $this->artisan('documents:remind')->expectsOutputToContain('0 lembrete'); // acabou de lembrar
     expect($envelope->signers()->first()->reminders_count)->toBe(1);
     expect($envelope->evidenceEvents()->where('type', 'reminder_sent')->count())->toBe(2);
 });
@@ -149,7 +149,7 @@ it('não lembra quando o lembrete está desligado nem quem já assinou', functio
     $on->signers()->update(['invited_at' => now()->subDays(10)]);
     app(SigningService::class)->sign($on->signers()->where('position', 1)->first(), 'typed', 'x', true);
 
-    $this->artisan('envelopes:remind')->expectsOutputToContain('1 lembrete'); // só o signatário 2 do envelope B
+    $this->artisan('documents:remind')->expectsOutputToContain('1 lembrete'); // só o signatário 2 do envelope B
     Mail::assertSent(SignatureRequestedMail::class, 1);
     Mail::assertSent(SignatureRequestedMail::class, fn ($m) => $m->hasTo('s2@example.com'));
 });
@@ -159,10 +159,10 @@ it('expira envelopes vencidos e registra na trilha', function () {
     $envelope = growthEnvelope(Tenant::create(['name' => 'ACME']));
     $envelope->update(['expires_at' => now()->subMinute()]);
 
-    $this->artisan('envelopes:expire')->expectsOutputToContain('1 envelope');
+    $this->artisan('documents:expire')->expectsOutputToContain('1 documento');
 
     expect($envelope->fresh()->status)->toBe(EnvelopeStatus::Expired);
-    expect($envelope->evidenceEvents()->where('type', 'envelope_expired')->exists())->toBeTrue();
+    expect($envelope->evidenceEvents()->where('type', 'document_expired')->exists())->toBeTrue();
     expect(fn () => app(SigningService::class)->findByToken(basename($envelope->signers()->first()->signUrl())))
         ->toThrow(FlowException::class);
 });
@@ -186,7 +186,7 @@ it('entrega webhooks assinados com HMAC quando o signatário assina', function (
     $envelope = growthEnvelope($tenant);
     app(SigningService::class)->sign($envelope->signers()->where('position', 1)->first(), 'typed', 'Signer 1', true);
 
-    Http::assertSentCount(1); // 'envelope.sent' e 'signer.viewed' não estão na lista de eventos
+    Http::assertSentCount(1); // 'document.sent' e 'signer.viewed' não estão na lista de eventos
     Http::assertSent(function ($request) {
         $body = $request->body();
         $expected = 'sha256='.hash_hmac('sha256', $request->header('X-Webhook-Timestamp')[0].'.'.$body, 'whsec_abc');
@@ -333,7 +333,7 @@ it('cria envelope pelo painel com posições de assinatura e opções de entrega
     $folder = Folder::create(['tenant_id' => auth()->user()->tenant_id, 'name' => 'Contratos']);
     $tag = Tag::create(['tenant_id' => auth()->user()->tenant_id, 'name' => 'Urgente', 'color' => 'danger']);
 
-    $this->post('/envelopes', [
+    $this->post('/documentos', [
         'title' => 'Com posições', 'document' => growthPdf(), 'signing_order' => 'sequential',
         'validity_days' => 10, 'reminder_every_days' => 'off', 'channels' => ['email', 'whatsapp'],
         'folder_id' => $folder->id, 'tags' => [$tag->id],
@@ -365,18 +365,18 @@ it('organiza e busca envelopes por pasta, etiqueta, status e texto', function ()
     $tag = Tag::where('tenant_id', $tenantId)->firstOrFail();
 
     $a = growthWebEnvelope();
-    $this->post("/envelopes/{$a->id}/organizar", ['folder_id' => $folder->id, 'tags' => [$tag->id]])->assertRedirect();
-    $this->post('/envelopes', ['title' => 'Aluguel do galpão', 'document' => growthPdf(), 'signing_order' => 'parallel',
+    $this->post("/documentos/{$a->id}/organizar", ['folder_id' => $folder->id, 'tags' => [$tag->id]])->assertRedirect();
+    $this->post('/documentos', ['title' => 'Aluguel do galpão', 'document' => growthPdf(), 'signing_order' => 'parallel',
         'signers' => [['name' => 'Zeca Silva', 'email' => 'zeca@loja.com']]])->assertSessionHasNoErrors();
 
-    $this->get('/envelopes?folder='.$folder->id)->assertOk()->assertSee('Contrato de serviço')->assertDontSee('Aluguel do galpão');
-    $this->get('/envelopes?tag='.$tag->id)->assertSee('Contrato de serviço')->assertDontSee('Aluguel do galpão');
-    $this->get('/envelopes?folder=none')->assertSee('Aluguel do galpão')->assertDontSee('Contrato de serviço');
-    $this->get('/envelopes?q=galpão')->assertSee('Aluguel do galpão')->assertDontSee('Contrato de serviço');
-    $this->get('/envelopes?q=zeca@loja')->assertSee('Aluguel do galpão')->assertDontSee('Contrato de serviço');
-    $this->get('/envelopes?q=ANA')->assertSee('Contrato de serviço'); // sem diferenciar maiúsculas, acha o signatário
-    $this->get('/envelopes?status=completed')->assertSee('Nenhum documento encontrado');
-    $this->get('/envelopes?q=100%25')->assertOk(); // curingas do LIKE são escapados
+    $this->get('/documentos?folder='.$folder->id)->assertOk()->assertSee('Contrato de serviço')->assertDontSee('Aluguel do galpão');
+    $this->get('/documentos?tag='.$tag->id)->assertSee('Contrato de serviço')->assertDontSee('Aluguel do galpão');
+    $this->get('/documentos?folder=none')->assertSee('Aluguel do galpão')->assertDontSee('Contrato de serviço');
+    $this->get('/documentos?q=galpão')->assertSee('Aluguel do galpão')->assertDontSee('Contrato de serviço');
+    $this->get('/documentos?q=zeca@loja')->assertSee('Aluguel do galpão')->assertDontSee('Contrato de serviço');
+    $this->get('/documentos?q=ANA')->assertSee('Contrato de serviço'); // sem diferenciar maiúsculas, acha o signatário
+    $this->get('/documentos?status=completed')->assertSee('Nenhum documento encontrado');
+    $this->get('/documentos?q=100%25')->assertOk(); // curingas do LIKE são escapados
 });
 
 it('não aceita pasta ou etiqueta de outro tenant', function () {
@@ -388,7 +388,7 @@ it('não aceita pasta ou etiqueta de outro tenant', function () {
     growthRegister('i@i.com', 'I');
     $envelope = growthWebEnvelope();
 
-    $this->post("/envelopes/{$envelope->id}/organizar", ['folder_id' => $foreignFolder->id, 'tags' => [$foreignTag->id]])->assertSessionHasErrors('envelope');
+    $this->post("/documentos/{$envelope->id}/organizar", ['folder_id' => $foreignFolder->id, 'tags' => [$foreignTag->id]])->assertSessionHasErrors('envelope');
     expect($envelope->fresh()->folder_id)->toBeNull()->and($envelope->tags()->count())->toBe(0);
 
     $this->post('/organizacao/pastas', ['name' => 'Minha']);
@@ -460,7 +460,7 @@ it('a validação do painel também respeita o limite de PDF', function () {
     growthRegister('l@l.com', 'L');
 
     $big = \Illuminate\Http\UploadedFile::fake()->create('grande.pdf', 2048, 'application/pdf');
-    $this->post('/envelopes', ['title' => 'G', 'document' => $big, 'signing_order' => 'parallel', 'signers' => [['name' => 'A', 'email' => 'a@a.com']]])
+    $this->post('/documentos', ['title' => 'G', 'document' => $big, 'signing_order' => 'parallel', 'signers' => [['name' => 'A', 'email' => 'a@a.com']]])
         ->assertSessionHasErrors('document');
 });
 
@@ -502,15 +502,15 @@ it('envio manual (sem e-mail) não avisa ninguém sozinho, nem o próximo da fil
     Mail::fake();
     Storage::fake('local');
     growthRegister('m@m.com', 'M');
-    $this->post('/envelopes', ['title' => 'Manual', 'document' => growthPdf(), 'signing_order' => 'sequential',
+    $this->post('/documentos', ['title' => 'Manual', 'document' => growthPdf(), 'signing_order' => 'sequential',
         'signers' => [['name' => 'Ana', 'email' => 'ana@ex.com'], ['name' => 'Beto', 'email' => 'beto@ex.com']]])->assertSessionHasNoErrors();
     $envelope = Envelope::firstOrFail();
 
-    $this->post("/envelopes/{$envelope->id}/enviar", ['skip_email' => 1])->assertRedirect();
+    $this->post("/documentos/{$envelope->id}/enviar", ['skip_email' => 1])->assertRedirect();
     Queue::fake([\App\Jobs\SealEnvelope::class]);
     app(SigningService::class)->sign($envelope->signers()->where('position', 1)->first(), 'typed', 'Ana', true);
     $envelope->signers()->update(['invited_at' => now()->subDays(30)]);
-    $this->artisan('envelopes:remind')->expectsOutputToContain('0 lembrete');
+    $this->artisan('documents:remind')->expectsOutputToContain('0 lembrete');
 
     Mail::assertNothingSent();
     expect($envelope->fresh()->channels())->toBe(['manual']);

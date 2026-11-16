@@ -11,7 +11,7 @@ use App\Models\Envelope;
 
 /**
  * Aplica a assinatura do remetente. Ele já está autenticado (sessão ou chave de API), então não passa pelos
- * passos de verificação do envelope (código, selfie, documento, localização) nem tem link público. A prova
+ * passos de verificação do documento (código, selfie, documento, localização) nem tem link público. A prova
  * registrada diz como foi: `method` = session | api_key. O nível da assinatura é sempre "simples".
  */
 final class SenderSigner
@@ -23,7 +23,7 @@ final class SenderSigner
     public function apply(Envelope $envelope, SenderSignature $signature, ?RequestContext $context = null): void
     {
         if (! $envelope->status->isOpenForSigning()) {
-            throw FlowException::because('envelope_closed', 'Este documento não está mais disponível para assinatura.');
+            throw FlowException::because('document_closed', 'Este documento não está mais disponível para assinatura.');
         }
 
         $sender = $envelope->signers()->where('is_sender', true)->first();

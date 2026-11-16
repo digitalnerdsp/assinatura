@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Throwable;
 
-/** Entrega links e códigos aos signatários, pelos canais escolhidos no envelope (e-mail, WhatsApp, SMS). */
+/** Entrega links e códigos aos signatários, pelos canais escolhidos no documento (e-mail, WhatsApp, SMS). */
 final class SignerNotifier
 {
     public function __construct(private readonly MessageSender $messages)
@@ -23,7 +23,7 @@ final class SignerNotifier
     }
 
     /**
-     * Convida o signatário pelos canais do envelope. Retorna true se ao menos um canal entregou;
+     * Convida o signatário pelos canais do documento. Retorna true se ao menos um canal entregou;
      * nunca lança: o link continua disponível para envio manual.
      */
     public function invite(Signer $signer, string $token, bool $reminder = false): bool
@@ -47,7 +47,7 @@ final class SignerNotifier
     }
 
     /**
-     * Convida (uma única vez) quem pode assinar agora. Em envelopes sequenciais, chamado de novo a cada
+     * Convida (uma única vez) quem pode assinar agora. Em documentos sequenciais, chamado de novo a cada
      * assinatura, avisa só o próximo grupo. Retorna os e-mails de quem não pôde ser avisado.
      *
      * @return list<string>

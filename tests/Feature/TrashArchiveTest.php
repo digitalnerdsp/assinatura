@@ -136,10 +136,10 @@ it('purge nunca apaga concluído, mesmo com trashed_at antigo', function () {
 });
 
 it('agenda a limpeza diária', function () {
-    $this->artisan('envelopes:purge-trash')->expectsOutputToContain('envelope(s)')->assertExitCode(0);
+    $this->artisan('documents:purge-trash')->expectsOutputToContain('documento(s)')->assertExitCode(0);
 
     $scheduled = collect(app(Schedule::class)->events())
-        ->contains(fn ($e) => str_contains((string) $e->command, 'envelopes:purge-trash'));
+        ->contains(fn ($e) => str_contains((string) $e->command, 'documents:purge-trash'));
     expect($scheduled)->toBeTrue();
 });
 
@@ -150,7 +150,7 @@ it('purge apaga um envelope com trilha de evidências (gatilho append-only do Po
     $envelope = trashEnvelope('expired');
     $signer = Signer::create(['envelope_id' => $envelope->id, 'name' => 'Ana', 'email' => 'ana@ex.com']);
     $logger = app(\App\Evidence\EvidenceLogger::class);
-    $logger->record($envelope, 'envelope_created');
+    $logger->record($envelope, 'document_created');
     $logger->record($envelope, 'signer_viewed', [], $signer);
     $envelope->forceFill(['trashed_at' => now()->subDays(40)])->save();
 
@@ -162,7 +162,7 @@ it('purge apaga um envelope com trilha de evidências (gatilho append-only do Po
 it('a trilha de evidências continua protegida fora do purge', function () {
     Storage::fake('local');
     $envelope = trashEnvelope('draft');
-    app(\App\Evidence\EvidenceLogger::class)->record($envelope, 'envelope_created');
+    app(\App\Evidence\EvidenceLogger::class)->record($envelope, 'document_created');
 
     expect(fn () => \Illuminate\Support\Facades\DB::table('evidence_events')->where('envelope_id', $envelope->id)->delete())
         ->toThrow(\Illuminate\Database\QueryException::class, 'append-only');

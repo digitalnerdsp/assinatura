@@ -46,10 +46,10 @@ it('permite tentar selar de novo um envelope preso em Selando', function () {
     expect($envelope->fresh()->status)->toBe(EnvelopeStatus::Sealing);
     Queue::assertPushed(SealEnvelope::class, 1);
 
-    $this->actingAs($user)->post("/envelopes/{$envelope->id}/selar")->assertRedirect()->assertSessionHas('status');
+    $this->actingAs($user)->post("/documentos/{$envelope->id}/selar")->assertRedirect()->assertSessionHas('status');
     Queue::assertPushed(SealEnvelope::class, 2);
 
-    $this->get("/envelopes/{$envelope->id}")->assertOk()->assertSee('Tentar selar novamente');
+    $this->get("/documentos/{$envelope->id}")->assertOk()->assertSee('Tentar selar novamente');
 });
 
 it('o painel admin testa a conexão com o serviço de selagem', function () {

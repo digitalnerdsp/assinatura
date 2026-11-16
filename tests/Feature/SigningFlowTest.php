@@ -182,5 +182,5 @@ it('a selagem grava o PDF final, conclui o envelope e mantém a cadeia íntegra'
         ->and(hash('sha256', Storage::disk('local')->get($envelope->final_path)))->toBe($envelope->final_sha256)
         ->and(app(EvidenceLogger::class)->isIntact($envelope))->toBeTrue()
         ->and($envelope->evidenceEvents()->pluck('type')->all())
-        ->toContain('envelope_created', 'envelope_sent', 'document_signed', 'all_signed', 'envelope_sealed');
+        ->toContain('document_created', 'document_sent', 'document_signed', 'all_signed', 'document_sealed');
 });

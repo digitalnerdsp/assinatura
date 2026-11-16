@@ -107,7 +107,7 @@
                         @endif
                         @if (count($item['children']) > 0)
                             <li class="{{ $item['active'] ? 'mm-active' : '' }}">
-                                <a class="has-arrow" href="#" role="button" aria-expanded="{{ $item['active'] ? 'true' : 'false' }}">
+                                <a class="has-arrow" href="{{ $item['url'] }}" role="button" aria-expanded="{{ $item['active'] ? 'true' : 'false' }}">
                                     <span class="menu-icon"><i class="las {{ $icons[$item['icon']] ?? 'la-circle' }}" aria-hidden="true"></i></span>
                                     <span class="nav-text">{{ $item['label'] }}</span>
                                 </a>

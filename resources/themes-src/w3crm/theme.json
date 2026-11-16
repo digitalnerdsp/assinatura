@@ -1,7 +1,7 @@
 {
     "name": "W3 CRM",
     "slug": "w3crm",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "contract": 1,
     "author": "W3itexperts (adaptado)",
     "description": "Visual do W3CRM (Tailwind): menu lateral recolhível, topo escuro, cartões com gráficos ApexCharts e modo claro/escuro. Sem fontes nem requisições externas."

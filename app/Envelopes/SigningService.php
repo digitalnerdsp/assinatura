@@ -33,7 +33,7 @@ final class SigningService
     ) {
     }
 
-    /** Em envelopes sequenciais, é a vez deste signatário? (Em paralelo, sempre.) */
+    /** Em documentos sequenciais, é a vez deste signatário? (Em paralelo, sempre.) */
     public function isMyTurn(Signer $signer): bool
     {
         return $signer->envelope->activeSigners()->contains(fn (Signer $s) => $s->getKey() === $signer->getKey());
@@ -206,7 +206,7 @@ final class SigningService
     }
 
     /**
-     * Etapas de verificação exigidas pelo envelope que o signatário ainda não cumpriu,
+     * Etapas de verificação exigidas pelo documento que o signatário ainda não cumpriu,
      * na ordem em que são apresentadas.
      *
      * @return list<'otp'|'selfie'|'document'|'geolocation'>
@@ -321,7 +321,7 @@ final class SigningService
         $this->lifecycle->expire($envelope);
 
         if (! $envelope->status->isOpenForSigning()) {
-            throw FlowException::because('envelope_closed', 'Este documento não está mais disponível para assinatura.');
+            throw FlowException::because('document_closed', 'Este documento não está mais disponível para assinatura.');
         }
 
         if (in_array($signer->status, [SignerStatus::Signed, SignerStatus::Refused], true)) {

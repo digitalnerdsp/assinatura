@@ -50,7 +50,7 @@ function acceptedRepresentative(array $extra = []): array
 it('chave sem permissão recusa com 422 e não cria envelope', function () {
     [, $h] = companyApi(acceptedRepresentative(), canSign: false);
 
-    $this->postJson('/api/v1/envelopes', companyPayload(), $h)
+    $this->postJson('/api/v1/documents', companyPayload(), $h)
         ->assertStatus(422)->assertJsonPath('error', 'sender_signature_not_allowed');
 
     expect(Envelope::count())->toBe(0);
@@ -59,7 +59,7 @@ it('chave sem permissão recusa com 422 e não cria envelope', function () {
 it('sem representante ou sem aceite do termo recusa e não cria envelope', function (?array $setting) {
     [, $h] = companyApi($setting, canSign: true);
 
-    $this->postJson('/api/v1/envelopes', companyPayload(), $h)
+    $this->postJson('/api/v1/documents', companyPayload(), $h)
         ->assertStatus(422)->assertJsonPath('error', 'no_company_representative');
 
     expect(Envelope::count())->toBe(0);
@@ -72,11 +72,11 @@ it('sem representante ou sem aceite do termo recusa e não cria envelope', funct
 it('com tudo configurado cria, e o envio assina pela chave', function () {
     [$tenant, $h, $key] = companyApi(acceptedRepresentative(), canSign: true);
 
-    $id = $this->postJson('/api/v1/envelopes', companyPayload(), $h)->assertCreated()
+    $id = $this->postJson('/api/v1/documents', companyPayload(), $h)->assertCreated()
         ->assertJsonPath('signers.0.is_sender', true)->assertJsonPath('signers.0.name', 'Maria Representante')
         ->assertJsonPath('signers.0.status', 'pending')->json('id');
 
-    $this->postJson("/api/v1/envelopes/{$id}/send", [], $h)->assertOk();
+    $this->postJson("/api/v1/documents/{$id}/send", [], $h)->assertOk();
 
     $sender = Envelope::findOrFail($id)->signers()->where('is_sender', true)->firstOrFail();
     expect($sender->status->value)->toBe('signed')->and($sender->signed_via)->toBe('api_key')
@@ -91,7 +91,7 @@ it('com tudo configurado cria, e o envio assina pela chave', function () {
 it('send:true na criação já assina como empresa', function () {
     [, $h] = companyApi(acceptedRepresentative(), canSign: true);
 
-    $id = $this->postJson('/api/v1/envelopes', companyPayload(['send' => true]), $h)->assertCreated()
+    $id = $this->postJson('/api/v1/documents', companyPayload(['send' => true]), $h)->assertCreated()
         ->assertJsonPath('signers.0.status', 'signed')->assertJsonPath('signers.0.signed_via', 'api_key')->json('id');
 
     expect(Envelope::findOrFail($id)->status->value)->toBe('in_progress');
@@ -99,12 +99,12 @@ it('send:true na criação já assina como empresa', function () {
 
 it('sender_signs=false só vale com a política optional', function () {
     [, $h] = companyApi(acceptedRepresentative(), canSign: true);
-    $this->postJson('/api/v1/envelopes', companyPayload(['sender_signs' => false]), $h)
+    $this->postJson('/api/v1/documents', companyPayload(['sender_signs' => false]), $h)
         ->assertStatus(422)->assertJsonPath('error', 'sender_signature_required');
     expect(Envelope::count())->toBe(0);
 
     [, $h2] = companyApi(acceptedRepresentative(['sender_policy' => 'optional']), canSign: true);
-    $this->postJson('/api/v1/envelopes', companyPayload(['sender_signs' => false]), $h2)->assertCreated()
+    $this->postJson('/api/v1/documents', companyPayload(['sender_signs' => false]), $h2)->assertCreated()
         ->assertJsonPath('signers.0.is_sender', false);
     expect(Envelope::first()->signers()->where('is_sender', true)->count())->toBe(0);
 });
@@ -112,7 +112,7 @@ it('sender_signs=false só vale com a política optional', function () {
 it('com política never, sender_signs=true é recusado', function () {
     [, $h] = companyApi(['sender_policy' => 'never'], canSign: true);
 
-    $this->postJson('/api/v1/envelopes', companyPayload(['sender_signs' => true]), $h)
+    $this->postJson('/api/v1/documents', companyPayload(['sender_signs' => true]), $h)
         ->assertStatus(422)->assertJsonPath('error', 'sender_signature_disabled');
 });
 
@@ -120,9 +120,9 @@ it('o envio reconfere a permissão da chave usada', function () {
     [$tenant, $allowed] = companyApi(acceptedRepresentative(), canSign: true);
     [, $denied] = companyApi(null, canSign: false, tenant: $tenant);
 
-    $id = $this->postJson('/api/v1/envelopes', companyPayload(), $allowed)->assertCreated()->json('id');
+    $id = $this->postJson('/api/v1/documents', companyPayload(), $allowed)->assertCreated()->json('id');
 
-    $this->postJson("/api/v1/envelopes/{$id}/send", [], $denied)
+    $this->postJson("/api/v1/documents/{$id}/send", [], $denied)
         ->assertStatus(422)->assertJsonPath('error', 'sender_signature_not_allowed');
 
     expect(Envelope::findOrFail($id)->status->value)->toBe('draft');
@@ -132,7 +132,7 @@ it('a chave de outra empresa nunca usa o representante desta', function () {
     companyApi(acceptedRepresentative(), canSign: true); // empresa A, com representante
     [, $hB] = companyApi(null, canSign: true, tenant: Tenant::create(['name' => 'Outra']));
 
-    $this->postJson('/api/v1/envelopes', companyPayload(), $hB)
+    $this->postJson('/api/v1/documents', companyPayload(), $hB)
         ->assertStatus(422)->assertJsonPath('error', 'no_company_representative');
 
     expect(Envelope::count())->toBe(0);

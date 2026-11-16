@@ -35,7 +35,7 @@ function registerUser(string $email = 'dono@acme.com', string $company = 'ACME')
 
 function createEnvelopeViaWeb(string $level = 'simple'): Envelope
 {
-    test()->post('/envelopes', [
+    test()->post('/documentos', [
         'title' => 'Contrato de serviço', 'document' => pdfFile(), 'signing_order' => 'parallel',
         'require_otp' => $level === 'advanced' ? 1 : 0,
         'signers' => [['name' => 'Ana', 'email' => 'ana@ex.com'], ['name' => 'Beto', 'email' => 'beto@ex.com']],
@@ -50,9 +50,9 @@ it('cadastra empresa, cria e envia um envelope pelo painel', function () {
     registerUser();
 
     $envelope = createEnvelopeViaWeb();
-    $this->get("/envelopes/{$envelope->id}")->assertOk()->assertSee('Contrato de serviço')->assertSee('cadeia íntegra');
+    $this->get("/documentos/{$envelope->id}")->assertOk()->assertSee('Contrato de serviço')->assertSee('cadeia íntegra');
 
-    $this->post("/envelopes/{$envelope->id}/enviar")->assertRedirect();
+    $this->post("/documentos/{$envelope->id}/enviar")->assertRedirect();
 
     Mail::assertSent(SignatureRequestedMail::class, 2);
     expect($envelope->fresh()->status->value)->toBe('sent');
@@ -66,9 +66,9 @@ it('um tenant não enxerga envelopes de outro', function () {
     $this->post('/sair');
 
     registerUser('b@b.com', 'B');
-    $this->get("/envelopes/{$envelope->id}")->assertNotFound();
-    $this->get("/envelopes/{$envelope->id}/original")->assertNotFound();
-    $this->post("/envelopes/{$envelope->id}/enviar")->assertNotFound();
+    $this->get("/documentos/{$envelope->id}")->assertNotFound();
+    $this->get("/documentos/{$envelope->id}/original")->assertNotFound();
+    $this->post("/documentos/{$envelope->id}/enviar")->assertNotFound();
 });
 
 it('rotas do painel exigem login', function () {
@@ -81,7 +81,7 @@ it('signatário assina pelo link com verificação por código (nível avançado
     Queue::fake();
     registerUser();
     $envelope = createEnvelopeViaWeb('advanced');
-    $this->post("/envelopes/{$envelope->id}/enviar");
+    $this->post("/documentos/{$envelope->id}/enviar");
     $this->post('/sair');
 
     $urls = [];
@@ -122,7 +122,7 @@ it('exige aceite dos termos e permite recusar', function () {
     Mail::fake();
     registerUser();
     $envelope = createEnvelopeViaWeb();
-    $this->post("/envelopes/{$envelope->id}/enviar");
+    $this->post("/documentos/{$envelope->id}/enviar");
     $this->post('/sair');
 
     $url = null;

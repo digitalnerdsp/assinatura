@@ -42,7 +42,7 @@ Fontes: [docs.zapsign.com.br](https://docs.zapsign.com.br/), [preços ZapSign](h
 
 ## 4. Personas
 
-1. **Remetente/Administrador** (empresa): cria envelopes, modelos, acompanha status.
+1. **Remetente/Administrador** (empresa): cria documentos, modelos, acompanha status.
 2. **Signatário**: recebe link, autentica-se e assina (mobile-first).
 3. **Verificador/terceiro**: confere autenticidade via código/QR sem login.
 4. **Integrador/dev**: usa API e webhooks.
@@ -152,7 +152,7 @@ Boas práticas: UUID v7 como PK, `timestamptz`, `inet` para IP, `jsonb` p/ paylo
 
 ## 10. API REST (v1) — endpoints principais
 
-`POST /v1/envelopes` · `GET /v1/envelopes/{id}` · `POST /v1/envelopes/{id}/send` · `POST /v1/envelopes/{id}/cancel` · `GET /v1/envelopes/{id}/download` · `GET /v1/envelopes/{id}/evidence` · `POST /v1/templates/{id}/envelopes` · `GET /v1/verify/{codigo}` · webhooks (`envelope.sent`, `signer.viewed`, `signer.signed`, `signer.refused`, `envelope.completed`, `envelope.expired`) com assinatura HMAC, retentativas e idempotência. Autenticação por Bearer token; sandbox separado.
+`POST /v1/documents` · `GET /v1/documents/{id}` · `POST /v1/documents/{id}/send` · `POST /v1/documents/{id}/cancel` · `GET /v1/documents/{id}/download` · `GET /v1/documents/{id}/evidence` · `POST /v1/templates/{id}/documents` · `GET /v1/verify/{codigo}` · webhooks (`document.sent`, `signer.viewed`, `signer.signed`, `signer.refused`, `document.completed`, `document.expired`) com assinatura HMAC, retentativas e idempotência. Autenticação por Bearer token; sandbox separado.
 
 ## 10.1 Certificados e selagem (modelo híbrido)
 
@@ -218,7 +218,7 @@ A escolha é feita por tenant (`tenant_signing_settings`): provedor, referência
 **Fase 3 entregue em 18/11/2026** (validada em 375 e 768 px, temas claro e escuro, contraste ≥ 4,5:1; ainda **sem cobrança automática**, que é a Fase 4):
 - **Usuários da plataforma:** além dos e-mails fixos de `SUPER_ADMIN_EMAILS` (os "raiz", que a tela não altera), o super admin concede o papel de **administrador** (opera Clientes, Assinaturas, Saúde e Selagem) ou **super administrador** (também gerencia esta equipe, Planos, E-mail e Configurações), promovendo uma conta existente ou convidando por e-mail. Ninguém altera um raiz nem a si mesmo; o papel só vale com o convite aceito e a conta ativa.
 - **Planos e assinaturas:** limites (documentos por período, usuários, armazenamento em MB, tamanho do PDF), teste grátis por plano, regras de consumo (desconta ao enviar ou concluir; cota que renova, créditos ou os dois; ao acabar: bloquear, cobrar excedente ou liberar até um teto; devolver cancelado/expirado sem assinatura), recursos ligados/desligados e preços por período em centavos. Cada empresa tem uma assinatura que aceita **sobrescritas** de limites, recursos, regras e preço. As empresas que já existiam foram para o plano **Legado** (ilimitado, sem cobrança).
-- **Limites aplicados (`Entitlements`):** barram só criar/enviar documento novo, convidar usuário e gravar PDF acima do tamanho ou do armazenamento; assinar, baixar, verificar e webhooks nunca são barrados. Cobrança do documento com trava de linha e extrato de uso (data, envelope, saldo depois). API responde **403** `plan_limit_reached` (com `reason`) ou `feature_off`; `GET /me` informa plano e consumo.
+- **Limites aplicados (`Entitlements`):** barram só criar/enviar documento novo, convidar usuário e gravar PDF acima do tamanho ou do armazenamento; assinar, baixar, verificar e webhooks nunca são barrados. Cobrança do documento com trava de linha e extrato de uso (data, documento, saldo depois). API responde **403** `plan_limit_reached` (com `reason`) ou `feature_off`; `GET /me` informa plano e consumo.
 - **Armazenamento:** contador por empresa (original, selado e anexos), conciliado toda noite por `storage:reconcile`. Faixa no painel e e-mail ao chegar a 80% e a 100% (uma vez por período).
 - **Marca própria (logo, cores e nome):** logo reprocessado em PNG (SVG recusado, até 2 MB), cores com contraste de 4,5:1 garantido (ajustadas com aviso), no painel, na página de assinatura, nos e-mails de convite/lembrete/código e no cabeçalho do relatório do PDF. Só com o recurso `white_label` no plano.
 - **Telas:** Planos (super admin), Assinaturas (admin e super admin, com lançamento manual de créditos e extrato) e **Plano e uso** (responsável da empresa).
@@ -272,8 +272,8 @@ Referência interativa em `/api/docs` e especificação em `/api/v1/openapi.json
 - **Envelopes:** listar com filtros e paginação, criar (multipart ou JSON com PDF em base64), consultar, enviar, cancelar, selar de novo, evidências, baixar selado e original. `{id}` aceita também o `external_id` do cliente; `metadata` livre volta nas respostas e nos webhooks.
 - **Pastas e etiquetas:** `POST /folders` aceita `parent_id` (até 4 níveis); `PATCH /folders/{id}` renomeia e move; `DELETE /folders/{id}` responde `{trashed,kept,folders}` (rascunho/cancelado/expirado vão para a lixeira, o resto sobe para a pasta pai); `PATCH /tags/{id}`; o filtro `folder_id` da lista inclui subpastas.
 - **Signatários:** reenviar aviso e gerar novo link. `role` aceita `signer` ou `witness` (testemunha); a resposta traz `is_sender` e `signed_via`.
-- **Assinatura da empresa:** `sender_signs` no `POST /envelopes`; com a política `always` (padrão) exige chave com a permissão `can_sign_as_company`, representante cadastrado e termo de delegação aceito, senão **422** (`sender_signature_not_allowed` ou `no_company_representative`) e nada é criado. A assinatura é aplicada no envio (`send: true` ou `POST /envelopes/{id}/send`); `signature_fields[].signer` aceita `"sender"`.
-- **Modelos:** CRUD e geração de envelope com variáveis (o envelope guarda o modelo de origem).
+- **Assinatura da empresa:** `sender_signs` no `POST /documents`; com a política `always` (padrão) exige chave com a permissão `can_sign_as_company`, representante cadastrado e termo de delegação aceito, senão **422** (`sender_signature_not_allowed` ou `no_company_representative`) e nada é criado. A assinatura é aplicada no envio (`send: true` ou `POST /documents/{id}/send`); `signature_fields[].signer` aceita `"sender"`.
+- **Modelos:** CRUD e geração de documento com variáveis (o documento guarda o modelo de origem).
 - **Plano e consumo:** `GET /me` traz `plan` (nome, situação, fim do teste e do período) e `usage` (documentos, usuários e armazenamento com limite; `limit` nulo = ilimitado). Chamadas acima do limite recebem **403** `{error: "plan_limit_reached", reason: "documents_limit"|"users_limit"|"storage_limit"|"pdf_too_large"|"blocked"}`; recurso fora do plano recebe **403** `feature_off`.
 - **Contatos:** `GET /contacts` (busca `q`, paginação `per_page`), `POST`, `GET/PATCH/DELETE /contacts/{id}`; e-mail único por empresa, sem diferenciar maiúsculas.
 - **Webhooks:** CRUD, ativar/desativar, teste (`ping`) e histórico de entregas.

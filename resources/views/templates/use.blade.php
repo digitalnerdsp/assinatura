@@ -10,7 +10,7 @@
                 <div class="card-header"><h6 class="mb-0"><i class="bx bx-file me-1"></i> Dados do documento</h6></div>
                 <div class="card-body">
                     <div class="mb-3">
-                        <label for="title" class="form-label">Título do envelope</label>
+                        <label for="title" class="form-label">Título do documento</label>
                         <input id="title" type="text" class="form-control" name="title" value="{{ old('title', $template->name) }}" required>
                     </div>
                     @foreach ($template->variables() as $v)
@@ -48,7 +48,7 @@
         </div>
         <div class="col-12 col-xl-5">
             @include('envelopes._options')
-            <button class="btn btn-primary w-100 btn-lg"><i class="bx bx-check"></i> Gerar envelope</button>
+            <button class="btn btn-primary w-100 btn-lg"><i class="bx bx-check"></i> Gerar documento</button>
         </div>
     </div>
 </form>

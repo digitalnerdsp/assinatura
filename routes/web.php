@@ -7,6 +7,9 @@ use App\Http\Controllers\Web\AuthController;
 use App\Http\Controllers\Web\EnvelopeController;
 use Illuminate\Support\Facades\Route;
 
+// O documento é identificado por UUID: assim /documentos/novo, /documentos/pastas e /documentos/lixeira não colidem com /documentos/{id}.
+Route::pattern('envelope', '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}');
+
 Route::get('/', fn () => auth()->check() ? redirect()->route('dashboard') : redirect()->route('login'));
 
 Route::middleware('guest')->group(function () {
@@ -73,31 +76,31 @@ Route::middleware(['auth', 'tenant.active', 'platform'])->prefix('admin')->name(
 
 Route::middleware(['auth', 'tenant.active'])->group(function () {
     Route::get('/painel', [\App\Http\Controllers\Web\DashboardController::class, 'index'])->name('dashboard');
-    Route::get('/envelopes', [EnvelopeController::class, 'index'])->name('envelopes.index');
+    Route::get('/documentos', [EnvelopeController::class, 'index'])->name('envelopes.index');
 
-    Route::get('/envelopes/novo', [EnvelopeController::class, 'create'])->name('envelopes.create');
-    Route::post('/envelopes', [EnvelopeController::class, 'store'])->name('envelopes.store');
-    Route::get('/envelopes/{envelope}', [EnvelopeController::class, 'show'])->name('envelopes.show');
-    Route::post('/envelopes/{envelope}/enviar', [EnvelopeController::class, 'send'])->name('envelopes.send');
-    Route::post('/envelopes/{envelope}/signatarios/{signer}/reenviar', [EnvelopeController::class, 'resend'])->name('envelopes.resend');
-    Route::post('/envelopes/{envelope}/signatarios/{signer}/novo-link', [EnvelopeController::class, 'regenerate'])->name('envelopes.regenerate');
-    Route::post('/envelopes/{envelope}/selar', [EnvelopeController::class, 'reseal'])->middleware('throttle:10,1,reseal')->name('envelopes.reseal');
-    Route::post('/envelopes/{envelope}/cancelar', [EnvelopeController::class, 'cancel'])->name('envelopes.cancel');
-    Route::get('/envelopes/{envelope}/original', [EnvelopeController::class, 'original'])->name('envelopes.original');
-    Route::get('/envelopes/{envelope}/anexos/{attachment}', [EnvelopeController::class, 'attachment'])->name('envelopes.attachment');
-    Route::get('/envelopes/{envelope}/selado', [EnvelopeController::class, 'final'])->name('envelopes.final');
+    Route::get('/documentos/novo', [EnvelopeController::class, 'create'])->name('envelopes.create');
+    Route::post('/documentos', [EnvelopeController::class, 'store'])->name('envelopes.store');
+    Route::get('/documentos/{envelope}', [EnvelopeController::class, 'show'])->name('envelopes.show');
+    Route::post('/documentos/{envelope}/enviar', [EnvelopeController::class, 'send'])->name('envelopes.send');
+    Route::post('/documentos/{envelope}/signatarios/{signer}/reenviar', [EnvelopeController::class, 'resend'])->name('envelopes.resend');
+    Route::post('/documentos/{envelope}/signatarios/{signer}/novo-link', [EnvelopeController::class, 'regenerate'])->name('envelopes.regenerate');
+    Route::post('/documentos/{envelope}/selar', [EnvelopeController::class, 'reseal'])->middleware('throttle:10,1,reseal')->name('envelopes.reseal');
+    Route::post('/documentos/{envelope}/cancelar', [EnvelopeController::class, 'cancel'])->name('envelopes.cancel');
+    Route::get('/documentos/{envelope}/original', [EnvelopeController::class, 'original'])->name('envelopes.original');
+    Route::get('/documentos/{envelope}/anexos/{attachment}', [EnvelopeController::class, 'attachment'])->name('envelopes.attachment');
+    Route::get('/documentos/{envelope}/selado', [EnvelopeController::class, 'final'])->name('envelopes.final');
 
-    Route::post('/envelopes/{envelope}/lixeira', [EnvelopeController::class, 'trash'])->name('envelopes.trash');
-    Route::post('/envelopes/{envelope}/restaurar', [EnvelopeController::class, 'restore'])->name('envelopes.restore');
-    Route::post('/envelopes/{envelope}/arquivar', [EnvelopeController::class, 'archive'])->name('envelopes.archive');
-    Route::post('/envelopes/{envelope}/desarquivar', [EnvelopeController::class, 'unarchive'])->name('envelopes.unarchive');
+    Route::post('/documentos/{envelope}/lixeira', [EnvelopeController::class, 'trash'])->name('envelopes.trash');
+    Route::post('/documentos/{envelope}/restaurar', [EnvelopeController::class, 'restore'])->name('envelopes.restore');
+    Route::post('/documentos/{envelope}/arquivar', [EnvelopeController::class, 'archive'])->name('envelopes.archive');
+    Route::post('/documentos/{envelope}/desarquivar', [EnvelopeController::class, 'unarchive'])->name('envelopes.unarchive');
     Route::get('/documentos/minhas-assinaturas', [\App\Http\Controllers\Web\MySignaturesController::class, 'index'])->name('documents.mine');
     Route::get('/documentos/pastas', [EnvelopeController::class, 'foldersIndex'])->name('documents.folders');
     Route::get('/documentos/lixeira', [EnvelopeController::class, 'trashIndex'])->name('documents.trash');
 
-    Route::post('/envelopes/{envelope}/mover', [EnvelopeController::class, 'moveToFolder'])->name('envelopes.move');
-    Route::post('/envelopes/{envelope}/etiquetas', [EnvelopeController::class, 'retag'])->name('envelopes.retag');
-    Route::post('/envelopes/{envelope}/organizar', [EnvelopeController::class, 'organize'])->name('envelopes.organize');
+    Route::post('/documentos/{envelope}/mover', [EnvelopeController::class, 'moveToFolder'])->name('envelopes.move');
+    Route::post('/documentos/{envelope}/etiquetas', [EnvelopeController::class, 'retag'])->name('envelopes.retag');
+    Route::post('/documentos/{envelope}/organizar', [EnvelopeController::class, 'organize'])->name('envelopes.organize');
 
     // A tela de pastas e etiquetas vive em Documentos > Pastas e etiquetas; o endereço antigo continua valendo.
     Route::redirect('/organizacao', '/documentos/pastas', 301)->name('organization.index');

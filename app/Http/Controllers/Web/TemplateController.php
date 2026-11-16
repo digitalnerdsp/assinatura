@@ -19,7 +19,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Throwable;
 
-/** Modelos de documento com {{variáveis}}: o cliente escreve uma vez e gera vários envelopes. */
+/** Modelos de documento com {{variáveis}}: o cliente escreve uma vez e gera vários documentos. */
 final class TemplateController extends Controller
 {
     public function __construct(
@@ -157,7 +157,7 @@ final class TemplateController extends Controller
             return back()->withInput()->withErrors(['title' => 'Não foi possível gerar o PDF deste modelo.']);
         }
 
-        return redirect()->route('envelopes.show', $envelope)->with('status', 'Envelope gerado a partir do modelo. Revise e envie para assinatura.');
+        return redirect()->route('envelopes.show', $envelope)->with('status', 'Documento gerado a partir do modelo. Revise e envie para assinatura.');
     }
 
     /** @return array{name:string,body:string} */

@@ -59,7 +59,7 @@
                     @endif
                     @if (! empty($item['children']))
                         <li class="pc-item pc-hasmenu{{ $item['active'] ? ' active pc-trigger' : '' }}">
-                            <a href="#" class="pc-link" role="button" data-ab-submenu aria-expanded="{{ $item['active'] ? 'true' : 'false' }}">
+                            <a href="{{ $item['url'] }}" class="pc-link" role="button" data-ab-submenu aria-expanded="{{ $item['active'] ? 'true' : 'false' }}">
                                 <span class="pc-micon"><i class="ti ti-{{ ['home' => 'home', 'folder' => 'folder', 'templates' => 'template', 'contacts' => 'notebook', 'calendar' => 'calendar', 'reports' => 'chart-bar', 'settings' => 'settings', 'verify' => 'shield-check', 'help' => 'help', 'platform' => 'dashboard', 'tenants' => 'building', 'subscriptions' => 'receipt', 'health' => 'activity', 'sealing' => 'certificate', 'plans' => 'package', 'platform-users' => 'users', 'themes' => 'palette', 'mail' => 'mail', 'platform-settings' => 'adjustments'][$item['icon']] ?? 'point' }}" aria-hidden="true"></i></span>
                                 <span class="pc-mtext">{{ $item['label'] }}</span>
                                 <span class="pc-arrow" aria-hidden="true"><i class="ti ti-chevron-right"></i></span>

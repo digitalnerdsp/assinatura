@@ -36,7 +36,7 @@ it('só o responsável cria chaves de API e webhooks (um membro desativado não 
 
     $this->get('/api-keys')->assertForbidden();
     $this->post('/api-keys', ['name' => 'minha', 'can_sign_as_company' => 1])->assertForbidden();
-    $this->post('/webhooks', ['url' => 'https://exemplo.com/hook', 'events' => ['envelope.completed']])->assertForbidden();
+    $this->post('/webhooks', ['url' => 'https://exemplo.com/hook', 'events' => ['document.completed']])->assertForbidden();
     $this->get('/painel')->assertOk()->assertDontSee(route('api-keys.index'))->assertDontSee(route('webhooks.index'));
     expect(\App\Models\ApiKey::count())->toBe(0);
 });

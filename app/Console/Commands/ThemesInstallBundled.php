@@ -38,6 +38,8 @@ final class ThemesInstallBundled extends Command
             }
         }
 
+        $this->upgradeBundled($manager);
+
         $default = (string) config('themes.default');
         if (Setting::get('active_theme') === null && $default !== '') {
             $theme = Theme::query()->where('slug', $default)->orderByDesc('version')->first();
@@ -52,5 +54,38 @@ final class ThemesInstallBundled extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    /** Tema do sistema com versão nova: se a antiga estava ativa, ativa a nova; depois apaga as antigas (só as do sistema). */
+    private function upgradeBundled(ThemeManager $manager): void
+    {
+        foreach (glob(resource_path('themes-src/*'), GLOB_ONLYDIR) ?: [] as $dir) {
+            $manifest = json_decode((string) @file_get_contents($dir.'/theme.json'), true);
+            if (! is_array($manifest) || ! is_string($manifest['slug'] ?? null) || ! is_string($manifest['version'] ?? null)) {
+                continue;
+            }
+            $current = Theme::query()->where('slug', $manifest['slug'])->where('version', $manifest['version'])->where('bundled', true)->first();
+            if ($current === null || $current->status !== 'installed') {
+                continue;
+            }
+            $olds = Theme::query()->where('slug', $manifest['slug'])->where('bundled', true)->where('version', '!=', $manifest['version'])->get();
+            if ($olds->contains(fn (Theme $t) => $t->isActive())) {
+                try {
+                    $manager->activate($current);
+                    $this->info("Tema atualizado: {$current->name} {$current->version}");
+                } catch (\Throwable $e) {
+                    $this->warn('Tema novo não ativado, a versão antiga continua: '.$e->getMessage());
+
+                    continue;
+                }
+            }
+            foreach ($olds as $old) {
+                if ($old->isActive()) {
+                    continue;
+                }
+                File::deleteDirectory($old->directory());
+                $old->delete();
+            }
+        }
     }
 }

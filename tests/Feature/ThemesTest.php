@@ -242,3 +242,25 @@ it('os temas do sistema continuam passando no validador', function (string $slug
     \Illuminate\Support\Facades\Artisan::call('themes:pack', ['slug' => $slug, '--out' => sys_get_temp_dir().'/bundled-'.$slug.'.zip']);
     expect((new ThemeValidator())->validate(sys_get_temp_dir().'/bundled-'.$slug.'.zip'))->toBe([]);
 })->with(['able', 'w3crm']);
+
+it('o item Documentos do menu aponta para Documentos criados', function () {
+    $u = thUser('menu-doc@example.com');
+    $this->actingAs($u)->get('/painel');
+    $docs = collect((new \App\Themes\MenuBuilder())->for($u))->firstWhere('label', 'Documentos');
+    expect($docs['url'])->toBe(route('envelopes.index'))->and(route('envelopes.index', [], false))->toBe('/documentos');
+});
+
+it('atualizar o tema do sistema troca o ativo para a versão nova e tira a antiga', function () {
+    $dir = $this->dir.'/able/0.9.0';
+    File::ensureDirectoryExists($dir);
+    $old = Theme::create(['slug' => 'able', 'name' => 'Able Pro', 'version' => '0.9.0', 'contract' => 1, 'status' => 'installed', 'bundled' => true]);
+    Setting::put('active_theme', $old->id);
+
+    $this->artisan('themes:install-bundled')->assertExitCode(0);
+
+    $new = Theme::query()->where('slug', 'able')->where('bundled', true)->first();
+    expect(Theme::query()->where('slug', 'able')->count())->toBe(1)
+        ->and($new->version)->not->toBe('0.9.0')
+        ->and(Setting::get('active_theme'))->toBe($new->id)
+        ->and(File::exists($dir))->toBeFalse();
+});

@@ -34,7 +34,7 @@
                                 <option value="{{ $k }}" @selected($tenant->plan === $k)>{{ $label }}</option>
                             @endforeach
                         </select></div>
-                    <div class="mb-3"><label for="limit" class="form-label">Limite mensal de envelopes</label>
+                    <div class="mb-3"><label for="limit" class="form-label">Limite mensal de documentos</label>
                         <input id="limit" type="number" min="0" class="form-control" name="monthly_envelope_limit" value="{{ $tenant->monthly_envelope_limit }}" placeholder="vazio = ilimitado"></div>
                     <div class="mb-3"><label for="notes" class="form-label">Anotações internas</label>
                         <textarea id="notes" class="form-control" name="admin_notes" rows="3">{{ $tenant->admin_notes }}</textarea></div>
@@ -61,7 +61,7 @@
 </div>
 
 <div class="card radius-10">
-    <div class="card-header"><h6 class="mb-0">Últimos envelopes</h6><small class="text-secondary">Somente metadados; o conteúdo dos documentos não é exibido aqui.</small></div>
+    <div class="card-header"><h6 class="mb-0">Últimos documentos</h6><small class="text-secondary">Somente metadados; o conteúdo dos documentos não é exibido aqui.</small></div>
     <div class="table-responsive">
         <table class="table align-middle mb-0">
             <thead class="table-light"><tr><th>Título</th><th>Status</th><th>Criado em</th></tr></thead>
@@ -69,7 +69,7 @@
             @forelse ($recent as $e)
                 <tr><td>{{ $e->title }}</td><td>@include('partials.status-badge', ['status' => $e->status->value])</td><td>{{ $e->created_at->timezone('America/Sao_Paulo')->format('d/m/Y H:i') }}</td></tr>
             @empty
-                <tr><td colspan="3" class="text-secondary p-4">Nenhum envelope.</td></tr>
+                <tr><td colspan="3" class="text-secondary p-4">Nenhum documento.</td></tr>
             @endforelse
             </tbody>
         </table>

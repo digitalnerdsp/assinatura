@@ -16,7 +16,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Storage;
 
-/** Sela o PDF quando todos assinaram (PAdES + carimbo do tempo) e conclui o envelope. */
+/** Sela o PDF quando todos assinaram (PAdES + carimbo do tempo) e conclui o documento. */
 final class SealEnvelope implements ShouldQueue
 {
     use Queueable;
@@ -79,7 +79,7 @@ final class SealEnvelope implements ShouldQueue
             report($e);
         }
 
-        $evidence->record($envelope, 'envelope_sealed', [
+        $evidence->record($envelope, 'document_sealed', [
             'provider' => $sealed->provider,
             'certificate_serial' => $sealed->certificate->serial,
             'icp_brasil' => $sealed->certificate->icpBrasil,
@@ -88,6 +88,6 @@ final class SealEnvelope implements ShouldQueue
             'final_sha256' => $sealed->sha256,
         ]);
 
-        $webhooks->dispatch($envelope->fresh(), 'envelope.completed');
+        $webhooks->dispatch($envelope->fresh(), 'document.completed');
     }
 }

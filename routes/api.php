@@ -19,18 +19,18 @@ Route::prefix('v1')->group(function () {
 Route::prefix('v1')->middleware(['api.key', 'throttle:120,1'])->group(function () {
     Route::get('me', MeController::class);
 
-    // Envelopes. {id} aceita o id da plataforma ou o seu external_id.
-    Route::get('envelopes', [EnvelopeController::class, 'index']);
-    Route::post('envelopes', [EnvelopeController::class, 'store'])->middleware('idempotent');
-    Route::get('envelopes/{id}', [EnvelopeController::class, 'show']);
-    Route::post('envelopes/{id}/send', [EnvelopeController::class, 'send']);
-    Route::post('envelopes/{id}/cancel', [EnvelopeController::class, 'cancel']);
-    Route::post('envelopes/{id}/reseal', [EnvelopeController::class, 'reseal']);
-    Route::get('envelopes/{id}/evidence', [EnvelopeController::class, 'evidence']);
-    Route::get('envelopes/{id}/download', [EnvelopeController::class, 'download']);
-    Route::get('envelopes/{id}/original', [EnvelopeController::class, 'original']);
-    Route::post('envelopes/{id}/signers/{signer}/resend', [EnvelopeController::class, 'resend']);
-    Route::post('envelopes/{id}/signers/{signer}/new-link', [EnvelopeController::class, 'newLink']);
+    // Documentos. {id} aceita o id da plataforma ou o seu external_id.
+    Route::get('documents', [EnvelopeController::class, 'index']);
+    Route::post('documents', [EnvelopeController::class, 'store'])->middleware('idempotent');
+    Route::get('documents/{id}', [EnvelopeController::class, 'show']);
+    Route::post('documents/{id}/send', [EnvelopeController::class, 'send']);
+    Route::post('documents/{id}/cancel', [EnvelopeController::class, 'cancel']);
+    Route::post('documents/{id}/reseal', [EnvelopeController::class, 'reseal']);
+    Route::get('documents/{id}/evidence', [EnvelopeController::class, 'evidence']);
+    Route::get('documents/{id}/download', [EnvelopeController::class, 'download']);
+    Route::get('documents/{id}/original', [EnvelopeController::class, 'original']);
+    Route::post('documents/{id}/signers/{signer}/resend', [EnvelopeController::class, 'resend']);
+    Route::post('documents/{id}/signers/{signer}/new-link', [EnvelopeController::class, 'newLink']);
 
     // Modelos
     Route::get('templates', [TemplateController::class, 'index'])->middleware('feature:templates');
@@ -38,7 +38,7 @@ Route::prefix('v1')->middleware(['api.key', 'throttle:120,1'])->group(function (
     Route::get('templates/{id}', [TemplateController::class, 'show'])->middleware('feature:templates');
     Route::put('templates/{id}', [TemplateController::class, 'update'])->middleware('feature:templates');
     Route::delete('templates/{id}', [TemplateController::class, 'destroy'])->middleware('feature:templates');
-    Route::post('templates/{id}/envelopes', [TemplateController::class, 'generate'])->middleware('feature:templates')->middleware('idempotent');
+    Route::post('templates/{id}/documents', [TemplateController::class, 'generate'])->middleware('feature:templates')->middleware('idempotent');
 
     // Webhooks
     Route::get('webhooks', [WebhookController::class, 'index'])->middleware('feature:webhooks');

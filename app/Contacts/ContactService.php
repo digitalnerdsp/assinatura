@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Contatos da empresa: e-mail único por empresa (sem diferenciar maiúsculas), telefone em E.164 e CPF/CNPJ só
- * com dígitos. Signatários e testemunhas usados num envelope entram sozinhos, sem sobrescrever o que já foi editado.
+ * com dígitos. Signatários e testemunhas usados num documento entram sozinhos, sem sobrescrever o que já foi editado.
  */
 final class ContactService
 {
@@ -61,7 +61,7 @@ final class ContactService
 
     public function delete(Contact $contact): void
     {
-        $contact->delete(); // LGPD: o envelope já criado guarda os dados necessários ao documento
+        $contact->delete(); // LGPD: o documento já criado guarda os dados necessários ao documento
     }
 
     /**

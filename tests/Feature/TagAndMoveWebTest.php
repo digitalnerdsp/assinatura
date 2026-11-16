@@ -69,13 +69,13 @@ it('mover documento para pasta, para a raiz e entre pastas', function () {
     $b = app(FolderService::class)->create($user->tenant, 'B');
     $doc = tagDoc($user->tenant_id);
 
-    $this->post("/envelopes/{$doc->id}/mover", ['folder_id' => $a->id])->assertSessionHasNoErrors()->assertSessionHas('status', 'Documento movido.');
+    $this->post("/documentos/{$doc->id}/mover", ['folder_id' => $a->id])->assertSessionHasNoErrors()->assertSessionHas('status', 'Documento movido.');
     expect($doc->fresh()->folder_id)->toBe($a->id);
 
-    $this->post("/envelopes/{$doc->id}/mover", ['folder_id' => $b->id]);
+    $this->post("/documentos/{$doc->id}/mover", ['folder_id' => $b->id]);
     expect($doc->fresh()->folder_id)->toBe($b->id);
 
-    $this->post("/envelopes/{$doc->id}/mover", ['folder_id' => ''])->assertSessionHasNoErrors();
+    $this->post("/documentos/{$doc->id}/mover", ['folder_id' => ''])->assertSessionHasNoErrors();
     expect($doc->fresh()->folder_id)->toBeNull();
 });
 
@@ -85,11 +85,11 @@ it('pasta de outra empresa ao mover documento é recusada e documento de outra e
     $alheia = Folder::create(['tenant_id' => Tenant::create(['name' => 'Outra'])->id, 'name' => 'Alheia']);
     $docAlheio = tagDoc($alheia->tenant_id, 'Alheio');
 
-    $this->post("/envelopes/{$doc->id}/mover", ['folder_id' => $alheia->id])->assertSessionHasErrors('folder_id');
+    $this->post("/documentos/{$doc->id}/mover", ['folder_id' => $alheia->id])->assertSessionHasErrors('folder_id');
     expect($doc->fresh()->folder_id)->toBeNull();
 
     $mine = app(FolderService::class)->create($user->tenant, 'Minha');
-    $this->post("/envelopes/{$docAlheio->id}/mover", ['folder_id' => $mine->id])->assertNotFound();
+    $this->post("/documentos/{$docAlheio->id}/mover", ['folder_id' => $mine->id])->assertNotFound();
     expect($docAlheio->fresh()->folder_id)->toBeNull();
 });
 
@@ -99,10 +99,10 @@ it('mover vale para documento arquivado e é recusado na lixeira', function () {
     $archived = tagDoc($user->tenant_id, 'Arquivado', ['status' => 'completed', 'archived_at' => now()]);
     $trashed = tagDoc($user->tenant_id, 'Lixo', ['trashed_at' => now()]);
 
-    $this->post("/envelopes/{$archived->id}/mover", ['folder_id' => $a->id])->assertSessionHasNoErrors();
+    $this->post("/documentos/{$archived->id}/mover", ['folder_id' => $a->id])->assertSessionHasNoErrors();
     expect($archived->fresh()->folder_id)->toBe($a->id);
 
-    $this->post("/envelopes/{$trashed->id}/mover", ['folder_id' => $a->id])->assertSessionHasErrors('envelope');
+    $this->post("/documentos/{$trashed->id}/mover", ['folder_id' => $a->id])->assertSessionHasErrors('envelope');
     expect($trashed->fresh()->folder_id)->toBeNull();
 });
 
@@ -112,13 +112,13 @@ it('aplica e remove etiquetas do documento', function () {
     $t2 = Tag::create(['tenant_id' => $user->tenant_id, 'name' => 'T2', 'color' => 'info']);
     $doc = tagDoc($user->tenant_id);
 
-    $this->post("/envelopes/{$doc->id}/etiquetas", ['tags' => [$t1->id, $t2->id]])->assertSessionHasNoErrors();
+    $this->post("/documentos/{$doc->id}/etiquetas", ['tags' => [$t1->id, $t2->id]])->assertSessionHasNoErrors();
     expect($doc->tags()->pluck('tags.id')->sort()->values()->all())->toBe(collect([$t1->id, $t2->id])->sort()->values()->all());
 
-    $this->post("/envelopes/{$doc->id}/etiquetas", ['tags' => [$t2->id]]);
+    $this->post("/documentos/{$doc->id}/etiquetas", ['tags' => [$t2->id]]);
     expect($doc->tags()->pluck('tags.id')->all())->toBe([$t2->id]);
 
-    $this->post("/envelopes/{$doc->id}/etiquetas")->assertSessionHasNoErrors(); // sem nenhuma: remove todas
+    $this->post("/documentos/{$doc->id}/etiquetas")->assertSessionHasNoErrors(); // sem nenhuma: remove todas
     expect($doc->tags()->count())->toBe(0);
 });
 
@@ -129,7 +129,7 @@ it('recusa etiqueta de outra empresa ao etiquetar e não altera nada', function 
     $doc = tagDoc($user->tenant_id);
     $doc->tags()->attach($mine->id);
 
-    $this->post("/envelopes/{$doc->id}/etiquetas", ['tags' => [$alheia->id]])->assertSessionHasErrors('tags');
+    $this->post("/documentos/{$doc->id}/etiquetas", ['tags' => [$alheia->id]])->assertSessionHasErrors('tags');
 
     expect($doc->tags()->pluck('tags.id')->all())->toBe([$mine->id]);
 });

@@ -33,14 +33,14 @@ it('libera o envelope sem e-mail e mostra o link de cada signatário para copiar
     Mail::fake();
     [$user, $envelope] = ownerWithEnvelope();
 
-    $this->actingAs($user)->post("/envelopes/{$envelope->id}/enviar", ['skip_email' => 1])->assertRedirect();
+    $this->actingAs($user)->post("/documentos/{$envelope->id}/enviar", ['skip_email' => 1])->assertRedirect();
     Mail::assertNothingSent();
 
     $ana = $envelope->signers()->where('email', 'ana@ex.com')->first();
     $url = $ana->signUrl();
     expect($url)->toStartWith(url('/assinar/'));
 
-    $this->get("/envelopes/{$envelope->id}")->assertOk()->assertSee($url, false)->assertSee('Copiar link');
+    $this->get("/documentos/{$envelope->id}")->assertOk()->assertSee($url, false)->assertSee('Copiar link');
     // o link copiado realmente abre a página de assinatura
     $this->post('/sair');
     $this->get($url)->assertOk()->assertSee('Olá, ');
@@ -63,7 +63,7 @@ it('gerar novo link invalida o anterior', function () {
     $ana = $envelope->signers()->first();
     $old = $ana->signUrl();
 
-    $this->actingAs($user)->post("/envelopes/{$envelope->id}/signatarios/{$ana->id}/novo-link")->assertRedirect();
+    $this->actingAs($user)->post("/documentos/{$envelope->id}/signatarios/{$ana->id}/novo-link")->assertRedirect();
 
     $new = $ana->fresh()->signUrl();
     expect($new)->not->toBe($old);
@@ -78,7 +78,7 @@ it('reenvia o e-mail com o link atual', function () {
     app(EnvelopeService::class)->send($envelope);
     $ana = $envelope->signers()->first();
 
-    $this->actingAs($user)->post("/envelopes/{$envelope->id}/signatarios/{$ana->id}/reenviar")->assertRedirect();
+    $this->actingAs($user)->post("/documentos/{$envelope->id}/signatarios/{$ana->id}/reenviar")->assertRedirect();
 
     Mail::assertSent(SignatureRequestedMail::class, fn ($m) => $m->url === $ana->signUrl());
 });
@@ -87,7 +87,7 @@ it('falha de SMTP não derruba o envio: envelope liberado e o link continua disp
     [$user, $envelope] = ownerWithEnvelope();
     Mail::shouldReceive('to')->andThrow(new RuntimeException('Connection refused'));
 
-    $this->actingAs($user)->post("/envelopes/{$envelope->id}/enviar")
+    $this->actingAs($user)->post("/documentos/{$envelope->id}/enviar")
         ->assertRedirect()->assertSessionHasErrors('envelope');
 
     expect($envelope->fresh()->status->value)->toBe('sent')
@@ -100,8 +100,8 @@ it('não deixa um usuário gerar link de signatário de outra empresa', function
     $other = User::create(['tenant_id' => Tenant::create(['name' => 'Outra'])->id, 'name' => 'X', 'email' => 'x@x.com', 'password' => 'senha-muito-forte', 'role' => 'owner']);
     $ana = $envelope->signers()->first();
 
-    $this->actingAs($other)->post("/envelopes/{$envelope->id}/signatarios/{$ana->id}/novo-link")->assertNotFound();
-    $this->post("/envelopes/{$envelope->id}/signatarios/{$ana->id}/reenviar")->assertNotFound();
+    $this->actingAs($other)->post("/documentos/{$envelope->id}/signatarios/{$ana->id}/novo-link")->assertNotFound();
+    $this->post("/documentos/{$envelope->id}/signatarios/{$ana->id}/reenviar")->assertNotFound();
 });
 
 /* ---------- configuração de e-mail no painel admin ---------- */

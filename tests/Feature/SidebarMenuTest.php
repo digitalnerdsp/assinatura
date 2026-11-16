@@ -54,7 +54,7 @@ it('o pai fica aberto e ativo na página de um filho', function () {
 it('tem o botão Criar documento no topo apontando para a criação', function () {
     menuRegister();
 
-    $html = $this->get('/envelopes/novo')->assertOk()->getContent();
+    $html = $this->get('/documentos/novo')->assertOk()->getContent();
     preg_match('/<div class="top-menu.*?<\/ul>/s', $html, $m);
 
     expect($m[0] ?? '')->toContain('Criar documento')->toContain(route('envelopes.create'));

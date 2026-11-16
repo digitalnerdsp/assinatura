@@ -86,7 +86,7 @@ it('none continua mostrando só os documentos sem pasta', function () {
     $user = driveRegister();
     driveSetup($user);
 
-    $this->get('/envelopes?folder=none')->assertOk()
+    $this->get('/documentos?folder=none')->assertOk()
         ->assertSee('Doc sem pasta')->assertDontSee('Doc na A1')->assertDontSee('Doc na A');
 });
 
@@ -99,7 +99,7 @@ it('o filtro de pasta de outra empresa não vaza documentos nem nomes', function
 
     $this->get('/documentos/pastas?folder='.$alheia->id)->assertNotFound()
         ->assertDontSee('Segredo da outra empresa')->assertDontSee('Pasta Alheia');
-    $this->get('/envelopes?folder='.$alheia->id)->assertOk()->assertDontSee('Segredo da outra empresa')->assertDontSee('Doc na A');
+    $this->get('/documentos?folder='.$alheia->id)->assertOk()->assertDontSee('Segredo da outra empresa')->assertDontSee('Doc na A');
 });
 
 it('convive com status e arquivados', function () {
@@ -108,9 +108,9 @@ it('convive com status e arquivados', function () {
     driveDoc($user, $a, 'Concluído na A', 'completed');
     driveDoc($user, $a, 'Arquivado na A', 'completed', ['archived_at' => now()]);
 
-    $this->get('/envelopes?folder='.$a->id.'&status=completed')->assertOk()
+    $this->get('/documentos?folder='.$a->id.'&status=completed')->assertOk()
         ->assertSee('Concluído na A')->assertDontSee('Doc na A1');
-    $this->get('/envelopes?folder='.$a->id.'&arquivados=1')->assertOk()
+    $this->get('/documentos?folder='.$a->id.'&arquivados=1')->assertOk()
         ->assertSee('Arquivado na A')->assertDontSee('Concluído na A');
 });
 
@@ -120,10 +120,10 @@ it('cada linha mostra o caminho da pasta e as etiquetas', function () {
     $tag = Tag::create(['tenant_id' => $user->tenant_id, 'name' => 'Urgente', 'color' => 'danger']);
     Envelope::where('title', 'Doc na A1')->firstOrFail()->tags()->attach($tag->id);
 
-    $html = $this->get('/envelopes')->assertOk()->getContent();
+    $html = $this->get('/documentos')->assertOk()->getContent();
 
     expect(strip_tags($html))->toMatch('/A\s*›\s*A1/u');
-    $this->get('/envelopes')->assertSee('Urgente');
+    $this->get('/documentos')->assertSee('Urgente');
 });
 
 it('documentos na lixeira não contam nos cartões', function () {
@@ -139,14 +139,14 @@ it('o filtro de pasta do formulário lista as pastas com o caminho', function ()
     $user = driveRegister();
     driveSetup($user);
 
-    $this->get('/envelopes')->assertOk()->assertSee('A › A1');
+    $this->get('/documentos')->assertOk()->assertSee('A › A1');
 });
 
 it('Documentos criados volta a ser só a lista: sem cartões, migalhas nem botões de pasta', function () {
     $user = driveRegister();
     [$a] = driveSetup($user);
 
-    $html = $this->get('/envelopes')->assertOk()->assertSee('Doc na A')->assertSee('Doc sem pasta')->getContent();
+    $html = $this->get('/documentos')->assertOk()->assertSee('Doc na A')->assertSee('Doc sem pasta')->getContent();
 
     expect($html)->not->toContain('data-folder-card=')->not->toContain('drive-breadcrumb')
         ->not->toContain('data-drive-action="new-folder"')->not->toContain('data-drive-action="new-tag"')
@@ -167,7 +167,7 @@ it('a página de pastas não tem busca, filtros nem tabela: só pastas e documen
         ->toContain('data-doc-item=')->toContain('Arquivado na A')->toContain('Arquivado')
         ->not->toContain('Lixo na A');
     // tocar no chip leva para Documentos criados filtrado pela etiqueta
-    expect(html_entity_decode($html))->toContain('/envelopes?tag='.$tag->id);
+    expect(html_entity_decode($html))->toContain('/documentos?tag='.$tag->id);
 });
 
 it('o item de menu Pastas e etiquetas abre a página e o menu Documentos o lista', function () {

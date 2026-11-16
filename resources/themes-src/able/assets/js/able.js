@@ -81,6 +81,9 @@
     // Submenus: um aberto por vez; o grupo da página atual já vem aberto (pc-trigger).
     document.querySelectorAll('[data-ab-submenu]').forEach(function (link) {
       link.addEventListener('click', function (ev) {
+        /* Pai com endereço próprio (ex.: Documentos): navega; a página nova já abre o grupo. */
+        var target = link.getAttribute('href');
+        if (target && target !== '#') { return; }
         ev.preventDefault();
         var li = link.parentNode;
         var open = !li.classList.contains('pc-trigger');

@@ -94,9 +94,9 @@ it('os seletores de pasta mostram o caminho quando há nomes repetidos', functio
     $svc->create($user->tenant, '2026', $contratos);
     $svc->create($user->tenant, '2026', $rh);
 
-    $this->get('/envelopes/novo')->assertOk()->assertSee('Contratos › 2026')->assertSee('RH › 2026');
+    $this->get('/documentos/novo')->assertOk()->assertSee('Contratos › 2026')->assertSee('RH › 2026');
 
     $doc = Document::create(['tenant_id' => $user->tenant_id, 'name' => 'a.pdf', 'storage_path' => 'documents/'.Str::uuid().'.pdf', 'sha256' => str_repeat('a', 64), 'size' => 8]);
     $envelope = Envelope::create(['tenant_id' => $user->tenant_id, 'document_id' => $doc->id, 'title' => 'X', 'status' => 'draft', 'verification_code' => strtoupper(Str::random(12))]);
-    $this->get("/envelopes/{$envelope->id}")->assertOk()->assertSee('Contratos › 2026')->assertSee('RH › 2026');
+    $this->get("/documentos/{$envelope->id}")->assertOk()->assertSee('Contratos › 2026')->assertSee('RH › 2026');
 });

@@ -48,7 +48,7 @@ function sigWithSaved(User $user): void
 
 function sigStore(array $extra = []): \Illuminate\Testing\TestResponse
 {
-    return test()->post('/envelopes', $extra + [
+    return test()->post('/documentos', $extra + [
         'title' => 'Contrato', 'signing_order' => 'sequential',
         'document' => UploadedFile::fake()->createWithContent('a.pdf', "%PDF-1.4\n%%EOF"),
         'signers' => [['name' => 'Parte', 'email' => 'parte@ex.com']],
@@ -93,7 +93,7 @@ it('o formulário mostra a linha Eu (remetente) fixa quando a política é alway
     $user = sigRegister();
     sigWithSaved($user);
 
-    $this->get('/envelopes/novo')->assertOk()
+    $this->get('/documentos/novo')->assertOk()
         ->assertSee('Eu (remetente)')->assertSee('Dono da Empresa')
         ->assertSee('name="sender_signs" value="1"', false)->assertDontSee('type="checkbox" name="sender_signs"', false);
 });
@@ -103,10 +103,10 @@ it('com optional vira caixa marcada e com never não aparece', function () {
     sigWithSaved($user);
 
     sigPolicy($user, 'optional');
-    $this->get('/envelopes/novo')->assertOk()->assertSee('type="checkbox" name="sender_signs"', false)->assertSee('checked', false);
+    $this->get('/documentos/novo')->assertOk()->assertSee('type="checkbox" name="sender_signs"', false)->assertSee('checked', false);
 
     sigPolicy($user, 'never');
-    $this->get('/envelopes/novo')->assertOk()->assertDontSee('id="sender-row"', false);
+    $this->get('/documentos/novo')->assertOk()->assertDontSee('id="sender-row"', false);
 });
 
 it('sem Minha assinatura salva a criação é recusada com link para o perfil', function () {
@@ -116,7 +116,7 @@ it('sem Minha assinatura salva a criação é recusada com link para o perfil', 
     sigStore()->assertSessionHasErrors('sender');
 
     expect(Envelope::count())->toBe(0);
-    $this->get('/envelopes/novo')->assertSee('Crie a sua assinatura em')->assertSee('#minha-assinatura', false);
+    $this->get('/documentos/novo')->assertSee('Crie a sua assinatura em')->assertSee('#minha-assinatura', false);
 });
 
 it('criar e liberar assina na hora, sem avisar o remetente, e convida os demais', function () {
@@ -127,7 +127,7 @@ it('criar e liberar assina na hora, sem avisar o remetente, e convida os demais'
     Mail::fake();
     sigStore(['sender_signs' => 1])->assertSessionHasNoErrors()->assertRedirect();
     $envelope = Envelope::firstOrFail();
-    $this->post("/envelopes/{$envelope->id}/enviar")->assertRedirect();
+    $this->post("/documentos/{$envelope->id}/enviar")->assertRedirect();
 
     $sender = $envelope->signers()->where('is_sender', true)->firstOrFail();
     expect($sender->status->value)->toBe('signed')->and($sender->signed_via)->toBe('session')
@@ -154,7 +154,7 @@ it('quem libera é o remetente: o rascunho de um colega assina com a assinatura 
     auth()->logout();
     $this->actingAs($colega);
 
-    $this->post("/envelopes/{$envelope->id}/enviar")->assertRedirect();
+    $this->post("/documentos/{$envelope->id}/enviar")->assertRedirect();
 
     $sender = $envelope->signers()->where('is_sender', true)->firstOrFail();
     expect($sender->name)->toBe('Colega')->and($sender->email)->toBe('colega@acme.com')
@@ -196,7 +196,7 @@ it('envio manual não avisa ninguém por e-mail, nem o próximo da fila', functi
     sigStore(['sender_signs' => 1]);
     $envelope = Envelope::firstOrFail();
 
-    $this->post("/envelopes/{$envelope->id}/enviar", ['skip_email' => 1])->assertRedirect();
+    $this->post("/documentos/{$envelope->id}/enviar", ['skip_email' => 1])->assertRedirect();
 
     Mail::assertNothingSent();
     expect($envelope->signers()->where('is_sender', true)->firstOrFail()->status->value)->toBe('signed');
@@ -211,7 +211,7 @@ it('sem assinatura salva na hora de liberar, o envio é recusado e nada muda', f
     $user->forceFill(['signature_type' => null, 'signature_data' => null])->save();
     $this->actingAs($user->fresh());
 
-    $this->from('/envelopes')->post("/envelopes/{$envelope->id}/enviar")->assertSessionHasErrors('envelope');
+    $this->from('/documentos')->post("/documentos/{$envelope->id}/enviar")->assertSessionHasErrors('envelope');
 
     expect($envelope->fresh()->status->value)->toBe('draft');
 });

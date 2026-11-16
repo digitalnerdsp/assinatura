@@ -29,8 +29,8 @@ final class MeController extends Controller
                 'period_end' => $ent->subscription()->period_end?->toIso8601String(),
             ],
             'usage' => $ent->usage() + [
-                'envelopes_sent_this_month' => Envelope::query()->where('tenant_id', $tenant->getKey())->where('sent_at', '>=', now()->startOfMonth())->count(),
-                'monthly_envelope_limit' => $tenant->monthly_envelope_limit,
+                'documents_sent_this_month' => Envelope::query()->where('tenant_id', $tenant->getKey())->where('sent_at', '>=', now()->startOfMonth())->count(),
+                'monthly_document_limit' => $tenant->monthly_envelope_limit,
                 'max_pdf_mb' => (int) config('signing.max_pdf_mb'),
             ],
             'webhook_events' => array_keys(config('webhooks.events')),

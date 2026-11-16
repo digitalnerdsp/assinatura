@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Novo envelope')
+@section('title', 'Novo documento')
 @section('section', 'Assinaturas')
 @section('content')
 <form method="post" action="{{ route('envelopes.store') }}" data-suggest-url="{{ route('contacts.suggest') }}" enctype="multipart/form-data" id="envelope-form">
@@ -110,7 +110,7 @@
 
         <div class="col-12 col-xl-5">
             @include('envelopes._options')
-            <button class="btn btn-primary w-100 btn-lg"><i class="bx bx-check"></i> Criar envelope</button>
+            <button class="btn btn-primary w-100 btn-lg"><i class="bx bx-check"></i> Criar documento</button>
         </div>
     </div>
 </form>

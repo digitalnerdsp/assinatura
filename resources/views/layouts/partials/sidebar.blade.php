@@ -11,7 +11,7 @@
     <li class="{{ $item('dashboard') }}"><a href="{{ route('dashboard') }}"><div class="parent-icon"><i class="bx bx-home-alt"></i></div><div class="menu-title">Painel</div></a></li>
 
     <li class="{{ $docsOpen ? 'mm-active' : '' }}">
-        <a class="has-arrow" href="javascript:;"><div class="parent-icon"><i class="bx bx-folder-open"></i></div><div class="menu-title">Documentos</div></a>
+        <a class="has-arrow" href="{{ route('envelopes.index') }}"><div class="parent-icon"><i class="bx bx-folder-open"></i></div><div class="menu-title">Documentos</div></a>
         <ul class="mm-collapse {{ $docsOpen ? 'mm-show' : '' }}">
             <li class="{{ $item('envelopes.index', 'envelopes.show', 'envelopes.create') }}"><a href="{{ route('envelopes.index') }}"><i class="bx bx-right-arrow-alt"></i>Documentos criados</a></li>
             <li class="{{ $item('documents.folders') }}"><a href="{{ route('documents.folders') }}"><i class="bx bx-right-arrow-alt"></i>Pastas e etiquetas</a></li>

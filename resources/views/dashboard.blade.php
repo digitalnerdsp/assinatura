@@ -4,7 +4,7 @@
 @section('actions')<a href="{{ route('envelopes.create') }}" class="btn btn-primary"><i class="bx bx-plus"></i> Criar documento</a>@endsection
 @section('content')
 <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4">
-    @include('partials.kpi', ['label' => 'Envelopes no mês', 'value' => $kpi['month'], 'icon' => 'bxs-file', 'tone' => 'info', 'grad' => 'blues', 'delta' => $kpi['monthDelta'], 'hint' => $kpi['total'].' no total'])
+    @include('partials.kpi', ['label' => 'Documentos no mês', 'value' => $kpi['month'], 'icon' => 'bxs-file', 'tone' => 'info', 'grad' => 'blues', 'delta' => $kpi['monthDelta'], 'hint' => $kpi['total'].' no total'])
     @include('partials.kpi', ['label' => 'Aguardando assinatura', 'value' => $kpi['pending'], 'icon' => 'bxs-time-five', 'tone' => 'warning', 'grad' => 'orange', 'hint' => 'em andamento agora'])
     @include('partials.kpi', ['label' => 'Concluídos no mês', 'value' => $kpi['completedMonth'], 'icon' => 'bxs-check-circle', 'tone' => 'success', 'grad' => 'ohhappiness', 'delta' => $kpi['completedDelta'], 'hint' => 'documentos selados'])
     @include('partials.kpi', ['label' => 'Recusados / expirados', 'value' => $kpi['failed'], 'icon' => 'bxs-x-circle', 'tone' => 'danger', 'grad' => 'burning', 'hint' => 'inclui cancelados'])
@@ -35,7 +35,7 @@
             <div class="card-header"><h6 class="mb-0">Por status</h6></div>
             <div class="card-body">
                 @if ($statusChart->isEmpty())
-                    <p class="text-secondary mb-0">Ainda não há envelopes.</p>
+                    <p class="text-secondary mb-0">Ainda não há documentos.</p>
                 @else
                     <div class="chart-box sm"><canvas id="chartStatus"></canvas></div>
                 @endif
@@ -64,14 +64,14 @@
                         <div class="progress mt-1" style="height:6px"><div class="progress-bar bg-gradient-blues" style="width:{{ $pct }}%"></div></div>
                     </div>
                 @empty
-                    <p class="text-secondary mb-0">Nenhum envelope aguardando assinatura.</p>
+                    <p class="text-secondary mb-0">Nenhum documento aguardando assinatura.</p>
                 @endforelse
             </div>
         </div>
     </div>
     <div class="col-12 col-xl-6 d-flex">
         <div class="card radius-10 w-100">
-            <div class="card-header d-flex align-items-center"><h6 class="mb-0">Últimos envelopes</h6><a class="ms-auto small" href="{{ route('envelopes.index') }}">ver todos</a></div>
+            <div class="card-header d-flex align-items-center"><h6 class="mb-0">Últimos documentos</h6><a class="ms-auto small" href="{{ route('envelopes.index') }}">ver todos</a></div>
             <div class="table-responsive">
                 <table class="table align-middle mb-0">
                     <thead class="table-light"><tr><th>Título</th><th>Status</th><th>Criado</th></tr></thead>

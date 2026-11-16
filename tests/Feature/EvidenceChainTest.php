@@ -37,7 +37,7 @@ it('encadeia os eventos e a cadeia fica íntegra', function () {
 
     $events = $envelope->evidenceEvents()->get();
 
-    expect($events)->toHaveCount(3) // envelope_created + 2
+    expect($events)->toHaveCount(3) // document_created + 2
         ->and($events[1]->prev_hash)->toBe($events[0]->hash)
         ->and($events[2]->prev_hash)->toBe($events[1]->hash)
         ->and($logger->isIntact($envelope))->toBeTrue();
@@ -49,7 +49,7 @@ it('bloqueia UPDATE e DELETE na trilha de evidências', function () {
     // DB::transaction aninhado = savepoint, para não abortar a transação do teste.
     expect(fn () => DB::transaction(fn () => DB::table('evidence_events')->update(['type' => 'x'])))->toThrow(QueryException::class);
     expect(fn () => DB::transaction(fn () => DB::table('evidence_events')->delete()))->toThrow(QueryException::class);
-    expect($envelope->evidenceEvents()->first()->type)->toBe('envelope_created');
+    expect($envelope->evidenceEvents()->first()->type)->toBe('document_created');
 });
 
 it('detecta adulteração mesmo se o trigger for contornado', function () {

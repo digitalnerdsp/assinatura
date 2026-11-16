@@ -69,7 +69,7 @@ final class CalendarService
         return $events->sortBy(fn ($x) => $x['date'].$order[$x['type']].mb_strtolower($x['title']))->values();
     }
 
-    /** Mesma regra de Envelope::activeSigners(), sobre os signatários já carregados (sem consulta por envelope). */
+    /** Mesma regra de Envelope::activeSigners(), sobre os signatários já carregados (sem consulta por documento). */
     private function activeSigners(Envelope $e): Collection
     {
         $open = $e->signers->filter(fn ($s) => in_array($s->role, Envelope::PARTICIPANT_ROLES, true)

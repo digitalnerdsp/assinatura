@@ -10,7 +10,7 @@ final class OpenApiSpec
     /** @return array<string,mixed> */
     public static function build(string $baseUrl): array
     {
-        $id = ['name' => 'id', 'in' => 'path', 'required' => true, 'schema' => ['type' => 'string'], 'description' => 'Id do recurso (UUID). Em envelopes também aceita o seu external_id.'];
+        $id = ['name' => 'id', 'in' => 'path', 'required' => true, 'schema' => ['type' => 'string'], 'description' => 'Id do recurso (UUID). Em documentos também aceita o seu external_id.'];
         $uuid = fn (string $name, string $desc) => ['name' => $name, 'in' => 'path', 'required' => true, 'schema' => ['type' => 'string', 'format' => 'uuid'], 'description' => $desc];
         $ref = fn (string $name) => ['$ref' => '#/components/schemas/'.$name];
         $json = fn (array $schema, string $desc = 'OK') => ['description' => $desc, 'content' => ['application/json' => ['schema' => $schema]]];
@@ -48,7 +48,7 @@ final class OpenApiSpec
             'info' => [
                 'title' => config('app.name', 'Assinaturas').' — API v1',
                 'version' => '1.0.0',
-                'description' => "API REST para criar e acompanhar envelopes de assinatura eletrônica.\n\n"
+                'description' => "API REST para criar e acompanhar documentos de assinatura eletrônica.\n\n"
                     ."**Autenticação:** `Authorization: Bearer sk_live_...` (gere a chave em *API* no painel). Chaves *somente leitura* aceitam apenas GET.\n\n"
                     ."**Erros:** sempre `{\"error\": \"codigo\", \"message\": \"texto\"}`; validação traz também `errors` por campo (HTTP 422).\n\n"
                     ."**Limites:** 120 requisições por minuto por chave; PDF de até ".(int) config('signing.max_pdf_mb')." MB.\n\n"
@@ -56,12 +56,12 @@ final class OpenApiSpec
             ],
             'servers' => [['url' => rtrim($baseUrl, '/').'/api/v1']],
             'security' => [['bearerAuth' => []]],
-            'tags' => [['name' => 'Conta'], ['name' => 'Envelopes'], ['name' => 'Signatários'], ['name' => 'Modelos'], ['name' => 'Webhooks'], ['name' => 'Pastas e etiquetas'], ['name' => 'Verificação']],
+            'tags' => [['name' => 'Conta'], ['name' => 'Documentos'], ['name' => 'Signatários'], ['name' => 'Modelos'], ['name' => 'Webhooks'], ['name' => 'Pastas e etiquetas'], ['name' => 'Verificação']],
             'paths' => [
                 '/me' => ['get' => ['tags' => ['Conta'], 'summary' => 'Confere a chave e mostra a conta e o consumo', 'responses' => ['200' => $json($ref('Me'))] + $common]],
 
-                '/envelopes' => [
-                    'get' => ['tags' => ['Envelopes'], 'summary' => 'Lista envelopes (paginado)', 'parameters' => [
+                '/documents' => [
+                    'get' => ['tags' => ['Documentos'], 'summary' => 'Lista documentos (paginado)', 'parameters' => [
                         ['name' => 'status', 'in' => 'query', 'schema' => ['type' => 'string', 'enum' => ['draft', 'sent', 'in_progress', 'sealing', 'completed', 'refused', 'expired', 'cancelled']]],
                         ['name' => 'q', 'in' => 'query', 'schema' => ['type' => 'string'], 'description' => 'Busca em título, código, external_id, nome e e-mail dos signatários.'],
                         ['name' => 'external_id', 'in' => 'query', 'schema' => ['type' => 'string']],
@@ -72,10 +72,10 @@ final class OpenApiSpec
                         ['name' => 'page', 'in' => 'query', 'schema' => ['type' => 'integer', 'default' => 1]],
                         ['name' => 'per_page', 'in' => 'query', 'schema' => ['type' => 'integer', 'default' => 20, 'maximum' => 100]],
                     ], 'responses' => ['200' => $json(['type' => 'object', 'properties' => [
-                        'data' => ['type' => 'array', 'items' => $ref('Envelope')],
+                        'data' => ['type' => 'array', 'items' => $ref('Documento')],
                         'meta' => ['type' => 'object', 'properties' => ['current_page' => ['type' => 'integer'], 'per_page' => ['type' => 'integer'], 'total' => ['type' => 'integer'], 'last_page' => ['type' => 'integer']]],
                     ]])] + $common],
-                    'post' => ['tags' => ['Envelopes'], 'summary' => 'Cria um envelope (e opcionalmente já envia)',
+                    'post' => ['tags' => ['Documentos'], 'summary' => 'Cria um documento (e opcionalmente já envia)',
                         'description' => 'Envie o PDF em **multipart** (campo `document`) ou em **JSON** com `document_base64`. Em multipart use a notação `signers[0][name]`.',
                         'parameters' => [$idem],
                         'requestBody' => ['required' => true, 'content' => [
@@ -91,18 +91,18 @@ final class OpenApiSpec
                             ] + $options]],
                             'multipart/form-data' => ['schema' => ['type' => 'object', 'required' => ['title', 'document'], 'properties' => ['title' => ['type' => 'string'], 'document' => ['type' => 'string', 'format' => 'binary']] + $options]],
                         ]],
-                        'responses' => ['201' => $json($ref('Envelope'), 'Criado'), '422' => $err('Dados inválidos, PDF inválido/grande demais ou external_id repetido')] + $common],
+                        'responses' => ['201' => $json($ref('Documento'), 'Criado'), '422' => $err('Dados inválidos, PDF inválido/grande demais ou external_id repetido')] + $common],
                 ],
-                '/envelopes/{id}' => ['get' => ['tags' => ['Envelopes'], 'summary' => 'Consulta um envelope', 'parameters' => [$id], 'responses' => ['200' => $json($ref('Envelope')), '404' => $err('Não encontrado')] + $common]],
-                '/envelopes/{id}/send' => ['post' => ['tags' => ['Envelopes'], 'summary' => 'Libera o rascunho para assinatura e avisa os signatários', 'parameters' => [$id], 'responses' => ['200' => $json($ref('Envelope')), '409' => $err('Não é rascunho, conta suspensa ou limite do plano')] + $common]],
-                '/envelopes/{id}/cancel' => ['post' => ['tags' => ['Envelopes'], 'summary' => 'Cancela um envelope em aberto', 'parameters' => [$id], 'responses' => ['200' => $json($ref('Envelope')), '409' => $err('Não pode ser cancelado')] + $common]],
-                '/envelopes/{id}/reseal' => ['post' => ['tags' => ['Envelopes'], 'summary' => 'Tenta selar de novo um envelope parado em "sealing"', 'parameters' => [$id], 'responses' => ['202' => $json($ref('Envelope'), 'Reenfileirado'), '409' => $err('Não está aguardando selagem')] + $common]],
-                '/envelopes/{id}/evidence' => ['get' => ['tags' => ['Envelopes'], 'summary' => 'Trilha de auditoria (cadeia de hash)', 'parameters' => [$id], 'responses' => ['200' => $json(['type' => 'object', 'properties' => ['chain_intact' => ['type' => 'boolean'], 'events' => ['type' => 'array', 'items' => ['type' => 'object']]]])] + $common]],
-                '/envelopes/{id}/download' => ['get' => ['tags' => ['Envelopes'], 'summary' => 'Baixa o PDF selado (com relatório de assinaturas)', 'parameters' => [$id], 'responses' => ['200' => ['description' => 'PDF', 'content' => ['application/pdf' => ['schema' => ['type' => 'string', 'format' => 'binary']]]], '409' => $err('Ainda não foi selado')] + $common]],
-                '/envelopes/{id}/original' => ['get' => ['tags' => ['Envelopes'], 'summary' => 'Baixa o PDF original enviado', 'parameters' => [$id], 'responses' => ['200' => ['description' => 'PDF', 'content' => ['application/pdf' => ['schema' => ['type' => 'string', 'format' => 'binary']]]]] + $common]],
+                '/documents/{id}' => ['get' => ['tags' => ['Documentos'], 'summary' => 'Consulta um documento', 'parameters' => [$id], 'responses' => ['200' => $json($ref('Documento')), '404' => $err('Não encontrado')] + $common]],
+                '/documents/{id}/send' => ['post' => ['tags' => ['Documentos'], 'summary' => 'Libera o rascunho para assinatura e avisa os signatários', 'parameters' => [$id], 'responses' => ['200' => $json($ref('Documento')), '409' => $err('Não é rascunho, conta suspensa ou limite do plano')] + $common]],
+                '/documents/{id}/cancel' => ['post' => ['tags' => ['Documentos'], 'summary' => 'Cancela um documento em aberto', 'parameters' => [$id], 'responses' => ['200' => $json($ref('Documento')), '409' => $err('Não pode ser cancelado')] + $common]],
+                '/documents/{id}/reseal' => ['post' => ['tags' => ['Documentos'], 'summary' => 'Tenta selar de novo um documento parado em "sealing"', 'parameters' => [$id], 'responses' => ['202' => $json($ref('Documento'), 'Reenfileirado'), '409' => $err('Não está aguardando selagem')] + $common]],
+                '/documents/{id}/evidence' => ['get' => ['tags' => ['Documentos'], 'summary' => 'Trilha de auditoria (cadeia de hash)', 'parameters' => [$id], 'responses' => ['200' => $json(['type' => 'object', 'properties' => ['chain_intact' => ['type' => 'boolean'], 'events' => ['type' => 'array', 'items' => ['type' => 'object']]]])] + $common]],
+                '/documents/{id}/download' => ['get' => ['tags' => ['Documentos'], 'summary' => 'Baixa o PDF selado (com relatório de assinaturas)', 'parameters' => [$id], 'responses' => ['200' => ['description' => 'PDF', 'content' => ['application/pdf' => ['schema' => ['type' => 'string', 'format' => 'binary']]]], '409' => $err('Ainda não foi selado')] + $common]],
+                '/documents/{id}/original' => ['get' => ['tags' => ['Documentos'], 'summary' => 'Baixa o PDF original enviado', 'parameters' => [$id], 'responses' => ['200' => ['description' => 'PDF', 'content' => ['application/pdf' => ['schema' => ['type' => 'string', 'format' => 'binary']]]]] + $common]],
 
-                '/envelopes/{id}/signers/{signer}/resend' => ['post' => ['tags' => ['Signatários'], 'summary' => 'Reenvia o aviso a quem está na vez de assinar', 'parameters' => [$id, $uuid('signer', 'Id do signatário')], 'responses' => ['200' => $json(['type' => 'object', 'properties' => ['sent' => ['type' => 'boolean']]]), '409' => $err('Sem link ativo ou fora da vez'), '502' => $err('Canal indisponível')] + $common]],
-                '/envelopes/{id}/signers/{signer}/new-link' => ['post' => ['tags' => ['Signatários'], 'summary' => 'Gera um link novo (o anterior para de funcionar)', 'parameters' => [$id, $uuid('signer', 'Id do signatário')], 'responses' => ['200' => $json($ref('Signer')), '409' => $err('Envelope fechado ou signatário já respondeu')] + $common]],
+                '/documents/{id}/signers/{signer}/resend' => ['post' => ['tags' => ['Signatários'], 'summary' => 'Reenvia o aviso a quem está na vez de assinar', 'parameters' => [$id, $uuid('signer', 'Id do signatário')], 'responses' => ['200' => $json(['type' => 'object', 'properties' => ['sent' => ['type' => 'boolean']]]), '409' => $err('Sem link ativo ou fora da vez'), '502' => $err('Canal indisponível')] + $common]],
+                '/documents/{id}/signers/{signer}/new-link' => ['post' => ['tags' => ['Signatários'], 'summary' => 'Gera um link novo (o anterior para de funcionar)', 'parameters' => [$id, $uuid('signer', 'Id do signatário')], 'responses' => ['200' => $json($ref('Signer')), '409' => $err('Documento fechado ou signatário já respondeu')] + $common]],
 
                 '/templates' => [
                     'get' => ['tags' => ['Modelos'], 'summary' => 'Lista modelos', 'responses' => ['200' => $list('Template')] + $common],
@@ -113,9 +113,9 @@ final class OpenApiSpec
                     'put' => ['tags' => ['Modelos'], 'summary' => 'Atualiza um modelo', 'parameters' => [$id], 'requestBody' => $body(['type' => 'object', 'required' => ['name', 'body'], 'properties' => ['name' => ['type' => 'string'], 'body' => ['type' => 'string']]]), 'responses' => ['200' => $json($ref('Template'))] + $common],
                     'delete' => ['tags' => ['Modelos'], 'summary' => 'Remove um modelo', 'parameters' => [$id], 'responses' => ['204' => ['description' => 'Removido']] + $common],
                 ],
-                '/templates/{id}/envelopes' => ['post' => ['tags' => ['Modelos'], 'summary' => 'Gera um envelope a partir do modelo', 'parameters' => [$id, $idem],
+                '/templates/{id}/documents' => ['post' => ['tags' => ['Modelos'], 'summary' => 'Gera um documento a partir do modelo', 'parameters' => [$id, $idem],
                     'requestBody' => $body(['type' => 'object', 'required' => ['title', 'signers'], 'properties' => ['title' => ['type' => 'string'], 'variables' => ['type' => 'object', 'additionalProperties' => ['type' => 'string'], 'example' => ['contratante' => 'Maria Silva', 'valor' => '1.500,00']], 'signers' => $signersInput] + $options]),
-                    'responses' => ['201' => $json($ref('Envelope')), '422' => $err('Variável faltando ou dados inválidos')] + $common]],
+                    'responses' => ['201' => $json($ref('Documento')), '422' => $err('Variável faltando ou dados inválidos')] + $common]],
 
                 '/webhooks' => [
                     'get' => ['tags' => ['Webhooks'], 'summary' => 'Lista webhooks', 'responses' => ['200' => $list('Webhook')] + $common],
@@ -165,16 +165,16 @@ final class OpenApiSpec
                         'role' => ['type' => 'string', 'enum' => ['signer', 'witness']], 'is_sender' => ['type' => 'boolean', 'description' => 'true para quem enviou (a empresa).'], 'signed_via' => ['type' => 'string', 'nullable' => true, 'enum' => ['link', 'session', 'api_key']], 'position' => ['type' => 'integer'], 'status' => ['type' => 'string', 'enum' => ['pending', 'viewed', 'signed', 'refused']],
                         'viewed_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true], 'signed_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
                         'refused_reason' => ['type' => 'string', 'nullable' => true], 'reminders_count' => ['type' => 'integer'],
-                        'sign_url' => ['type' => 'string', 'nullable' => true, 'description' => 'Link pessoal de assinatura (só enquanto o envelope está aberto). Trate como senha.'],
+                        'sign_url' => ['type' => 'string', 'nullable' => true, 'description' => 'Link pessoal de assinatura (só enquanto o documento está aberto). Trate como senha.'],
                     ]],
-                    'Envelope' => ['type' => 'object', 'properties' => [
+                    'Documento' => ['type' => 'object', 'properties' => [
                         'id' => ['type' => 'string', 'format' => 'uuid'], 'external_id' => ['type' => 'string', 'nullable' => true], 'metadata' => ['type' => 'object', 'nullable' => true],
                         'title' => ['type' => 'string'], 'status' => ['type' => 'string', 'enum' => ['draft', 'sent', 'in_progress', 'sealing', 'completed', 'refused', 'expired', 'cancelled']],
                         'signing_order' => ['type' => 'string'], 'required_level' => ['type' => 'string', 'enum' => ['simple', 'advanced']],
                         'verifications' => ['type' => 'object'], 'channels' => ['type' => 'array', 'items' => ['type' => 'string']],
                         'validity_days' => ['type' => 'integer'], 'reminder_every_days' => ['type' => 'integer', 'nullable' => true],
                         'folder' => ['type' => 'object', 'nullable' => true], 'tags' => ['type' => 'array', 'items' => $ref('Tag')],
-                        'document' => ['type' => 'object', 'properties' => ['name' => ['type' => 'string'], 'size' => ['type' => 'integer'], 'sha256' => ['type' => 'string']]],
+                        'file' => ['type' => 'object', 'properties' => ['name' => ['type' => 'string'], 'size' => ['type' => 'integer'], 'sha256' => ['type' => 'string']]],
                         'verification_code' => ['type' => 'string'], 'verification_url' => ['type' => 'string'],
                         'created_at' => ['type' => 'string', 'format' => 'date-time'], 'sent_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
                         'expires_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true], 'completed_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],

@@ -1,14 +1,14 @@
 @extends('layouts.app')
 @section('title', $envelope->title)
-@section('section', 'Envelopes')
+@section('section', 'Documentos')
 @section('content')
 @php($labels = [
-    'envelope_created' => 'Envelope criado', 'envelope_sent' => 'Liberado para assinatura', 'document_viewed' => 'Documento visualizado',
+    'document_created' => 'Documento criado', 'document_sent' => 'Liberado para assinatura', 'document_viewed' => 'Documento visualizado',
     'otp_sent' => 'Código enviado', 'otp_failed' => 'Código incorreto', 'otp_verified' => 'Código confirmado',
     'document_signed' => 'Documento assinado', 'all_signed' => 'Todas as assinaturas coletadas', 'signer_refused' => 'Assinatura recusada',
     'selfie_captured' => 'Selfie registrada', 'document_photo_captured' => 'Foto do documento registrada', 'geolocation_captured' => 'Localização registrada',
-    'link_regenerated' => 'Novo link gerado', 'envelope_sealed' => 'Documento selado', 'seal_failed' => 'Falha ao selar',
-    'envelope_cancelled' => 'Envelope cancelado', 'envelope_expired' => 'Envelope expirado', 'reminder_sent' => 'Lembrete enviado',
+    'link_regenerated' => 'Novo link gerado', 'document_sealed' => 'Documento selado', 'seal_failed' => 'Falha ao selar',
+    'document_cancelled' => 'Documento cancelado', 'document_expired' => 'Documento expirado', 'reminder_sent' => 'Lembrete enviado',
 ])
 @if ($envelope->isTrashed())
     <div class="alert alert-warning border-0 d-flex flex-wrap align-items-center gap-2">
@@ -25,7 +25,7 @@
                 <a class="btn btn-sm btn-outline-secondary" href="{{ route('envelopes.original', $envelope) }}"><i class="bx bx-download"></i> Original</a>
                 @if ($envelope->final_path)<a class="btn btn-sm btn-success" href="{{ route('envelopes.final', $envelope) }}"><i class="bx bx-download"></i> PDF selado</a>@endif
                 @if (in_array($envelope->status->value, ['draft', 'sent', 'in_progress']))
-                    <form method="post" action="{{ route('envelopes.cancel', $envelope) }}" onsubmit="return confirm('Cancelar este envelope?')">@csrf<button class="btn btn-sm btn-outline-danger"><i class="bx bx-x"></i> Cancelar</button></form>
+                    <form method="post" action="{{ route('envelopes.cancel', $envelope) }}" onsubmit="return confirm('Cancelar este documento?')">@csrf<button class="btn btn-sm btn-outline-danger"><i class="bx bx-x"></i> Cancelar</button></form>
                 @endif
                 @if ($envelope->isTrashable() && ! $envelope->isTrashed())
                     <form method="post" action="{{ route('envelopes.trash', $envelope) }}" onsubmit="return confirm('Mover este documento para a lixeira? Ele será apagado em 30 dias.')">@csrf<button class="btn btn-sm btn-outline-secondary"><i class="bx bx-trash"></i> Mover para a lixeira</button></form>
@@ -116,7 +116,7 @@
                         <form method="post" action="{{ route('envelopes.regenerate', [$envelope, $s]) }}" onsubmit="return confirm('Gerar um novo link? O link atual deixará de funcionar.')">@csrf<button class="btn btn-sm btn-outline-secondary"><i class="bx bx-refresh"></i> Gerar novo link</button></form>
                     </div>
                 @else
-                    <p class="text-secondary mt-2 mb-2">Link indisponível para este envelope (enviado antes deste recurso).</p>
+                    <p class="text-secondary mt-2 mb-2">Link indisponível para este documento (enviado antes deste recurso).</p>
                     <form method="post" action="{{ route('envelopes.regenerate', [$envelope, $s]) }}">@csrf<button class="btn btn-sm btn-outline-primary">Gerar link</button></form>
                 @endif
             </div>

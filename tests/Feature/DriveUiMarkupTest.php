@@ -94,5 +94,5 @@ it('os endereços das ações vêm das rotas (modelos com :id) e a tabela vira c
 
     expect($html)->toContain('/organizacao/pastas')->toContain('/organizacao/etiquetas')->toContain('data-url-store=');
     expect($html)->toContain('data-doc-item=');
-    test()->get('/envelopes')->assertOk()->assertSee('drive-docs')->assertSee('data-label="Status"', false);
+    test()->get('/documentos')->assertOk()->assertSee('drive-docs')->assertSee('data-label="Status"', false);
 });

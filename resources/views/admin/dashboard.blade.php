@@ -6,7 +6,7 @@
 <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4">
     @include('partials.kpi', ['label' => 'Clientes', 'value' => $tenants, 'icon' => 'bxs-buildings', 'tone' => 'info', 'grad' => 'blues', 'hint' => $tenantsNew30.' novos em 30 dias · '.$tenantsSuspended.' suspensos'])
     @include('partials.kpi', ['label' => 'Usuários', 'value' => $users, 'icon' => 'bxs-group', 'tone' => 'warning', 'grad' => 'orange', 'hint' => 'em todas as empresas'])
-    @include('partials.kpi', ['label' => 'Envelopes no mês', 'value' => $envelopesMonth, 'icon' => 'bxs-file', 'tone' => 'success', 'grad' => 'ohhappiness', 'delta' => $envelopesDelta, 'hint' => $completedMonth.' concluídos · '.$envelopes.' no total'])
+    @include('partials.kpi', ['label' => 'Documentos no mês', 'value' => $envelopesMonth, 'icon' => 'bxs-file', 'tone' => 'success', 'grad' => 'ohhappiness', 'delta' => $envelopesDelta, 'hint' => $completedMonth.' concluídos · '.$envelopes.' no total'])
     @include('partials.kpi', ['label' => 'Armazenamento', 'value' => $mb($storageBytes), 'icon' => 'bxs-data', 'tone' => 'danger', 'grad' => 'burning', 'hint' => 'documentos enviados'])
 </div>
 
@@ -28,7 +28,7 @@
         <div class="card radius-10 w-100">
             <div class="card-header"><h6 class="mb-0">Envelopes por status</h6></div>
             <div class="card-body">
-                @if ($statusChart->isEmpty())<p class="text-secondary mb-0">Nenhum envelope ainda.</p>@else<div class="chart-box sm"><canvas id="chartStatus"></canvas></div>@endif
+                @if ($statusChart->isEmpty())<p class="text-secondary mb-0">Nenhum documento ainda.</p>@else<div class="chart-box sm"><canvas id="chartStatus"></canvas></div>@endif
             </div>
             <ul class="list-group list-group-flush">
                 @foreach ($statusChart as $s)
@@ -90,7 +90,7 @@
         data: {
             labels: @json($labels),
             datasets: [
-                { label: 'Envelopes criados', data: @json($created), backgroundColor: grad(m, '#6078ea', '#17c5ea'), borderRadius: 20, borderWidth: 0 },
+                { label: 'Documentos criados', data: @json($created), backgroundColor: grad(m, '#6078ea', '#17c5ea'), borderRadius: 20, borderWidth: 0 },
                 { label: 'Concluídos', data: @json($completed), backgroundColor: grad(m, '#42e695', '#3bb2b8'), borderRadius: 20, borderWidth: 0 },
                 { label: 'Novos clientes', data: @json($newTenants), type: 'line', borderColor: '#ffc107', backgroundColor: '#ffc107', tension: .35, pointRadius: 4 }
             ]

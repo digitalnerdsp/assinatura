@@ -46,7 +46,7 @@ final class SystemHealth
 
         return [
             'envelopes_by_status' => Envelope::query()->select('status', DB::raw('count(*) as total'))->groupBy('status')->pluck('total', 'status')->all(),
-            'sealed_24h' => EvidenceEvent::query()->where('type', 'envelope_sealed')->where('occurred_at', '>=', $since)->count(),
+            'sealed_24h' => EvidenceEvent::query()->where('type', 'document_sealed')->where('occurred_at', '>=', $since)->count(),
             'seal_failed_24h' => EvidenceEvent::query()->where('type', 'seal_failed')->where('occurred_at', '>=', $since)->count(),
             'jobs_pending' => (int) DB::table('jobs')->count(),
             'jobs_failed' => (int) DB::table('failed_jobs')->count(),
@@ -135,7 +135,7 @@ final class SystemHealth
 
         return $stuck > 0
             ? $this->result('warn', "{$stuck} envelope(s) aguardando selagem há mais de 15 min.")
-            : $this->result('ok', 'Nenhum envelope preso em "Selando".');
+            : $this->result('ok', 'Nenhum documento preso em "Selando".');
     }
 
     private function webhooks(): array

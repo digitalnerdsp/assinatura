@@ -43,7 +43,7 @@ it('sugere contatos da empresa ao digitar, no máximo 8', function () {
 it('o formulário de criar documento sabe onde buscar as sugestões', function () {
     csvUser();
 
-    $this->get('/envelopes/novo')->assertOk()->assertSee('data-suggest-url="'.route('contacts.suggest').'"', false);
+    $this->get('/documentos/novo')->assertOk()->assertSee('data-suggest-url="'.route('contacts.suggest').'"', false);
 });
 
 it('importa CSV com ponto e vírgula, BOM e cabeçalhos em português', function () {

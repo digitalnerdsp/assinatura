@@ -36,7 +36,7 @@ final class Presenter
             'reminder_every_days' => $e->reminder_every_days,
             'folder' => $e->folder ? ['id' => $e->folder->getKey(), 'name' => $e->folder->name] : null,
             'tags' => $e->tags->map(fn (Tag $t) => ['id' => $t->getKey(), 'name' => $t->name, 'color' => $t->color])->all(),
-            'document' => ['name' => $e->document->name, 'size' => $e->document->size, 'sha256' => $e->document->sha256],
+            'file' => ['name' => $e->document->name, 'size' => $e->document->size, 'sha256' => $e->document->sha256],
             'verification_code' => $e->verification_code,
             'verification_url' => route('verify.show', $e->verification_code),
             'created_at' => $e->created_at?->toIso8601String(),

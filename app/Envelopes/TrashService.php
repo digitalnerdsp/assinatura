@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
-/** Lixeira (30 dias, só rascunho/cancelado/expirado) e arquivo (concluído/recusado) de envelopes. */
+/** Lixeira (30 dias, só rascunho/cancelado/expirado) e arquivo (concluído/recusado) de documentos. */
 final class TrashService
 {
     public function trash(Envelope $envelope): void
@@ -51,8 +51,8 @@ final class TrashService
     }
 
     /**
-     * Apaga de vez o que está na lixeira há `$olderThanDays` dias ou mais. Devolve quantos envelopes removeu.
-     * Cada envelope é independente: se um falhar (o erro vai para o log), os demais seguem.
+     * Apaga de vez o que está na lixeira há `$olderThanDays` dias ou mais. Devolve quantos documentos removeu.
+     * Cada documento é independente: se um falhar (o erro vai para o log), os demais seguem.
      */
     public function purge(int $olderThanDays = 30): int
     {

@@ -42,7 +42,7 @@ final class MenuBuilder
 
         $menu = [
             $item('Painel', 'home', route('dashboard'), $is('dashboard')),
-            $item('Documentos', 'folder', '#', $is('envelopes.*', 'documents.*'), $docs),
+            $item('Documentos', 'folder', route('envelopes.index'), $is('envelopes.*', 'documents.*'), $docs),
             $item('Modelos', 'templates', route('templates.index'), $is('templates.*')),
             $item('Contatos', 'contacts', route('contacts.index'), $is('contacts.*')),
             $item('Calendário', 'calendar', route('calendar.index'), $is('calendar.*')),

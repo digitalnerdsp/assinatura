@@ -34,7 +34,7 @@ final class SenderPolicy
     }
 
     /**
-     * O remetente deve assinar este envelope? `$requested` é o que o usuário/API pediu (null = não pediu).
+     * O remetente deve assinar este documento? `$requested` é o que o usuário/API pediu (null = não pediu).
      *
      * @throws FlowException `sender_signature_required` (always + false) ou `sender_signature_disabled` (never + true)
      */

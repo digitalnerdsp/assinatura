@@ -21,13 +21,13 @@ final class ReportBuilder
     private const TZ = 'America/Sao_Paulo';
 
     private const LABELS = [
-        'envelope_created' => 'Envelope criado', 'envelope_sent' => 'Liberado para assinatura',
+        'document_created' => 'Documento criado', 'document_sent' => 'Liberado para assinatura',
         'document_viewed' => 'Documento visualizado', 'otp_sent' => 'Código enviado', 'otp_failed' => 'Código incorreto',
         'otp_verified' => 'Código confirmado', 'selfie_captured' => 'Selfie registrada',
         'document_photo_captured' => 'Foto do documento registrada', 'geolocation_captured' => 'Localização registrada',
         'document_signed' => 'Documento assinado', 'all_signed' => 'Todas as assinaturas coletadas',
         'signer_refused' => 'Assinatura recusada', 'link_regenerated' => 'Novo link gerado',
-        'seal_failed' => 'Falha ao selar', 'envelope_cancelled' => 'Envelope cancelado', 'envelope_expired' => 'Envelope expirado',
+        'seal_failed' => 'Falha ao selar', 'document_cancelled' => 'Documento cancelado', 'document_expired' => 'Documento expirado',
         'reminder_sent' => 'Lembrete enviado',
     ];
 

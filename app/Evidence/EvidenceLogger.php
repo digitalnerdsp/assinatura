@@ -27,7 +27,7 @@ final class EvidenceLogger
         ?RequestContext $context = null,
     ): EvidenceEvent {
         return DB::transaction(function () use ($envelope, $type, $payload, $signer, $context) {
-            // Serializa escritas por envelope para manter a sequência/hash consistentes.
+            // Serializa escritas por documento para manter a sequência/hash consistentes.
             Envelope::query()->whereKey($envelope->getKey())->lockForUpdate()->firstOrFail();
 
             $last = EvidenceEvent::query()

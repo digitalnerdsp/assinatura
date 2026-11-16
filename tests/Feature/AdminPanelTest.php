@@ -60,7 +60,7 @@ it('suspender um cliente bloqueia usuários, API e novos envios', function () {
     $this->actingAs($user)->get('/painel')->assertRedirect('/entrar');
 
     // API responde 403
-    $this->getJson('/api/v1/envelopes/x', ['Authorization' => "Bearer {$plain}"])->assertForbidden();
+    $this->getJson('/api/v1/documents/x', ['Authorization' => "Bearer {$plain}"])->assertForbidden();
 
     // novo envio bloqueado
     expect(fn () => app(EnvelopeService::class)->send($envelope))->toThrow(FlowException::class, 'suspensa');

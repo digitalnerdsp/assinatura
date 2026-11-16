@@ -45,7 +45,7 @@ Dark mode: se o tema tem modo escuro, aplique também a classe `dark-theme` em `
 `label`, `icon` (chave: `home folder templates contacts calendar reports settings verify help platform tenants subscriptions health sealing plans platform-users themes mail platform-settings`), `url`, `active` (bool), `external` (bool), `group` (rótulo de seção ou null), `children` (lista de `{label,url,active}`; item com filhos tem `url` `#`).
 
 ## Variáveis de `pages/dashboard.blade.php`
-`$kpi` (`month`, `monthDelta`, `pending`, `completedMonth`, `completedDelta`, `failed`, `total`), `$labels` (6 meses), `$created`, `$completed` (6 números), `$statusChart` (coleção `{label,value}`), `$pending` (envelopes: `title`, `status`, `signers_count`, `signed_count`, `created_at`, `id`), `$recent` (envelopes: `title`, `status`, `signers_count`, `created_at`), `$usedThisMonth`, `$tenant`.
+`$kpi` (`month`, `monthDelta`, `pending`, `completedMonth`, `completedDelta`, `failed`, `total`), `$labels` (6 meses), `$created`, `$completed` (6 números), `$statusChart` (coleção `{label,value}`), `$pending` (documentos: `title`, `status`, `signers_count`, `signed_count`, `created_at`, `id`), `$recent` (documentos: `title`, `status`, `signers_count`, `created_at`), `$usedThisMonth`, `$tenant`.
 Rotas úteis: `route('envelopes.show', $e)`, `route('envelopes.create')`, `route('envelopes.index')`, `route('plan-usage.index')`.
 Texto de status: `__('status.'.$e->status->value)` (`$e->status` é um enum). Datas: `$e->created_at->timezone('America/Sao_Paulo')->format('d/m/Y')`. Limite do plano: `$tenant->monthly_envelope_limit` (null = ilimitado) e `$usedThisMonth`.
 

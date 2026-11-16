@@ -79,6 +79,9 @@
     /* Submenus (comportamento do metisMenu, sem a dependência) */
     document.querySelectorAll('#w3menu .has-arrow').forEach(function (a) {
         a.addEventListener('click', function (ev) {
+            /* Pai com endereço próprio (ex.: Documentos): navega; a página nova já abre o grupo. */
+            var target = a.getAttribute('href');
+            if (target && target !== '#') { return; }
             ev.preventDefault();
             var li = a.parentElement;
             var willOpen = !li.classList.contains('mm-active');

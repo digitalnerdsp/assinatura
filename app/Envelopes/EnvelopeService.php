@@ -72,7 +72,7 @@ final class EnvelopeService
         $channels = array_values(array_intersect($options['channels'] ?? ['email'], ['email', 'whatsapp', 'sms'])) ?: ['email'];
         $externalId = isset($options['external_id']) && $options['external_id'] !== '' ? (string) $options['external_id'] : null;
         if ($externalId !== null && Envelope::query()->where('tenant_id', $tenant->getKey())->where('external_id', $externalId)->exists()) {
-            throw FlowException::because('duplicate_external_id', 'Já existe um envelope com este external_id.');
+            throw FlowException::because('duplicate_external_id', 'Já existe um documento com este external_id.');
         }
         $folderId = $options['folder_id'] ?? null;
         if ($folderId !== null && ! Folder::query()->where('tenant_id', $tenant->getKey())->whereKey($folderId)->exists()) {
@@ -173,7 +173,7 @@ final class EnvelopeService
             // Signatários e testemunhas viram contatos da empresa (o remetente não).
             app(\App\Contacts\ContactService::class)->rememberFromSigners($tenant, array_values($signers));
 
-            $this->evidence->record($envelope, 'envelope_created', [
+            $this->evidence->record($envelope, 'document_created', [
                 'document_sha256' => $document->sha256,
                 'signers' => count($signers) + ($sender ? 1 : 0),
                 'required_level' => $requiredLevel,
@@ -207,7 +207,7 @@ final class EnvelopeService
     }
 
     /**
-     * Envia o envelope. Retorna o token em texto puro de cada signatário (id => token);
+     * Envia o documento. Retorna o token em texto puro de cada signatário (id => token);
      * só o hash é guardado. O token deve ser entregue por e-mail/WhatsApp.
      *
      * @return array<string,string>
@@ -235,7 +235,7 @@ final class EnvelopeService
         if ($tenant->monthly_envelope_limit !== null) {
             $used = Envelope::query()->where('tenant_id', $tenant->getKey())->where('sent_at', '>=', now()->startOfMonth())->count();
             if ($used >= $tenant->monthly_envelope_limit) {
-                throw FlowException::because('quota_exceeded', 'Limite mensal de envelopes do plano atingido.');
+                throw FlowException::because('quota_exceeded', 'Limite mensal de documentos do plano atingido.');
             }
         }
 
@@ -262,27 +262,27 @@ final class EnvelopeService
                 'expires_at' => now()->addDays($validDays),
             ]);
 
-            $this->evidence->record($envelope, 'envelope_sent', ['expires_at' => $envelope->expires_at?->toIso8601String()], null, $context);
+            $this->evidence->record($envelope, 'document_sent', ['expires_at' => $envelope->expires_at?->toIso8601String()], null, $context);
             app(\App\Plans\UsageLedger::class)->charge($envelope, 'send'); // sem saldo: lança e desfaz o envio
 
             return $tokens;
         });
 
         app(\App\Plans\PlanUsageMonitor::class)->check($tenant);
-        $this->webhooks->dispatch($envelope, 'envelope.sent');
+        $this->webhooks->dispatch($envelope, 'document.sent');
 
         return $tokens;
     }
 
     /**
-     * Envia o envelope e já assina como remetente (sem verificações): a assinatura vem de uma sessão logada ou de uma
+     * Envia o documento e já assina como remetente (sem verificações): a assinatura vem de uma sessão logada ou de uma
      * chave de API. Devolve os tokens dos demais signatários (o remetente não tem link).
      *
      * @return array<string,string>
      */
     public function sendAndSignAsSender(Envelope $envelope, SenderSignature $signature, ?RequestContext $context = null, ?int $validDays = null, ?array $senderIdentity = null): array
     {
-        // Tudo ou nada: se a assinatura do remetente falhar, o envelope volta a rascunho (nada de envelope preso
+        // Tudo ou nada: se a assinatura do remetente falhar, o documento volta a rascunho (nada de documento preso
         // "enviado" com remetente pendente e sem link). A identidade só muda depois que send() validou o rascunho.
         return DB::transaction(function () use ($envelope, $signature, $context, $validDays, $senderIdentity) {
             $tokens = $this->send($envelope, $context, $validDays);
@@ -314,7 +314,7 @@ final class EnvelopeService
         $envelope = $signer->envelope;
 
         if (! $envelope->status->isOpenForSigning()) {
-            throw FlowException::because('envelope_closed', 'Só é possível gerar link de envelopes em andamento.');
+            throw FlowException::because('document_closed', 'Só é possível gerar link de documentos em andamento.');
         }
         if (in_array($signer->status, [SignerStatus::Signed, SignerStatus::Refused], true)) {
             throw FlowException::because('signer_done', 'Este signatário já respondeu.');
@@ -330,12 +330,12 @@ final class EnvelopeService
     public function cancel(Envelope $envelope, ?RequestContext $context = null): void
     {
         if (! $envelope->status->isOpenForSigning() && $envelope->status !== EnvelopeStatus::Draft) {
-            throw FlowException::because('not_cancellable', 'Este envelope não pode ser cancelado.');
+            throw FlowException::because('not_cancellable', 'Este documento não pode ser cancelado.');
         }
 
         $envelope->update(['status' => EnvelopeStatus::Cancelled]);
-        $this->evidence->record($envelope, 'envelope_cancelled', [], null, $context);
+        $this->evidence->record($envelope, 'document_cancelled', [], null, $context);
         app(\App\Plans\UsageLedger::class)->refund($envelope);
-        $this->webhooks->dispatch($envelope, 'envelope.cancelled');
+        $this->webhooks->dispatch($envelope, 'document.cancelled');
     }
 }

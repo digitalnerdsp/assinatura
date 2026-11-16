@@ -192,13 +192,13 @@ final class EnvelopeController extends Controller
         return response()->json(Presenter::envelope($envelope->fresh()));
     }
 
-    /** Reenfileira a selagem de um envelope preso em "sealing". */
+    /** Reenfileira a selagem de um documento preso em "sealing". */
     public function reseal(Request $request, string $id): JsonResponse
     {
         $envelope = $this->find($request, $id);
 
         if ($envelope->status !== EnvelopeStatus::Sealing) {
-            return $this->error('not_sealing', 'Este envelope não está aguardando selagem.', 409);
+            return $this->error('not_sealing', 'Este documento não está aguardando selagem.', 409);
         }
 
         SealEnvelope::dispatch($envelope->getKey());

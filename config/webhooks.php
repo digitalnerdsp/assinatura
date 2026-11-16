@@ -3,13 +3,13 @@
 return [
     // Eventos disponíveis para assinatura pelos clientes.
     'events' => [
-        'envelope.sent' => 'Envelope enviado',
+        'document.sent' => 'Documento enviado',
         'signer.viewed' => 'Signatário abriu o documento',
         'signer.signed' => 'Signatário assinou',
         'signer.refused' => 'Signatário recusou',
-        'envelope.completed' => 'Envelope concluído e selado',
-        'envelope.expired' => 'Envelope expirou',
-        'envelope.cancelled' => 'Envelope cancelado',
+        'document.completed' => 'Documento concluído e selado',
+        'document.expired' => 'Documento expirou',
+        'document.cancelled' => 'Documento cancelado',
     ],
 
     // Permite URLs em rede privada/localhost (só para desenvolvimento). Em produção deve ser false (proteção SSRF).

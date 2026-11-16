@@ -23,7 +23,7 @@ construídos nem executados** (o ambiente de desenvolvimento não tinha Docker).
 
 ## Testar
 
-- `https://seu-dominio/cadastro` → criar a conta → novo envelope → enviar.
+- `https://seu-dominio/cadastro` → criar a conta → novo documento → enviar.
 - Sem SMTP, pegue o link de assinatura nos logs do serviço `worker`/`app` (mensagens de e-mail).
 - Com `SIGNING_ALLOW_LOCAL_TEST=true` e `SIGNING_PLATFORM_PROVIDER=local_test`, a selagem usa certificado de teste.
 
@@ -42,7 +42,7 @@ Por padrão toda empresa tem a política `always`: o documento sai assinado por 
    | `SIGNING_PLATFORM_PROVIDER` | `platform_a1` |
    | `SIGNING_ALLOW_LOCAL_TEST` | `false` |
 3. Redeploy. Em **Plataforma → Selagem do PDF**, use **Testar conexão e certificado**: deve mostrar o titular (sua empresa), o emissor, a validade e o final "· ICP-Brasil".
-4. Crie e conclua um envelope e abra o PDF no Adobe Reader e em validar.iti.gov.br: a assinatura deve aparecer como válida e confiável.
+4. Crie e conclua um documento e abra o PDF no Adobe Reader e em validar.iti.gov.br: a assinatura deve aparecer como válida e confiável.
 
 O sealer nunca devolve a senha em respostas nem em log. Para trocar de certificado, mude as duas variáveis e faça o redeploy.
 
@@ -59,7 +59,7 @@ O sealer nunca devolve a senha em respostas nem em log. Para trocar de certifica
 |---|---|
 | `app` | site e API (porta 8080; é o único com domínio) |
 | `worker` | fila: envio de e-mail/WhatsApp, selagem do PDF, entrega de webhooks |
-| `scheduler` | **novo:** `schedule:work` — expira envelopes vencidos (a cada 15 min) e envia lembretes (de hora em hora) e confere o armazenamento de cada empresa (`storage:reconcile`, 03:30) |
+| `scheduler` | **novo:** `schedule:work` — expira documentos vencidos (a cada 15 min) e envia lembretes (de hora em hora) e confere o armazenamento de cada empresa (`storage:reconcile`, 03:30) |
 | `sealer` | selagem PAdES + carimbo na página + relatório |
 | `backup` | **novo:** a cada 24 h grava `db-AAAAMMDD-HHMMSS.sql.gz` e `documents-….tar.gz` no volume `backups` e apaga o que passar de `BACKUP_RETENTION_DAYS` (padrão 14) |
 | `db` | PostgreSQL 17 |

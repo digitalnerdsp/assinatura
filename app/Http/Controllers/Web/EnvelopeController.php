@@ -344,7 +344,7 @@ final class EnvelopeController extends Controller
             return back()->withInput()->withErrors(['document' => $e->getMessage()]);
         }
 
-        return redirect()->route('envelopes.show', $envelope)->with('status', 'Envelope criado. Revise e envie para assinatura.');
+        return redirect()->route('envelopes.show', $envelope)->with('status', 'Documento criado. Revise e envie para assinatura.');
     }
 
     public function show(Request $request, Envelope $envelope): View
@@ -404,7 +404,7 @@ final class EnvelopeController extends Controller
 
         if ($manual) {
             // Envio manual: o sistema não avisa ninguém sozinho (nem o próximo da fila, nem lembretes).
-            return back()->with('status', 'Envelope liberado para assinatura. Copie o link de cada signatário abaixo e envie como preferir.');
+            return back()->with('status', 'Documento liberado para assinatura. Copie o link de cada signatário abaixo e envie como preferir.');
         }
 
         // Paralelo: todos; sequencial: só o primeiro grupo (os demais são avisados na sua vez).
@@ -412,7 +412,7 @@ final class EnvelopeController extends Controller
 
         if ($failed !== []) {
             return back()->withErrors([
-                'envelope' => 'O envelope foi liberado, mas o aviso não pôde ser enviado para: '.implode(', ', $failed)
+                'envelope' => 'O documento foi liberado, mas o aviso não pôde ser enviado para: '.implode(', ', $failed)
                     .'. Copie o link de cada signatário abaixo e envie manualmente (ou confira e-mail/telefone e a configuração de envio com o administrador).',
             ]);
         }
@@ -422,13 +422,13 @@ final class EnvelopeController extends Controller
             : 'Convites enviados.');
     }
 
-    /** Reenfileira a selagem de um envelope preso em "Selando" (ex.: serviço de selagem estava fora do ar). */
+    /** Reenfileira a selagem de um documento preso em "Selando" (ex.: serviço de selagem estava fora do ar). */
     public function reseal(Request $request, Envelope $envelope): RedirectResponse
     {
         $this->owned($request, $envelope);
 
         if ($envelope->status !== \App\Enums\EnvelopeStatus::Sealing) {
-            return back()->withErrors(['envelope' => 'Este envelope não está aguardando selagem.']);
+            return back()->withErrors(['envelope' => 'Este documento não está aguardando selagem.']);
         }
 
         \App\Jobs\SealEnvelope::dispatch($envelope->getKey());
@@ -481,7 +481,7 @@ final class EnvelopeController extends Controller
             return back()->withErrors(['envelope' => $e->getMessage()]);
         }
 
-        return back()->with('status', 'Envelope cancelado.');
+        return back()->with('status', 'Documento cancelado.');
     }
 
     public function original(Request $request, Envelope $envelope): StreamedResponse

@@ -23,7 +23,7 @@ function witnessUiRegister(): void
 it('o formulário tem a seção Testemunhas (opcional) com adicionar e remover', function () {
     witnessUiRegister();
 
-    $this->get('/envelopes/novo')->assertOk()
+    $this->get('/documentos/novo')->assertOk()
         ->assertSee('Testemunhas (opcional)')->assertSee('Adicionar testemunha');
 });
 
@@ -31,7 +31,7 @@ it('cria o envelope com testemunhas e mostra o papel na página', function () {
     Storage::fake('local');
     witnessUiRegister();
 
-    $this->post('/envelopes', [
+    $this->post('/documentos', [
         'title' => 'Contrato com testemunhas', 'signing_order' => 'parallel',
         'document' => UploadedFile::fake()->createWithContent('a.pdf', "%PDF-1.4\n%%EOF"),
         'signers' => [['name' => 'Parte', 'email' => 'parte@ex.com']],
@@ -45,14 +45,14 @@ it('cria o envelope com testemunhas e mostra o papel na página', function () {
     expect($envelope->signers)->toHaveCount(3)
         ->and($envelope->signers->where('role', 'witness'))->toHaveCount(2);
 
-    $this->get("/envelopes/{$envelope->id}")->assertOk()->assertSee('Testemunha Um')->assertSee('Testemunha');
+    $this->get("/documentos/{$envelope->id}")->assertOk()->assertSee('Testemunha Um')->assertSee('Testemunha');
 });
 
 it('recusa testemunha sem e-mail', function () {
     Storage::fake('local');
     witnessUiRegister();
 
-    $this->from('/envelopes/novo')->post('/envelopes', [
+    $this->from('/documentos/novo')->post('/documentos', [
         'title' => 'X', 'signing_order' => 'parallel',
         'document' => UploadedFile::fake()->createWithContent('a.pdf', "%PDF-1.4\n%%EOF"),
         'signers' => [['name' => 'Parte', 'email' => 'parte@ex.com']],
@@ -72,14 +72,14 @@ it('a API aceita role witness e devolve o papel', function () {
         'title' => 'Contrato', 'document_base64' => base64_encode("%PDF-1.4\n%%EOF"), 'document_name' => 'a.pdf',
     ];
 
-    $this->postJson('/api/v1/envelopes', $base + ['signers' => [
+    $this->postJson('/api/v1/documents', $base + ['signers' => [
         ['name' => 'Ana', 'email' => 'ana@ex.com'],
         ['name' => 'Testemunha', 'email' => 't@ex.com', 'role' => 'witness'],
     ]], $h)->assertCreated()
         ->assertJsonPath('signers.0.role', 'signer')->assertJsonPath('signers.0.is_sender', false)
         ->assertJsonPath('signers.1.role', 'witness');
 
-    $this->postJson('/api/v1/envelopes', $base + ['signers' => [
+    $this->postJson('/api/v1/documents', $base + ['signers' => [
         ['name' => 'Ana', 'email' => 'ana@ex.com', 'role' => 'approver'],
     ]], $h)->assertStatus(422)->assertJsonStructure(['error', 'message', 'errors']);
 });
