@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Web;
 
 use App\Enums\EnvelopeStatus;
+use App\Enums\SigningOrder;
 use App\Envelopes\EnvelopeService;
 use App\Envelopes\Exceptions\FlowException;
+use App\Envelopes\SenderPolicy;
 use App\Folders\FolderService;
 use App\Http\Controllers\Controller;
 use App\Models\Envelope;
@@ -14,6 +16,7 @@ use App\Models\Folder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 /** Assistente de criação de documento em 4 passos. O rascunho vive no banco; cada passo é uma página. */
@@ -76,6 +79,7 @@ final class DocumentWizardController extends Controller
 
         return match ($n) {
             1 => $this->saveStep1($request, $envelope),
+            2 => $this->saveStep2($request, $envelope),
             default => abort(404),
         };
     }
@@ -132,6 +136,68 @@ final class DocumentWizardController extends Controller
         return redirect()->route('envelopes.step', [$envelope, 2]);
     }
 
+    private function saveStep2(Request $request, Envelope $envelope): RedirectResponse
+    {
+        $user = $request->user();
+
+        // Linhas totalmente em branco (o campo vazio que a tela mostra de partida) são ignoradas.
+        $rows = collect((array) $request->input('people', []))
+            ->filter(fn ($p) => is_array($p) && trim(($p['name'] ?? '').($p['email'] ?? '').($p['phone'] ?? '').($p['cpf'] ?? '')) !== '')
+            ->values()->all();
+        $request->merge(['people' => $rows]);
+
+        $data = $request->validate([
+            'people' => ['array', 'max:20'],
+            'people.*.id' => ['nullable', 'uuid'],
+            'people.*.name' => ['required', 'string', 'max:150'],
+            'people.*.email' => ['nullable', 'email', 'max:190'],
+            'people.*.phone' => ['nullable', 'string', 'max:30'],
+            'people.*.cpf' => ['nullable', 'string', 'max:14'],
+            'people.*.role' => ['nullable', Rule::in(['signer', 'witness'])],
+            'signing_order' => ['nullable', Rule::enum(SigningOrder::class)],
+            'sender_signs' => ['nullable', 'boolean'],
+            'require_otp' => ['nullable', 'boolean'],
+            'require_selfie' => ['nullable', 'boolean'],
+            'require_document' => ['nullable', 'boolean'],
+            'require_geolocation' => ['nullable', 'boolean'],
+        ], [
+            'people.max' => 'No máximo 20 signatários por documento.',
+            'people.*.name.required' => 'Informe o nome de cada signatário.',
+            'people.*.email.email' => 'Esse e-mail não parece válido.',
+        ]);
+
+        try {
+            $wantsSender = app(SenderPolicy::class)->wantsSenderSignature(
+                $user->tenant,
+                $request->has('sender_signs') ? $request->boolean('sender_signs') : null,
+            );
+        } catch (FlowException $e) {
+            return back()->withInput()->withErrors(['sender' => $e->getMessage()]);
+        }
+        if ($wantsSender && ! $user->hasSignature()) {
+            return back()->withInput()->withErrors(['sender' => 'Crie a sua assinatura em Meu perfil antes de enviar documentos como remetente.']);
+        }
+
+        $people = array_map(fn (array $p) => $p + ['role' => 'signer'], $data['people'] ?? []);
+        foreach ($people as &$p) {
+            $p['role'] = $p['role'] ?: 'signer';
+        }
+        unset($p);
+
+        try {
+            $this->envelopes->syncPeople($envelope, $user, $people, $wantsSender, SigningOrder::from($data['signing_order'] ?? 'parallel'), [
+                'otp' => $request->boolean('require_otp'),
+                'selfie' => $request->boolean('require_selfie'),
+                'document' => $request->boolean('require_document'),
+                'geolocation' => $request->boolean('require_geolocation'),
+            ]);
+        } catch (FlowException $e) {
+            return back()->withInput()->withErrors(['people' => $e->getMessage()]);
+        }
+
+        return redirect()->route('envelopes.step', [$envelope, 3]);
+    }
+
     /** Documento da empresa, rascunho e no passo que já foi alcançado; senão devolve o redirecionamento certo. */
     private function guard(Request $request, Envelope $envelope, ?int $n = null): ?RedirectResponse
     {
@@ -163,8 +229,13 @@ final class DocumentWizardController extends Controller
     private function data(Request $request, ?Envelope $envelope, int $n): array
     {
         $paths = $this->folders->paths($request->user()->tenant);
+        $signers = $envelope ? $envelope->signers()->get() : collect();
 
         return [
+            'senderPolicy' => app(SenderPolicy::class)->policy($request->user()->tenant),
+            'senderUser' => $request->user(),
+            'people' => $signers->reject(fn ($s) => $s->isSender())->values(),
+            'hasSender' => $signers->contains(fn ($s) => $s->isSender()),
             'envelope' => $envelope,
             'step' => $n,
             'reached' => (int) ($envelope?->wizard_step ?? 0),
