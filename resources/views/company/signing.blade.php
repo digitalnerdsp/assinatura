@@ -14,7 +14,7 @@
                 <div class="card radius-10">
                     <div class="card-header"><h6 class="mb-0"><i class="bx bx-badge-check me-1"></i> A empresa assina os documentos que envia?</h6></div>
                     <div class="card-body">
-                        @foreach (['always' => ['Sempre', 'Todo documento sai assinado por quem o enviou (padrão).'], 'optional' => ['Opcional', 'Quem cria escolhe, documento a documento.'], 'never' => ['Nunca', 'A empresa não assina; só os signatários.']] as $value => [$label, $help])
+                        @foreach (['always' => ['Sempre', 'Todo documento sai assinado por quem o enviou.'], 'optional' => ['Opcional', 'Quem cria escolhe, documento a documento (padrão).'], 'never' => ['Nunca', 'A empresa não assina; só os signatários.']] as $value => [$label, $help])
                             <div class="form-check mb-2">
                                 <input class="form-check-input" type="radio" name="sender_policy" id="policy_{{ $value }}" value="{{ $value }}" @checked(old('sender_policy', $policy) === $value)>
                                 <label class="form-check-label fw-semibold" for="policy_{{ $value }}">{{ $label }}</label>

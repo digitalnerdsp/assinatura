@@ -23,7 +23,7 @@ it('cria as colunas novas com os padrões do escopo', function () {
 
     $tenant = Tenant::create(['name' => 'ACME']);
     $setting = TenantSigningSetting::create(['tenant_id' => $tenant->id])->fresh();
-    expect($setting->sender_policy)->toBe('always');
+    expect($setting->sender_policy)->toBe('optional');
 
     [$key] = ApiKey::issue($tenant, 'k');
     expect($key->fresh()->can_sign_as_company)->toBeFalse();

@@ -100,8 +100,10 @@ it('aplica ordem, verificações e testemunha por último e recusa papel inváli
     wzSync($e, $u, [wzPerson('Test', 't@x.com', 'witness'), wzPerson('Ana', 'a@x.com')], false, SigningOrder::Sequential, ['otp' => true, 'geolocation' => true]);
 
     $e->refresh();
-    expect($e->signing_order)->toBe(SigningOrder::Sequential)->and($e->require_otp)->toBeTrue()->and($e->require_geolocation)->toBeTrue()->and($e->require_selfie)->toBeFalse()
-        ->and($e->required_level)->toBe('advanced');
+    expect($e->signing_order)->toBe(SigningOrder::Sequential)->and($e->require_otp)->toBeFalse()->and($e->required_level)->toBe('advanced');
+    foreach ($e->signers()->get() as $s) {
+        expect($s->require_otp)->toBeTrue()->and($s->require_geolocation)->toBeTrue()->and($s->require_selfie)->toBeFalse();
+    }
     $signers = $e->signers()->get()->keyBy('name');
     expect($signers['Test']->position)->toBeGreaterThan($signers['Ana']->position);
 

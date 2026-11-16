@@ -48,7 +48,7 @@ function wzWeb(array $o = []): Envelope
     preg_match('#/documentos/([0-9a-f-]{36})/passo/2#', (string) $res->headers->get('Location'), $m);
     $e = Envelope::query()->findOrFail($m[1]);
 
-    test()->put("/documentos/{$e->id}/passo/2", ['sender_signs' => $o['sender'], 'signing_order' => $o['order'], 'people' => array_map(fn ($p) => $p + ['role' => 'signer'], $o['people'])] + $o['verif'])->assertSessionHasNoErrors();
+    test()->put("/documentos/{$e->id}/passo/2", ['sender_signs' => $o['sender'], 'signing_order' => $o['order'], 'people' => array_map(fn ($p) => $p + ['role' => 'signer'] + $o['verif'], $o['people'])])->assertSessionHasNoErrors();
 
     if ($o['fields'] === []) {
         test()->put("/documentos/{$e->id}/passo/3", ['skipped' => 1])->assertSessionHasNoErrors();

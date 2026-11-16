@@ -108,13 +108,15 @@ it('política nunca: o switch não aparece e pedir o remetente é recusado', fun
 it('guarda testemunha, ordem e verificações', function () {
     [$u, $e] = wzOptional();
     wzPut2($u, $e, [
-        'sender_signs' => 0, 'signing_order' => 'sequential', 'require_otp' => 1, 'require_selfie' => 1,
-        'people' => [['name' => 'Ana', 'email' => 'ana@x.com', 'role' => 'signer'], ['name' => 'Tomás', 'role' => 'witness']],
+        'sender_signs' => 0, 'signing_order' => 'sequential',
+        'people' => [['name' => 'Ana', 'email' => 'ana@x.com', 'role' => 'signer', 'require_otp' => 1, 'require_selfie' => 1], ['name' => 'Tomás', 'role' => 'witness']],
     ])->assertRedirect();
 
     $e->refresh();
-    expect($e->signing_order)->toBe(SigningOrder::Sequential)->and($e->require_otp)->toBeTrue()->and($e->require_selfie)->toBeTrue()->and($e->require_document)->toBeFalse()
-        ->and($e->signers()->where('role', 'witness')->count())->toBe(1);
+    $ana = $e->signers()->where('name', 'Ana')->first();
+    $tomas = $e->signers()->where('name', 'Tomás')->first();
+    expect($e->signing_order)->toBe(SigningOrder::Sequential)->and($ana->require_otp)->toBeTrue()->and($ana->require_selfie)->toBeTrue()->and($ana->require_document)->toBeFalse()
+        ->and($tomas->require_otp)->toBeFalse()->and($e->signers()->where('role', 'witness')->count())->toBe(1);
 });
 
 it('reenviar com os ids mantém os signatários e os campos e remover apaga', function () {

@@ -185,3 +185,7 @@ html.dark-theme .wz-pop .wz-types button:hover, html.dark-theme .wz-pop .wz-type
 .wz .wz-obsbox[hidden] { display: none; }
 .wz .wz-orow { margin: 6px 0 12px; }
 .wz .wz-orm { margin-top: 22px; }
+
+/* Passo 2: verificações de cada signatário */
+.wz .wz-vchecks { grid-column: 1 / -1; border: 1px solid var(--wz-line); border-radius: 8px; padding: 10px 14px; margin: 6px 0 2px; }
+.wz .wz-vchecks legend { float: none; width: auto; padding: 0 6px; margin: 0; font-size: 13px; color: var(--wz-muted); }

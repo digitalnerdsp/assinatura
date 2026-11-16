@@ -343,7 +343,7 @@ final class EnvelopeService
                     'cpf' => ($p['cpf'] ?? '') === '' ? null : ($p['cpf'] ?? null),
                     'role' => $role,
                     'position' => $role === 'observer' ? $last + 2 : ($role === 'witness' ? $last + 1 : $i + 1),
-                ];
+                ] + $this->personChecks($p, $role, $verifications);
                 $id = (string) ($p['id'] ?? '');
                 if (in_array($id, $keep, true)) {
                     $existing[$id]->update($attrs);
@@ -352,17 +352,12 @@ final class EnvelopeService
                 }
             }
 
-            $otp = (bool) ($verifications['otp'] ?? false);
-            $selfie = (bool) ($verifications['selfie'] ?? false);
-            $docPhoto = (bool) ($verifications['document'] ?? false);
-            $envelope->update([
-                'signing_order' => $order,
-                'require_otp' => $otp,
-                'require_selfie' => $selfie,
-                'require_document' => $docPhoto,
-                'require_geolocation' => (bool) ($verifications['geolocation'] ?? false),
-                'required_level' => ($otp || $selfie || $docPhoto) ? 'advanced' : 'simple',
-            ]);
+            // As verificações agora são de cada signatário; o nível do documento só resume (avançado se alguém exige).
+            $advanced = $envelope->require_otp || $envelope->require_selfie || $envelope->require_document
+                || collect($people)->contains(fn ($p) => $this->personChecks($p, $p['role'] ?? 'signer', $verifications)['require_otp']
+                    || $this->personChecks($p, $p['role'] ?? 'signer', $verifications)['require_selfie']
+                    || $this->personChecks($p, $p['role'] ?? 'signer', $verifications)['require_document']);
+            $envelope->update(['signing_order' => $order, 'required_level' => $advanced ? 'advanced' : 'simple']);
             $this->reachStep($envelope, 2);
             $envelope->touch();
 
@@ -486,12 +481,29 @@ final class EnvelopeService
             throw FlowException::because('observer_email_required', 'Informe o e-mail de cada observador: é para lá que vai a cópia do documento assinado.');
         }
         $missingEmail = fn () => $signers->contains(fn (Signer $s) => ! $s->isSender() && ! $s->isObserver() && ! filter_var((string) $s->email, FILTER_VALIDATE_EMAIL));
-        if ($envelope->require_otp && $missingEmail()) {
-            throw FlowException::because('otp_email_required', 'O código por e-mail exige o e-mail de todos os signatários.');
+        if ($signers->contains(fn (Signer $s) => ! $s->isSender() && ! $s->isObserver() && $s->requires('otp') && ! filter_var((string) $s->email, FILTER_VALIDATE_EMAIL))) {
+            throw FlowException::because('otp_email_required', 'O código por e-mail exige o e-mail de quem vai recebê-lo.');
         }
         if ($autoSend && $missingEmail()) {
             throw FlowException::because('email_required', 'Informe o e-mail de todos os signatários para enviar os links automaticamente.');
         }
+    }
+
+    /**
+     * As quatro verificações de uma pessoa: as dela, ou (se ela não trouxe nenhuma) o padrão informado. Observador não verifica nada.
+     *
+     * @param  array<string,mixed>  $person
+     * @param  array{otp?:bool,selfie?:bool,document?:bool,geolocation?:bool}  $default
+     * @return array{require_otp:bool,require_selfie:bool,require_document:bool,require_geolocation:bool}
+     */
+    private function personChecks(array $person, string $role, array $default): array
+    {
+        if ($role === 'observer') {
+            return ['require_otp' => false, 'require_selfie' => false, 'require_document' => false, 'require_geolocation' => false];
+        }
+        $pick = fn (string $k) => (bool) ($person['require_'.$k] ?? $default[$k] ?? false);
+
+        return ['require_otp' => $pick('otp'), 'require_selfie' => $pick('selfie'), 'require_document' => $pick('document'), 'require_geolocation' => $pick('geolocation')];
     }
 
     /** Papéis aceitos, limite de testemunhas e ao menos um signatário. @param list<array<string,mixed>> $signers */

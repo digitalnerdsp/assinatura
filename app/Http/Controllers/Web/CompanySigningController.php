@@ -22,7 +22,7 @@ final class CompanySigningController extends Controller
 
         return view('company.signing', [
             'setting' => $setting,
-            'policy' => $setting->sender_policy ?: 'always',
+            'policy' => $setting->sender_policy ?: 'optional',
             'isOwner' => $request->user()->role === 'owner',
         ]);
     }

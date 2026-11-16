@@ -58,6 +58,7 @@ final class Presenter
             'phone' => $s->phone,
             'role' => $s->role,
             'is_sender' => (bool) $s->is_sender,
+            'verifications' => ['otp' => $s->requires('otp'), 'selfie' => $s->requires('selfie'), 'document' => $s->requires('document'), 'geolocation' => $s->requires('geolocation')],
             'signed_via' => $s->signed_via,
             'position' => $s->position,
             'status' => $s->status->value,

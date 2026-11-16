@@ -142,7 +142,7 @@ document.querySelectorAll('[data-copy]').forEach(function (b) {
 @endpush
 @endif
 
-@if ($envelope->require_selfie || $envelope->require_document || $envelope->require_geolocation)
+@if ($envelope->signers->contains(fn ($s) => $s->requires("selfie") || $s->requires("document") || $s->requires("geolocation")))
 <div class="card radius-10">
     <div class="card-header"><h6 class="mb-0"><i class="bx bx-id-card me-1"></i> Provas de identidade</h6></div>
     <div class="card-body">

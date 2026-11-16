@@ -28,6 +28,18 @@ class Signer extends Model
         return $this->role === 'witness';
     }
 
+    /** Esta verificação (otp, selfie, document, geolocation) vale para este signatário? Soma a dele com a do documento inteiro (API). */
+    public function requires(string $key): bool
+    {
+        return (bool) $this->{'require_'.$key} || (bool) $this->envelope?->{'require_'.$key};
+    }
+
+    /** Verificação adicional que torna a assinatura "avançada" (a localização sozinha não torna). */
+    public function requiresAdvanced(): bool
+    {
+        return $this->requires('otp') || $this->requires('selfie') || $this->requires('document');
+    }
+
     /** Observador: recebe uma cópia do documento concluído, não assina e não tem link. */
     public function isObserver(): bool
     {

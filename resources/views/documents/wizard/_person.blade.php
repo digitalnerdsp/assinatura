@@ -28,6 +28,13 @@
                 <label for="wz-p{{ $i }}-c">CPF <span class="wz-muted">(opcional)</span></label>
                 <input type="text" id="wz-p{{ $i }}-c" name="people[{{ $i }}][cpf]" value="{{ $p['cpf'] ?? '' }}" maxlength="14">
             </div>
+            <fieldset class="wz-vchecks">
+                <legend>Verificações deste signatário</legend>
+                @foreach (['require_otp' => 'Código de confirmação por e-mail', 'require_selfie' => 'Selfie (câmera)', 'require_document' => 'Foto do documento (RG/CNH)', 'require_geolocation' => 'Localização (GPS)'] as $vk => $vl)
+                    <label class="wz-chk"><input type="checkbox" name="people[{{ $i }}][{{ $vk }}]" value="1" @checked(! empty($p[$vk]))> {{ $vl }}</label>
+                @endforeach
+                <span class="wz-muted wz-small">Só este signatário passa por elas. Sem nenhuma marcada, vale só o link.</span>
+            </fieldset>
         </div>
         <button type="button" class="wz-ib wz-rm" data-remove aria-label="Remover signatário"><i class="bx bx-x" aria-hidden="true"></i></button>
     </div>

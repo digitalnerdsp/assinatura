@@ -163,10 +163,10 @@ final class DocumentWizardController extends Controller
             'people.*.role' => ['nullable', Rule::in(['signer', 'witness', 'observer'])],
             'signing_order' => ['nullable', Rule::enum(SigningOrder::class)],
             'sender_signs' => ['nullable', 'boolean'],
-            'require_otp' => ['nullable', 'boolean'],
-            'require_selfie' => ['nullable', 'boolean'],
-            'require_document' => ['nullable', 'boolean'],
-            'require_geolocation' => ['nullable', 'boolean'],
+            'people.*.require_otp' => ['nullable', 'boolean'],
+            'people.*.require_selfie' => ['nullable', 'boolean'],
+            'people.*.require_document' => ['nullable', 'boolean'],
+            'people.*.require_geolocation' => ['nullable', 'boolean'],
         ], [
             'people.max' => 'No máximo 20 signatários por documento.',
             'people.*.name.required' => 'Informe o nome de cada signatário.',
@@ -203,12 +203,7 @@ final class DocumentWizardController extends Controller
         unset($p);
 
         try {
-            $this->envelopes->syncPeople($envelope, $user, $people, $wantsSender, SigningOrder::from($data['signing_order'] ?? 'parallel'), [
-                'otp' => $request->boolean('require_otp'),
-                'selfie' => $request->boolean('require_selfie'),
-                'document' => $request->boolean('require_document'),
-                'geolocation' => $request->boolean('require_geolocation'),
-            ]);
+            $this->envelopes->syncPeople($envelope, $user, $people, $wantsSender, SigningOrder::from($data['signing_order'] ?? 'parallel'));
         } catch (FlowException $e) {
             return back()->withInput()->withErrors(['people' => $e->getMessage()]);
         }
@@ -360,7 +355,7 @@ final class DocumentWizardController extends Controller
                 $errors['emails.'.$s->getKey()] = 'Esse e-mail não parece válido.';
             } elseif ($strict && $given === '' && $s->isObserver()) {
                 $errors['emails.'.$s->getKey()] = 'Informe o e-mail do observador: é para lá que vai a cópia do documento assinado.';
-            } elseif ($strict && $given === '' && ! $s->isObserver() && ($auto || $envelope->require_otp)) {
+            } elseif ($strict && $given === '' && ! $s->isObserver() && ($auto || $s->requires('otp'))) {
                 $errors['emails.'.$s->getKey()] = $auto
                     ? 'Informe o e-mail para enviar o link automaticamente.'
                     : 'Informe o e-mail: o código de confirmação é enviado por e-mail.';
@@ -374,6 +369,7 @@ final class DocumentWizardController extends Controller
             if ($signers->isNotEmpty() && $emails !== []) {
                 $people = $signers->map(fn ($s) => [
                     'id' => (string) $s->getKey(), 'name' => $s->name, 'phone' => $s->phone, 'cpf' => $s->cpf, 'role' => $s->role,
+                    'require_otp' => $s->require_otp, 'require_selfie' => $s->require_selfie, 'require_document' => $s->require_document, 'require_geolocation' => $s->require_geolocation,
                     'email' => array_key_exists((string) $s->getKey(), $emails) ? $emails[(string) $s->getKey()] : $s->email,
                 ])->all();
                 $this->envelopes->syncPeople(

@@ -27,9 +27,8 @@ function companyApi(?array $setting = null, bool $canSign = false, ?Tenant $tena
     Mail::fake();
     $tenant ??= Tenant::create(['name' => 'ACME']);
     [$key, $plain] = ApiKey::issue($tenant, 'k', false, $canSign);
-    if ($setting !== null) {
-        TenantSigningSetting::updateOrCreate(['tenant_id' => $tenant->id], $setting);
-    }
+    // O padrão da empresa é "opcional"; estes testes cobrem a política "sempre", então ela é declarada aqui (o teste pode trocar).
+    TenantSigningSetting::updateOrCreate(['tenant_id' => $tenant->id], ($setting ?? []) + ['sender_policy' => 'always']);
 
     return [$tenant, ['Authorization' => "Bearer {$plain}", 'Accept' => 'application/json'], $key];
 }

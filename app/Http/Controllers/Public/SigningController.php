@@ -46,7 +46,7 @@ final class SigningController extends Controller
         ];
         $steps = [];
         foreach ($labels as $key => $label) {
-            if ($envelope->{'require_'.$key}) {
+            if ($signer->requires($key)) {
                 $steps[] = ['key' => $key, 'label' => $label, 'done' => ! in_array($key, $pending, true)];
             }
         }

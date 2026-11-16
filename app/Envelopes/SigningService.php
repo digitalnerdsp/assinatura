@@ -203,7 +203,7 @@ final class SigningService
             }
 
             $now = now();
-            $level ??= $envelope->required_level; // 'advanced' só se houve verificação adicional (já validada acima)
+            $level ??= $fresh->requiresAdvanced() ? 'advanced' : 'simple'; // avançada só se este signatário passou por verificação adicional (já validada acima)
 
             $fresh->signature()->create([
                 'type' => $type,
@@ -268,16 +268,16 @@ final class SigningService
         $signer->loadMissing('attachments');
         $pending = [];
 
-        if ($envelope->require_otp && $signer->otp_verified_at === null) {
+        if ($signer->requires('otp') && $signer->otp_verified_at === null) {
             $pending[] = 'otp';
         }
-        if ($envelope->require_selfie && $signer->attachment(SignerAttachment::SELFIE) === null) {
+        if ($signer->requires('selfie') && $signer->attachment(SignerAttachment::SELFIE) === null) {
             $pending[] = 'selfie';
         }
-        if ($envelope->require_document && $signer->attachment(SignerAttachment::DOCUMENT) === null) {
+        if ($signer->requires('document') && $signer->attachment(SignerAttachment::DOCUMENT) === null) {
             $pending[] = 'document';
         }
-        if ($envelope->require_geolocation && $signer->geolocation_at === null) {
+        if ($signer->requires('geolocation') && $signer->geolocation_at === null) {
             $pending[] = 'geolocation';
         }
 

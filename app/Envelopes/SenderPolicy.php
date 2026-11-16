@@ -13,7 +13,7 @@ final class SenderPolicy
 {
     public function policy(Tenant $tenant): string
     {
-        return TenantSigningSetting::query()->where('tenant_id', $tenant->getKey())->value('sender_policy') ?? 'always';
+        return TenantSigningSetting::query()->where('tenant_id', $tenant->getKey())->value('sender_policy') ?? 'optional';
     }
 
     /**

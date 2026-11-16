@@ -27,9 +27,9 @@ construídos nem executados** (o ambiente de desenvolvimento não tinha Docker).
 - Sem SMTP, pegue o link de assinatura nos logs do serviço `worker`/`app` (mensagens de e-mail).
 - Com `SIGNING_ALLOW_LOCAL_TEST=true` e `SIGNING_PLATFORM_PROVIDER=local_test`, a selagem usa certificado de teste.
 
-## Assinatura do remetente (padrão: sempre)
+## Assinatura do remetente (padrão: opcional)
 
-Por padrão toda empresa tem a política `always`: o documento sai assinado por quem o enviou. **Antes de criar documentos pelo painel, cada usuário precisa criar a sua assinatura em Meu perfil → Minha assinatura.** Pela API, a empresa precisa de representante e termo aceitos em Configurações → Assinatura da empresa, e a chave precisa da permissão "Pode assinar em nome da empresa". O dono da conta pode mudar a política para opcional ou nunca na mesma tela.
+Por padrão toda empresa tem a política `optional`: em cada documento, quem cria escolhe se assina (switch "Eu vou assinar" no passo 2). Quem quiser que todo documento saia assinado escolhe `always` em Configurações › Assinatura da empresa. **Antes de criar documentos pelo painel, cada usuário precisa criar a sua assinatura em Meu perfil → Minha assinatura.** Pela API, a empresa precisa de representante e termo aceitos em Configurações → Assinatura da empresa, e a chave precisa da permissão "Pode assinar em nome da empresa". O dono da conta pode mudar a política para opcional ou nunca na mesma tela.
 
 ## Selar com o e-CNPJ (certificado A1 ICP-Brasil)
 

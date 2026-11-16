@@ -100,12 +100,20 @@ it('a política decide quem assina', function () {
     $tenant = Tenant::create(['name' => 'ACME']);
     $policy = new SenderPolicy();
 
+    // Padrão (sem configuração salva): opcional, escolhido em cada documento.
+    expect($policy->policy($tenant))->toBe('optional')
+        ->and($policy->wantsSenderSignature($tenant, null))->toBeFalse()
+        ->and($policy->wantsSenderSignature($tenant, true))->toBeTrue()
+        ->and($policy->wantsSenderSignature($tenant, false))->toBeFalse();
+
+    // Empresa que escolheu "sempre": todo documento sai assinado.
+    TenantSigningSetting::create(['tenant_id' => $tenant->id, 'sender_policy' => 'always']);
     expect($policy->policy($tenant))->toBe('always')
         ->and($policy->wantsSenderSignature($tenant, null))->toBeTrue()
         ->and($policy->wantsSenderSignature($tenant, true))->toBeTrue();
     expect(fn () => $policy->wantsSenderSignature($tenant, false))->toThrow(FlowException::class, 'Sua empresa exige');
 
-    TenantSigningSetting::create(['tenant_id' => $tenant->id, 'sender_policy' => 'optional']);
+    TenantSigningSetting::where('tenant_id', $tenant->id)->update(['sender_policy' => 'optional']);
     expect($policy->wantsSenderSignature($tenant, null))->toBeFalse()
         ->and($policy->wantsSenderSignature($tenant, true))->toBeTrue()
         ->and($policy->wantsSenderSignature($tenant, false))->toBeFalse();
@@ -122,6 +130,7 @@ it('a política decide quem assina', function () {
 
 it('a exigência recusada carrega o código sender_signature_required', function () {
     $tenant = Tenant::create(['name' => 'ACME']);
+    TenantSigningSetting::create(['tenant_id' => $tenant->id, 'sender_policy' => 'always']);
 
     try {
         (new SenderPolicy())->wantsSenderSignature($tenant, false);

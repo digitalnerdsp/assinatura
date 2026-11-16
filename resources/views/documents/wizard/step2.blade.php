@@ -4,7 +4,7 @@
 @php
     $rows = old('people');
     if ($rows === null) {
-        $rows = $people->map(fn ($s) => ['id' => $s->id, 'name' => $s->name, 'email' => $s->email, 'phone' => $s->phone, 'cpf' => $s->cpf, 'role' => $s->role])->all();
+        $rows = $people->map(fn ($s) => ['id' => $s->id, 'name' => $s->name, 'email' => $s->email, 'phone' => $s->phone, 'cpf' => $s->cpf, 'role' => $s->role, 'require_otp' => $s->require_otp, 'require_selfie' => $s->require_selfie, 'require_document' => $s->require_document, 'require_geolocation' => $s->require_geolocation])->all();
     }
     $all = $rows ?: [];
     $signerRows = [];
@@ -17,9 +17,7 @@
     $rows = $signerRows;
     $senderOn = old('sender_signs', $hasSender ? 1 : 0);
     $order = old('signing_order', $envelope->signing_order->value);
-    $verif = ['require_otp' => 'Código de confirmação por e-mail', 'require_selfie' => 'Selfie (câmera)', 'require_document' => 'Foto do documento (RG/CNH)', 'require_geolocation' => 'Localização (GPS)'];
-    $adv = collect($signerRows)->contains(fn ($r) => ! empty($r['email']) || ! empty($r['phone']) || ! empty($r['cpf']) || (($r['role'] ?? 'signer') === 'witness'))
-        || $envelope->require_otp || $envelope->require_selfie || $envelope->require_document || $envelope->require_geolocation;
+    $adv = collect($signerRows)->contains(fn ($r) => ! empty($r['email']) || ! empty($r['phone']) || ! empty($r['cpf']) || (($r['role'] ?? 'signer') === 'witness') || ! empty($r['require_otp']) || ! empty($r['require_selfie']) || ! empty($r['require_document']) || ! empty($r['require_geolocation']));
 @endphp
 <form method="post" action="{{ route('envelopes.step.save', [$envelope, 2]) }}" id="wz-form2" data-suggest-url="{{ route('contacts.suggest') }}">
     @csrf @method('PUT')
@@ -66,14 +64,6 @@
     <div class="wz-orderbox" id="wz-orderbox" hidden>
         <input type="hidden" name="signing_order" value="parallel">
         <label class="wz-sw"><input type="checkbox" name="signing_order" value="sequential" @checked($order === 'sequential')><span class="wz-tr"></span><span>Assinar em ordem (um de cada vez)</span></label>
-    </div>
-
-    <div class="wz-adv-only">
-        <h2 class="wz-h2">Verificações do documento</h2>
-        <p class="wz-muted">Valem para todos os signatários. Sem nenhuma marcada, vale só o link.</p>
-        @foreach ($verif as $name => $label)
-            <label class="wz-chk"><input type="checkbox" name="{{ $name }}" value="1" @checked(old($name, $envelope->{$name}))> {{ $label }}</label>
-        @endforeach
     </div>
 
     <div class="wz-foot is-mid">
