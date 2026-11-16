@@ -33,7 +33,7 @@ final class ThemeComposer
             'isSuper' => (bool) $user?->isSuperAdmin(),
             'menu' => $user ? app(MenuBuilder::class)->for($user) : [],
             'flash' => new HtmlString(view('layouts.partials.flash')->render().($user ? view('layouts.partials.plan-banner')->render() : '')),
-            'legacyCss' => [asset('assets/css/icons.css'), asset('assets/css/legacy-scope.css').'?v=1', asset('assets/css/fonts.css').'?v=1'],
+            'legacyCss' => [asset('assets/css/icons.css'), asset('assets/css/legacy-scope.css').'?v=1', asset('assets/css/fonts.css').'?v=3'],
             'legacyScripts' => new HtmlString(view('layouts.partials.scripts')->render()),
         ]);
     }

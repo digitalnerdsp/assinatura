@@ -33,3 +33,29 @@ html body .legacy-scope,
 html body .legacy-scope :where(input, button, select, textarea, .btn, .form-control, .form-select) {
   font-family: var(--app-font);
 }
+
+/* Peso e tamanho (a Google Sans Flex em 400 fica fina em telas pequenas; o ZapSign usa mais firme) */
+html body { font-weight: 500; }
+html body .legacy-scope { font-weight: 500; }
+
+/* Menu lateral (tema Able): negrito e maior; submenu um pouco mais leve */
+html body .pc-sidebar .pc-navbar .pc-link,
+html body .pc-sidebar .pc-navbar .pc-mtext { font-size: 16px; font-weight: 700; }
+html body .pc-sidebar .pc-navbar .pc-submenu .pc-link { font-size: 15px; font-weight: 600; }
+html body .pc-sidebar .pc-caption label { font-weight: 700; letter-spacing: .04em; }
+/* Menu lateral do layout de reserva */
+html body .sidebar-wrapper .metismenu a { font-size: 16px; font-weight: 700; }
+html body .sidebar-wrapper .metismenu ul a { font-size: 15px; font-weight: 600; }
+
+/* Títulos, rótulos, tabelas e botões mais firmes */
+html body h1, html body h2, html body h3, html body h4, html body h5, html body h6 { font-weight: 700; }
+html body .legacy-scope :where(h1, h2, h3, h4, h5, h6, th, .card-header, .form-label, label, .fw-semibold, .btn, strong, b) { font-weight: 700; }
+html body .legacy-scope :where(.text-secondary, .small, small, .form-text, .text-muted) { font-weight: 500; }
+html body .pc-header .pc-head-link, html body .pc-header .btn { font-weight: 600; }
+
+/* Painel (tema Able) e tamanho base */
+html body { font-size: 15px; }
+html body .ab-page-title, html body .ab-kpi-value, html body .ab-create-label { font-weight: 700; }
+html body .ab-kpi-label, html body .ab-link, html body .ab-badge { font-weight: 600; }
+html body .ab-kpi-label { font-size: 15px; }
+html body .legacy-scope { font-size: 15px; }
