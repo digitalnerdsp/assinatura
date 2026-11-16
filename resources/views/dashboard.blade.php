@@ -78,7 +78,7 @@
                     <tbody>
                     @forelse ($recent as $e)
                         <tr>
-                            <td><a href="{{ route('envelopes.show', $e) }}">{{ $e->title }}</a><div class="small text-secondary">{{ $e->signers_count }} signatário(s)</div></td>
+                            <td><a href="{{ $e->openUrl() }}">{{ $e->title }}</a><div class="small text-secondary">{{ $e->signers_count }} signatário(s)</div></td>
                             <td>@include('partials.status-badge', ['status' => $e->status->value])</td>
                             <td class="text-nowrap">{{ $e->created_at->timezone('America/Sao_Paulo')->format('d/m/Y') }}</td>
                         </tr>

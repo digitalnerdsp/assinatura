@@ -4,7 +4,7 @@
         <div class="card-body d-flex align-items-center gap-2 py-2 pe-1">
             <i class="bx bxs-file-pdf fs-3 text-danger" aria-hidden="true"></i>
             <div class="flex-grow-1 min-w-0">
-                <a class="fw-semibold d-block text-truncate" href="{{ route('envelopes.show', $e) }}">{{ $e->title }}</a>
+                <a class="fw-semibold d-block text-truncate" href="{{ $e->openUrl() }}">{{ $e->title }}</a>
                 <div class="d-flex flex-wrap align-items-center gap-1 small">
                     @include('partials.status-badge', ['status' => $e->status->value])
                     @if ($e->isArchived())<span class="badge bg-secondary">Arquivado</span>@endif

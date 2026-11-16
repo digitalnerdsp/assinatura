@@ -45,6 +45,16 @@ class Envelope extends Model
         ];
     }
 
+    /** Para onde o título do documento leva: rascunho do assistente volta ao passo em que parou; o resto abre o detalhe. */
+    public function openUrl(): string
+    {
+        if ($this->status === EnvelopeStatus::Draft && $this->wizard_step !== null && ! $this->isTrashed()) {
+            return route('envelopes.step', [$this, min(4, (int) $this->wizard_step + 1)]);
+        }
+
+        return route('envelopes.show', $this);
+    }
+
     /** Só rascunho, cancelado e expirado podem ir para a lixeira; documento assinado nunca é apagado pelo usuário. */
     public function isTrashable(): bool
     {

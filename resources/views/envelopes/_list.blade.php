@@ -53,7 +53,7 @@
                     <tbody>
                     @foreach ($envelopes as $e)
                         <tr>
-                            <td data-label="Título"><a href="{{ route('envelopes.show', $e) }}" class="fw-semibold">{{ $e->title }}</a></td>
+                            <td data-label="Título"><a href="{{ $e->openUrl() }}" class="fw-semibold">{{ $e->title }}</a></td>
                             <td data-label="Pasta / etiquetas">
                                 @if ($e->folder_id && isset($folderPaths[$e->folder_id]))<span class="text-secondary small me-1"><i class="bx bx-folder"></i> {{ $folderPaths[$e->folder_id] }}</span>@endif
                                 @foreach ($e->tags as $t)<span class="badge bg-{{ $t->color }} me-1">{{ $t->name }}</span>@endforeach

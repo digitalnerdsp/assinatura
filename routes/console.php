@@ -22,6 +22,7 @@ Artisan::command('documents:purge-trash', function (\App\Envelopes\TrashService 
     $this->info($trash->purge(30).' documento(s) removido(s) da lixeira.');
 })->purpose('Apaga de vez os documentos que estão há 30 dias ou mais na lixeira');
 Schedule::command('documents:purge-trash')->daily()->withoutOverlapping();
+Schedule::command('documents:trash-stale-drafts')->daily()->withoutOverlapping();
 
 Schedule::command('storage:reconcile')->dailyAt('03:30')->withoutOverlapping();
 
