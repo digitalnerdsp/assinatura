@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('section', 'Documentos')
 @section('content')
-<link rel="stylesheet" href="{{ asset('assets/css/wizard.css') }}?v=4">
+<link rel="stylesheet" href="{{ asset('assets/css/wizard.css') }}?v=5">
 <div class="wz" id="wz">
     <div class="wz-card" id="wz-card">
         @include('documents.wizard._stepper')

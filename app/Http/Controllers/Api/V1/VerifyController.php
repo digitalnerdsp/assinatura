@@ -34,7 +34,7 @@ final class VerifyController extends Controller
             'document_sha256' => $envelope->document->sha256,
             'final_sha256' => $envelope->final_sha256,
             'chain_intact' => $evidence->isIntact($envelope),
-            'signers' => $envelope->signers->map(fn ($s) => [
+            'signers' => $envelope->signers->reject(fn ($s) => $s->isObserver())->map(fn ($s) => [
                 'name' => $s->name, 'status' => $s->status->value, 'signed_at' => $s->signed_at?->toIso8601String(),
             ])->all(),
         ];

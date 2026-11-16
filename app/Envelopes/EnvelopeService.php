@@ -342,7 +342,7 @@ final class EnvelopeService
                     'phone' => ($p['phone'] ?? '') === '' ? null : ($p['phone'] ?? null),
                     'cpf' => ($p['cpf'] ?? '') === '' ? null : ($p['cpf'] ?? null),
                     'role' => $role,
-                    'position' => $role === 'witness' ? $last + 1 : $i + 1,
+                    'position' => $role === 'observer' ? $last + 2 : ($role === 'witness' ? $last + 1 : $i + 1),
                 ];
                 $id = (string) ($p['id'] ?? '');
                 if (in_array($id, $keep, true)) {
@@ -385,6 +385,7 @@ final class EnvelopeService
 
         $mine = $envelope->signers()->pluck('id')->map(fn ($id) => (string) $id)->all();
         $senderId = (string) ($envelope->signers()->where('is_sender', true)->value('id') ?? '');
+        $observers = $envelope->signers()->where('role', 'observer')->pluck('id')->map(fn ($id) => (string) $id)->all();
         $rows = [];
         foreach ($fields as $f) {
             if (! in_array((string) ($f['signer_id'] ?? ''), $mine, true)) {
@@ -392,6 +393,9 @@ final class EnvelopeService
             }
             if (! in_array($f['type'] ?? '', \App\Models\SignatureField::TYPES, true)) {
                 throw FlowException::because('invalid_field_type', 'O tipo de campo não é válido.');
+            }
+            if (in_array((string) $f['signer_id'], $observers, true)) {
+                throw FlowException::because('invalid_field_signer', 'Um observador não assina: não pode receber campo no documento.');
             }
             if ((string) $f['signer_id'] === $senderId && $f['type'] !== 'signature') {
                 throw FlowException::because('invalid_field_type', 'O remetente só pode ter campo de assinatura (visto e texto são preenchidos por quem recebe o link).');
@@ -478,7 +482,10 @@ final class EnvelopeService
         if (! $signers->contains(fn (Signer $s) => $s->isSender() || $s->role === 'signer')) {
             throw FlowException::because('no_signers', 'Informe ao menos um signatário.');
         }
-        $missingEmail = fn () => $signers->contains(fn (Signer $s) => ! $s->isSender() && ! filter_var((string) $s->email, FILTER_VALIDATE_EMAIL));
+        if ($signers->contains(fn (Signer $s) => $s->isObserver() && ! filter_var((string) $s->email, FILTER_VALIDATE_EMAIL))) {
+            throw FlowException::because('observer_email_required', 'Informe o e-mail de cada observador: é para lá que vai a cópia do documento assinado.');
+        }
+        $missingEmail = fn () => $signers->contains(fn (Signer $s) => ! $s->isSender() && ! $s->isObserver() && ! filter_var((string) $s->email, FILTER_VALIDATE_EMAIL));
         if ($envelope->require_otp && $missingEmail()) {
             throw FlowException::because('otp_email_required', 'O código por e-mail exige o e-mail de todos os signatários.');
         }
@@ -493,13 +500,17 @@ final class EnvelopeService
         $roles = array_map(fn ($s) => $s['role'] ?? 'signer', $signers);
 
         foreach ($roles as $role) {
-            if (! in_array($role, Envelope::PARTICIPANT_ROLES, true)) {
-                throw FlowException::because('invalid_role', 'Papel inválido: use signer ou witness.');
+            if (! in_array($role, [...Envelope::PARTICIPANT_ROLES, 'observer'], true)) {
+                throw FlowException::because('invalid_role', 'Papel inválido: use signer, witness ou observer.');
             }
         }
 
         if (count(array_filter($roles, fn ($r) => $r === 'witness')) > (int) config('signing.max_witnesses')) {
             throw FlowException::because('too_many_witnesses', 'Limite de '.config('signing.max_witnesses').' testemunhas por documento.');
+        }
+
+        if (count(array_filter($roles, fn ($r) => $r === 'observer')) > (int) config('signing.max_observers')) {
+            throw FlowException::because('too_many_observers', 'Limite de '.config('signing.max_observers').' observadores por documento.');
         }
 
         if (! in_array('signer', $roles, true) && ! $hasSender) {
@@ -553,6 +564,9 @@ final class EnvelopeService
                 if ($signer->isSender()) {
                     $signer->update(['invited_at' => now()]); // o remetente não recebe link nem convite
                     continue;
+                }
+                if ($signer->isObserver()) {
+                    continue; // observador só recebe a cópia do documento concluído
                 }
 
                 $plain = Str::random(48);

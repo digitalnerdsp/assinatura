@@ -179,3 +179,9 @@ html.dark-theme .wz-pop .wz-types button:hover, html.dark-theme .wz-pop .wz-type
 .wz .wz-inline input[hidden] { display: none; }
 .wz .wz-tags { margin: 14px 0; display: flex; gap: 6px 14px; align-items: center; flex-wrap: wrap; }
 .wz .wz-tag { margin: 0; }
+
+/* Passo 2: observadores */
+.wz .wz-obsbox { margin: 24px 0 8px; }
+.wz .wz-obsbox[hidden] { display: none; }
+.wz .wz-orow { margin: 6px 0 12px; }
+.wz .wz-orm { margin-top: 22px; }

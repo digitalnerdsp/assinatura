@@ -26,7 +26,7 @@ final class DashboardController extends Controller
 
         $pending = (clone $base)
             ->whereIn('status', [EnvelopeStatus::Sent->value, EnvelopeStatus::InProgress->value, EnvelopeStatus::Sealing->value])
-            ->withCount(['signers', 'signers as signed_count' => fn ($q) => $q->where('status', 'signed')])
+            ->withCount(['signers' => fn ($q) => $q->whereIn('role', Envelope::PARTICIPANT_ROLES), 'signers as signed_count' => fn ($q) => $q->where('status', 'signed')])
             ->latest()->limit(6)->get();
 
         $summary = app(\App\Reports\ReportService::class)->summary($tenant, []);
@@ -51,7 +51,7 @@ final class DashboardController extends Controller
                 ->map(fn ($s) => ['label' => __('status.'.$s->value), 'value' => (int) ($byStatus[$s->value] ?? 0)])
                 ->filter(fn ($x) => $x['value'] > 0)->values(),
             'pending' => $pending,
-            'recent' => (clone $base)->withCount('signers')->latest()->limit(8)->get(),
+            'recent' => (clone $base)->withCount(['signers' => fn ($q) => $q->whereIn('role', Envelope::PARTICIPANT_ROLES)])->latest()->limit(8)->get(),
             'usedThisMonth' => $usedThisMonth,
         ]);
     }

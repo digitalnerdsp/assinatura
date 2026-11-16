@@ -104,7 +104,7 @@ final class EnvelopeController extends Controller
             ->where('tenant_id', $tenantId)
             ->when($onlyArchived, fn ($q) => $q->whereNotNull('archived_at')->whereNull('trashed_at'), fn ($q) => $q->visible())
             ->with(['tags', 'folder'])
-            ->withCount('signers')
+            ->withCount(['signers' => fn ($q) => $q->whereIn('role', Envelope::PARTICIPANT_ROLES)])
             ->when($filters['q'] ?? null, function ($query, string $q) {
                 $like = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], mb_strtolower($q)).'%';
                 $query->where(fn ($w) => $w

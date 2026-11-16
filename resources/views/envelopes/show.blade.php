@@ -91,7 +91,7 @@
             <tbody>
             @foreach ($envelope->signers as $s)
                 <tr>
-                    <td>{{ $s->position }}</td><td>{{ $s->name }}</td><td>@if ($s->isSender())<span class="badge bg-primary">Remetente</span>@elseif ($s->isWitness())<span class="badge bg-secondary">Testemunha</span>@else<span class="text-secondary">Signatário</span>@endif</td><td>{{ $s->email }}</td>
+                    <td>{{ $s->position }}</td><td>{{ $s->name }}</td><td>@if ($s->isSender())<span class="badge bg-primary">Remetente</span>@elseif ($s->isWitness())<span class="badge bg-secondary">Testemunha</span>@elseif ($s->isObserver())<span class="badge bg-info">Observador</span>@else<span class="text-secondary">Signatário</span>@endif</td><td>{{ $s->email }}</td>
                     <td>@include('partials.status-badge', ['status' => $s->status->value])@if($s->refused_reason)<div class="small text-secondary">{{ $s->refused_reason }}</div>@endif @if ($envelope->signing_order->value === 'sequential' && $envelope->status->isOpenForSigning() && ! in_array($s->status->value, ['signed', 'refused']))<div class="small text-secondary">{{ in_array($s->id, $activeIds) ? 'na vez de assinar' : 'aguardando a vez' }}</div>@endif</td>
                     <td>{{ $s->signed_at?->timezone('America/Sao_Paulo')->format('d/m/Y H:i:s') ?? '—' }}</td>
                 </tr>
@@ -107,7 +107,7 @@
     <div class="card-body">
         <p class="text-secondary">Cada link é pessoal: quem o abre assina em nome daquele signatário. Envie cada um só para a pessoa certa.</p>
         @foreach ($envelope->signers as $s)
-            @continue(in_array($s->status->value, ['signed', 'refused']))
+            @continue(in_array($s->status->value, ['signed', 'refused']) || $s->isObserver())
             @php($url = $s->signUrl())
             <div class="border rounded p-3 mb-3">
                 <strong>{{ $s->name }}</strong> <span class="text-secondary">· {{ $s->email }}</span>

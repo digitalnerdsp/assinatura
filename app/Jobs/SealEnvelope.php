@@ -19,6 +19,19 @@ use Illuminate\Support\Facades\Storage;
 /** Sela o PDF quando todos assinaram (PAdES + carimbo do tempo) e conclui o documento. */
 final class SealEnvelope implements ShouldQueue
 {
+    /** Manda o PDF selado a cada observador. Falha de e-mail nunca desfaz a conclusão: fica no log e a trilha só registra o que foi enviado. */
+    private function sendObserverCopies(Envelope $envelope, EvidenceLogger $evidence): void
+    {
+        foreach ($envelope->signers()->where('role', 'observer')->get() as $observer) {
+            try {
+                \Illuminate\Support\Facades\Mail::to($observer->email)->send(new \App\Mail\ObserverCopyMail($observer));
+                $evidence->record($envelope, 'observer_copy_sent', ['observer' => $observer->name], $observer);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+    }
+
     use Queueable;
 
     public int $tries = 5;
@@ -87,6 +100,8 @@ final class SealEnvelope implements ShouldQueue
             'report_attached' => $sealed->decorated,
             'final_sha256' => $sealed->sha256,
         ]);
+
+        $this->sendObserverCopies($envelope->fresh(), $evidence);
 
         $webhooks->dispatch($envelope->fresh(), 'document.completed');
     }

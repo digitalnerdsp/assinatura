@@ -23,7 +23,7 @@
         <table class="table align-middle mb-0">
             <thead class="table-light"><tr><th>Nome</th><th>Status</th><th>Assinou em (BRT)</th></tr></thead>
             <tbody>
-            @foreach ($envelope->signers as $s)
+            @foreach ($envelope->signers->reject(fn ($s) => $s->isObserver()) as $s)
                 <tr><td>{{ $s->name }}</td><td>@include('partials.status-badge', ['status' => $s->status->value])</td><td>{{ $s->signed_at?->timezone('America/Sao_Paulo')->format('d/m/Y H:i:s') ?? '—' }}</td></tr>
             @endforeach
             </tbody>

@@ -45,6 +45,34 @@
   });
   sync();
 
+  /* Observadores: recebem a cópia final por e-mail; linhas separadas das dos signatários */
+  var obsBox = document.getElementById('wz-obsbox');
+  var obsList = document.getElementById('wz-observers');
+  var obsTpl = document.getElementById('wz-observer-tpl');
+  var obsToggle = document.getElementById('wz-obs-toggle');
+  function addObserver(values) {
+    var i = parseInt(holder.dataset.next, 10); holder.dataset.next = String(i + 1);
+    var d = document.createElement('div'); d.innerHTML = obsTpl.innerHTML.replace(/__I__/g, String(i)).trim();
+    var row = d.firstElementChild; obsList.appendChild(row);
+    if (values) {
+      Object.keys(values).forEach(function (k) {
+        var el = row.querySelector('[name="people[' + i + '][' + k + ']"]');
+        if (el) { el.value = values[k] || ''; }
+      });
+    }
+    return row;
+  }
+  function showObservers(show) {
+    obsBox.hidden = !show;
+    obsToggle.setAttribute('aria-expanded', show ? 'true' : 'false');
+    if (show && !obsList.querySelector('[data-orow]')) { addObserver().querySelector('input[type=text]').focus(); }
+  }
+  obsToggle.addEventListener('click', function () { showObservers(obsBox.hidden); });
+  document.getElementById('wz-add-obs').addEventListener('click', function () { addObserver().querySelector('input[type=text]').focus(); });
+  obsList.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-oremove]'); if (!b) { return; }
+    b.closest('[data-orow]').remove();
+  });
   /* Contatos */
   var modal = document.getElementById('wz-contacts-modal');
   var q = document.getElementById('wz-ct-q');

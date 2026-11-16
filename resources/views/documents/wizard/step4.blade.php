@@ -34,7 +34,7 @@
 
     @forelse ($people as $s)
         <div class="wz-srow">
-            <strong class="wz-sname">{{ $s->name }} @if ($s->role === 'witness')<small class="wz-muted">(testemunha)</small>@endif</strong>
+            <strong class="wz-sname">{{ $s->name }} @if ($s->role === 'witness')<small class="wz-muted">(testemunha)</small>@elseif ($s->role === 'observer')<small class="wz-muted">(observador: recebe a cópia final)</small>@endif</strong>
             <div class="wz-field wz-semail">
                 <label for="wz-em-{{ $s->id }}">E-mail do signatário <span class="wz-req" id="wz-req-{{ $s->id }}">{{ $auto ? '*' : '(opcional)' }}</span></label>
                 <input type="email" id="wz-em-{{ $s->id }}" name="emails[{{ $s->id }}]" value="{{ old('emails.'.$s->id, $s->email) }}" maxlength="190" autocomplete="off">

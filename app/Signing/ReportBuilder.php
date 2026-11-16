@@ -48,6 +48,7 @@ final class ReportBuilder
             'generated_at' => $this->at(now()).' (BRT)',
             // remetente, signatários e testemunhas (nessa ordem; dentro de cada grupo, por posição)
             'signers' => $envelope->signers
+                ->reject(fn (Signer $s) => $s->isObserver())
                 ->sortBy(fn (Signer $s) => [$s->isSender() ? 0 : ($s->isWitness() ? 2 : 1), $s->position, $s->getKey()])
                 ->map(fn (Signer $s) => $this->signer($s, $events))->values()->all(),
             'events' => $this->events($envelope, $events),

@@ -28,6 +28,12 @@ class Signer extends Model
         return $this->role === 'witness';
     }
 
+    /** Observador: recebe uma cópia do documento concluído, não assina e não tem link. */
+    public function isObserver(): bool
+    {
+        return $this->role === 'observer';
+    }
+
     /** Link público de assinatura, se o token ainda estiver disponível (envelopes antigos não têm). */
     public function signUrl(): ?string
     {

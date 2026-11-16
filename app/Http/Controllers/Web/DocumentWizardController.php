@@ -160,7 +160,7 @@ final class DocumentWizardController extends Controller
             'people.*.email' => ['nullable', 'email', 'max:190'],
             'people.*.phone' => ['nullable', 'string', 'max:30'],
             'people.*.cpf' => ['nullable', 'string', 'max:14'],
-            'people.*.role' => ['nullable', Rule::in(['signer', 'witness'])],
+            'people.*.role' => ['nullable', Rule::in(['signer', 'witness', 'observer'])],
             'signing_order' => ['nullable', Rule::enum(SigningOrder::class)],
             'sender_signs' => ['nullable', 'boolean'],
             'require_otp' => ['nullable', 'boolean'],
@@ -172,6 +172,17 @@ final class DocumentWizardController extends Controller
             'people.*.name.required' => 'Informe o nome de cada signatário.',
             'people.*.email.email' => 'Esse e-mail não parece válido.',
         ]);
+
+        // Observador recebe a cópia por e-mail: sem e-mail não há como entregar.
+        $noMail = [];
+        foreach ((array) ($data['people'] ?? []) as $i => $p) {
+            if (($p['role'] ?? '') === 'observer' && trim((string) ($p['email'] ?? '')) === '') {
+                $noMail["people.{$i}.email"] = 'Informe o e-mail do observador: é para lá que vai a cópia do documento assinado.';
+            }
+        }
+        if ($noMail !== []) {
+            return back()->withInput()->withErrors($noMail);
+        }
 
         try {
             $wantsSender = app(SenderPolicy::class)->wantsSenderSignature(
@@ -347,7 +358,9 @@ final class DocumentWizardController extends Controller
             $given = array_key_exists((string) $s->getKey(), $emails) ? trim((string) $emails[(string) $s->getKey()]) : (string) $s->email;
             if ($given !== '' && ! filter_var($given, FILTER_VALIDATE_EMAIL)) {
                 $errors['emails.'.$s->getKey()] = 'Esse e-mail não parece válido.';
-            } elseif ($strict && $given === '' && ($auto || $envelope->require_otp)) {
+            } elseif ($strict && $given === '' && $s->isObserver()) {
+                $errors['emails.'.$s->getKey()] = 'Informe o e-mail do observador: é para lá que vai a cópia do documento assinado.';
+            } elseif ($strict && $given === '' && ! $s->isObserver() && ($auto || $envelope->require_otp)) {
                 $errors['emails.'.$s->getKey()] = $auto
                     ? 'Informe o e-mail para enviar o link automaticamente.'
                     : 'Informe o e-mail: o código de confirmação é enviado por e-mail.';
@@ -435,7 +448,7 @@ final class DocumentWizardController extends Controller
             'people' => $signers->reject(fn ($s) => $s->isSender())->values(),
             'hasSender' => $signers->contains(fn ($s) => $s->isSender()),
             // Passo 3: quem pode receber campo e os campos já salvos (frações da página, origem no canto superior esquerdo).
-            'placePeople' => $signers->sortBy('position')->map(fn ($s) => ['id' => (string) $s->getKey(), 'name' => $s->isSender() ? 'Você (remetente)' : $s->name, 'sender' => $s->isSender()])->values(),
+            'placePeople' => $signers->reject(fn ($s) => $s->isObserver())->sortBy('position')->map(fn ($s) => ['id' => (string) $s->getKey(), 'name' => $s->isSender() ? 'Você (remetente)' : $s->name, 'sender' => $s->isSender()])->values(),
             'placeFields' => $envelope ? $envelope->signatureFields()->get()->map(fn ($f) => [
                 'signer_id' => (string) $f->signer_id, 'type' => $f->type, 'page' => (int) $f->page,
                 'x' => (float) $f->x, 'y' => (float) $f->y, 'width' => (float) $f->width, 'height' => (float) $f->height,

@@ -1,0 +1,218 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Enums\EnvelopeStatus;
+use App\Enums\SigningOrder;
+use App\Envelopes\EnvelopeService;
+use App\Envelopes\Exceptions\FlowException;
+use App\Envelopes\SigningService;
+use App\Evidence\EvidenceLogger;
+use App\Jobs\SealEnvelope;
+use App\Mail\ObserverCopyMail;
+use App\Mail\SignatureRequestedMail;
+use App\Models\Envelope;
+use App\Models\TenantSigningSetting;
+use App\Models\User;
+use App\Signing\Contracts\SigningProvider;
+use App\Signing\Data\CertificateInfo;
+use App\Signing\Data\SealedDocument;
+use App\Signing\Data\SealRequest;
+use App\Signing\ReportBuilder;
+use App\Signing\SigningManager;
+use App\Signing\Support\SealerClient;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Factory as Http;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
+use Psr\Log\NullLogger;
+
+uses(RefreshDatabase::class);
+
+beforeEach(function () {
+    Storage::fake('local');
+    Mail::fake();
+    Queue::fake([SealEnvelope::class]);
+});
+
+function wzObs(string $name, ?string $email = 'obs@x.com'): array
+{
+    return wzPerson($name, $email, 'observer');
+}
+
+/** @return array{0:User,1:Envelope} documento com a Ana (signatária) e dois observadores, pronto para enviar */
+function wzWithObservers(): array
+{
+    $u = wzOwner();
+    TenantSigningSetting::query()->updateOrCreate(['tenant_id' => $u->tenant_id], ['sender_policy' => 'never']);
+    $e = wzDraft($u);
+    wzSync($e, $u, [wzPerson('Ana', 'ana@x.com'), wzObs('Obs Um', 'um@x.com'), wzObs('Obs Dois', 'dois@x.com')]);
+    app(EnvelopeService::class)->syncFields($e->refresh(), []);
+
+    return [$u, $e->refresh()];
+}
+
+function wzSealNow(Envelope $e): void
+{
+    $provider = new class implements SigningProvider {
+        public function name(): string { return 'fake'; }
+        public function certificate(): CertificateInfo
+        {
+            return new CertificateInfo('SERIAL-1', 'AC Teste', 'CN=ACME', new DateTimeImmutable('-1 day'), new DateTimeImmutable('+1 year'), false);
+        }
+        public function isAvailable(): bool { return true; }
+        public function seal(SealRequest $request): SealedDocument
+        {
+            $pdf = $request->pdf."\n%sealed";
+
+            return new SealedDocument($pdf, hash('sha256', $pdf), 'fake', $this->certificate(), new DateTimeImmutable(), true);
+        }
+    };
+    $manager = new SigningManager(new SealerClient(new Http(), 'http://sealer', 't'), new NullLogger(), ['platform_provider' => 'fake', 'allow_local_test' => false], fn () => $provider);
+    (new SealEnvelope($e->id))->handle($manager, app(EvidenceLogger::class));
+}
+
+// ------------------------------------------------------------------ regras do serviço
+
+it('guarda observadores com o papel observer, depois dos demais, e limita a quantidade', function () {
+    [$u, $e] = wzWithObservers();
+    $roles = $e->signers()->orderBy('position')->pluck('role', 'name')->all();
+
+    expect($roles)->toBe(['Ana' => 'signer', 'Obs Um' => 'observer', 'Obs Dois' => 'observer'])
+        ->and($e->signers()->where('role', 'observer')->min('position'))->toBeGreaterThan($e->signers()->where('role', 'signer')->max('position'));
+
+    config(['signing.max_observers' => 2]);
+    $many = array_merge([wzPerson('Ana', 'ana@x.com')], array_map(fn ($i) => wzObs("O{$i}", "o{$i}@x.com"), [1, 2, 3]));
+    expect(fn () => wzSync($e, $u, $many))->toThrow(FlowException::class, 'observadores');
+});
+
+it('só observador não basta: precisa de ao menos um signatário', function () {
+    $u = wzOwner();
+    $e = wzDraft($u);
+    expect(fn () => wzSync($e, $u, [wzObs('Só observo')]))->toThrow(FlowException::class, 'ao menos um');
+});
+
+it('o observador não recebe link, não conta para concluir e não pode ter campo', function () {
+    [$u, $e] = wzWithObservers();
+    $obs = $e->signers()->where('role', 'observer')->first();
+    expect(fn () => app(EnvelopeService::class)->syncFields($e, [wzField($obs->id)]))->toThrow(FlowException::class, 'observador');
+
+    $tokens = app(EnvelopeService::class)->send($e->refresh());
+    expect($tokens)->toHaveCount(1)->and($obs->fresh()->token_hash)->toBeNull();
+
+    app(SigningService::class)->sign($e->signers()->where('role', 'signer')->first(), 'typed', 'Ana', true);
+    expect($e->fresh()->status)->toBe(EnvelopeStatus::Sealing);
+});
+
+it('o observador precisa de e-mail para receber a cópia, mesmo no envio manual', function () {
+    $u = wzOwner();
+    $e = wzDraft($u);
+    wzSync($e, $u, [wzPerson('Ana', 'ana@x.com'), wzObs('Sem e-mail', null)]);
+    $e->update(['notify_channels' => ['manual']]);
+
+    expect(fn () => app(EnvelopeService::class)->assertSendable($e->refresh(), false))->toThrow(FlowException::class, 'observador');
+    expect(fn () => app(EnvelopeService::class)->send($e->refresh()))->toThrow(FlowException::class, 'observador');
+});
+
+it('os convites vão só para quem assina', function () {
+    [$u, $e] = wzWithObservers();
+    $ana = $e->signers()->where('role', 'signer')->first();
+
+    $this->actingAs($u)->post("/documentos/{$e->id}/finalizar", ['auto' => 1, 'emails' => [$ana->id => 'ana@x.com']])->assertRedirect("/documentos/{$e->id}");
+
+    Mail::assertSent(SignatureRequestedMail::class, 1);
+    Mail::assertSent(SignatureRequestedMail::class, fn ($m) => $m->hasTo('ana@x.com'));
+});
+
+// ------------------------------------------------------------------ cópia final, relatório e telas
+
+it('ao concluir, cada observador recebe o PDF selado por e-mail e a trilha registra', function () {
+    [$u, $e] = wzWithObservers();
+    app(EnvelopeService::class)->send($e->refresh());
+    app(SigningService::class)->sign($e->signers()->where('role', 'signer')->first(), 'typed', 'Ana', true);
+    wzSealNow($e);
+
+    Mail::assertSent(ObserverCopyMail::class, 2);
+    Mail::assertSent(ObserverCopyMail::class, fn ($m) => $m->hasTo('um@x.com') && count($m->attachments()) === 1);
+    Mail::assertSent(ObserverCopyMail::class, fn ($m) => $m->hasTo('dois@x.com'));
+    expect($e->fresh()->status)->toBe(EnvelopeStatus::Completed)->and($e->evidenceEvents()->where('type', 'observer_copy_sent')->count())->toBe(2)
+        ->and(app(EvidenceLogger::class)->isIntact($e->fresh()))->toBeTrue();
+});
+
+it('falha no e-mail do observador não atrapalha a conclusão', function () {
+    [$u, $e] = wzWithObservers();
+    app(EnvelopeService::class)->send($e->refresh());
+    app(SigningService::class)->sign($e->signers()->where('role', 'signer')->first(), 'typed', 'Ana', true);
+    Mail::shouldReceive('to')->andThrow(new RuntimeException('smtp fora do ar'));
+
+    wzSealNow($e);
+
+    expect($e->fresh()->status)->toBe(EnvelopeStatus::Completed)->and($e->evidenceEvents()->where('type', 'observer_copy_sent')->count())->toBe(0);
+});
+
+it('documento sem observadores não manda cópia nenhuma', function () {
+    $u = wzOwner();
+    TenantSigningSetting::query()->updateOrCreate(['tenant_id' => $u->tenant_id], ['sender_policy' => 'never']);
+    $e = wzDraft($u);
+    wzSync($e, $u, [wzPerson('Ana', 'ana@x.com')]);
+    app(EnvelopeService::class)->syncFields($e->refresh(), []);
+    app(EnvelopeService::class)->send($e->refresh());
+    app(SigningService::class)->sign($e->signers()->first(), 'typed', 'Ana', true);
+    wzSealNow($e);
+
+    Mail::assertNotSent(ObserverCopyMail::class);
+});
+
+it('o relatório e a verificação pública não listam observadores', function () {
+    [$u, $e] = wzWithObservers();
+    app(EnvelopeService::class)->send($e->refresh());
+    app(SigningService::class)->sign($e->signers()->where('role', 'signer')->first(), 'typed', 'Ana', true);
+    wzSealNow($e);
+
+    $names = collect(app(ReportBuilder::class)->build($e->fresh())['signers'])->pluck('name')->all();
+    expect($names)->toBe(['Ana']);
+
+    $this->get('/verificar/'.$e->verification_code)->assertOk()->assertSee('Ana')->assertDontSee('Obs Um')->assertDontSee('um@x.com');
+});
+
+it('a lista conta só quem assina e o detalhe marca o observador sem link', function () {
+    [$u, $e] = wzWithObservers();
+    app(EnvelopeService::class)->send($e->refresh());
+
+    $this->actingAs($u)->get('/documentos')->assertOk()->assertSee('data-label="Signatários">1<', false);
+    $this->actingAs($u)->get("/documentos/{$e->id}")->assertOk()->assertSee('Observador')->assertSee('Obs Um')->assertDontSee('Link de Obs Um');
+});
+
+// ------------------------------------------------------------------ passo 2 e passo 3
+
+it('o passo 2 tem a seção Observadores e não diz mais "em breve"', function () {
+    $u = wzOwner();
+    $e = wzDraft($u);
+    $this->actingAs($u)->get("/documentos/{$e->id}/passo/2")->assertOk()->assertSee('Observadores')->assertSee('recebem uma cópia')->assertDontSee('em breve');
+});
+
+it('salva observadores pelo passo 2, exige o e-mail e mostra de volta', function () {
+    $u = wzOwner();
+    TenantSigningSetting::query()->updateOrCreate(['tenant_id' => $u->tenant_id], ['sender_policy' => 'never']);
+    $e = wzDraft($u);
+
+    $this->actingAs($u)->put("/documentos/{$e->id}/passo/2", ['sender_signs' => 0, 'people' => [
+        ['name' => 'Ana', 'role' => 'signer'], ['name' => 'Obs Sem E-mail', 'role' => 'observer'],
+    ]])->assertSessionHasErrors('people.1.email');
+    expect($e->signers()->count())->toBe(0);
+
+    $this->actingAs($u)->put("/documentos/{$e->id}/passo/2", ['sender_signs' => 0, 'people' => [
+        ['name' => 'Ana', 'role' => 'signer'], ['name' => 'Obs Um', 'email' => 'um@x.com', 'role' => 'observer'],
+    ]])->assertRedirect("/documentos/{$e->id}/passo/3");
+
+    expect($e->signers()->where('role', 'observer')->count())->toBe(1);
+    $this->actingAs($u)->get("/documentos/{$e->id}/passo/2")->assertOk()->assertSee('Obs Um')->assertSee('um@x.com');
+});
+
+it('o passo 3 não oferece observadores para receber campos', function () {
+    [$u, $e] = wzWithObservers();
+    $html = $this->actingAs($u)->get("/documentos/{$e->id}/passo/3")->assertOk()->getContent();
+
+    expect($html)->toContain('Ana')->and($html)->not->toContain('Obs Um');
+});
