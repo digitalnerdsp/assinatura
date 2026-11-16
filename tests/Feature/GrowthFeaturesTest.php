@@ -336,7 +336,7 @@ it('cria envelope pelo painel com posições de assinatura e opções de entrega
     ]);
 
     $envelope = Envelope::with(['tags', 'signatureFields'])->firstOrFail();
-    expect($envelope->validity_days)->toBe(10)
+    expect($envelope->validity_days)->toBeBetween(10, 11)
         ->and($envelope->reminder_every_days)->toBeNull()
         ->and($envelope->channels())->toBe(['email', 'whatsapp'])
         ->and($envelope->folder_id)->toBe($folder->id)

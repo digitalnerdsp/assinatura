@@ -63,7 +63,7 @@
     <div class="wz-chk wz-inline">
         <input type="checkbox" name="limit" value="1" id="wz-limit" @checked($limit)>
         <label for="wz-limit">Data limite para assinatura do documento</label>
-        <input type="date" name="limit_date" id="wz-limit-date" value="{{ $date }}" min="{{ now()->addDay()->toDateString() }}" max="{{ now()->addDays(365)->toDateString() }}" aria-label="Data limite" @if (! $limit) hidden @endif>
+        <input type="date" name="limit_date" id="wz-limit-date" value="{{ $date }}" min="{{ now('America/Sao_Paulo')->addDay()->toDateString() }}" max="{{ now('America/Sao_Paulo')->addDays(365)->toDateString() }}" aria-label="Data limite" @if (! $limit) hidden @endif>
     </div>
     @error('limit_date')<div class="wz-err" role="alert">{{ $message }}</div>@enderror
 

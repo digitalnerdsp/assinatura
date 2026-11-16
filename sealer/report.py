@@ -22,7 +22,8 @@ from qrcode.constants import ERROR_CORRECT_L, ERROR_CORRECT_M
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.lib.utils import ImageReader, simpleSplit
+from reportlab.lib.utils import ImageReader
+from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfgen import canvas
 from reportlab.platypus import KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
@@ -92,23 +93,75 @@ def _initials_of(name: str) -> str:
     return "".join(w[0] for w in parts[:3]).upper() or "?"
 
 
+def _safe_text(text: str) -> str:
+    """A Helvetica padrão só desenha o alfabeto latino (WinAnsi): o resto vira "?" em vez de sumir ou quebrar."""
+    return text.encode("cp1252", "replace").decode("cp1252")
+
+
+def _wrap_lines(text: str, font: str, size: float, width: float) -> list[str]:
+    """Quebra por palavras; uma palavra maior que a linha é quebrada por largura (nada passa da caixa)."""
+    lines: list[str] = []
+    for para in text.splitlines() or [""]:
+        cur = ""
+        for word in para.split():
+            while stringWidth(word, font, size) > width:
+                n = 1
+                while n < len(word) and stringWidth(word[: n + 1], font, size) <= width:
+                    n += 1
+                if cur:
+                    lines.append(cur)
+                    cur = ""
+                lines.append(word[:n])
+                word = word[n:]
+            trial = f"{cur} {word}".strip()
+            if cur and stringWidth(trial, font, size) > width:
+                lines.append(cur)
+                cur = word
+            else:
+                cur = trial
+        if cur:
+            lines.append(cur)
+
+    return lines
+
+
+def _fit_text(text: str, bw: float, bh: float) -> tuple[list[str], float]:
+    """Linhas e tamanho de fonte que cabem na caixa; se nem no menor tamanho couber, corta e marca com reticências."""
+    width = max(bw - 2, 8.0)
+    size = max(6.0, min(11.0, bh * 0.7))
+    while True:
+        lines = _wrap_lines(text, "Helvetica", size, width)
+        if len(lines) * size * 1.15 <= bh or size <= 6:
+            break
+        size = max(6.0, size - 0.5)
+    max_lines = max(1, int(bh // (size * 1.15)))
+    if len(lines) > max_lines:
+        lines = lines[:max_lines]
+        last = lines[-1]
+        while last and stringWidth(last + "…", "Helvetica", size) > width:
+            last = last[:-1]
+        lines[-1] = last.rstrip() + "…"
+
+    return lines, size
+
+
 def _draw_text(c: canvas.Canvas, text: str, x0: float, y0: float, bw: float, bh: float) -> None:
-    """Escreve o texto na caixa (quebra por largura; diminui a fonte até caber; corta o que sobrar)."""
-    text = text.strip()
+    """Escreve o texto do signatário dentro da caixa: quebra por largura, diminui a fonte, corta com reticências e recorta."""
+    text = _safe_text(text).strip()
     if not text:
         return
-    size = max(6.0, min(11.0, bh * 0.7))
-    lines = simpleSplit(text, "Helvetica", size, max(bw - 2, 8))
-    while size > 6 and len(lines) * size * 1.15 > bh:
-        size -= 0.5
-        lines = simpleSplit(text, "Helvetica", size, max(bw - 2, 8))
-    max_lines = max(1, int(bh // (size * 1.15)))
+    lines, size = _fit_text(text, bw, bh)
+    c.saveState()
+    clip = c.beginPath()
+    clip.rect(x0, y0, bw, bh)
+    c.clipPath(clip, stroke=0, fill=0)
     c.setFillColor(colors.HexColor("#111111"))
     c.setFont("Helvetica", size)
     y = y0 + bh - size
-    for line in lines[:max_lines]:
+    for line in lines:
         c.drawString(x0 + 1, y, line)
         y -= size * 1.15
+    c.restoreState()
 
 
 def _draw_initials(c: canvas.Canvas, p: dict, x0: float, y0: float, bw: float, bh: float) -> None:

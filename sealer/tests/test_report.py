@@ -237,3 +237,46 @@ def test_all_three_kinds_together_and_unknown_kind_is_treated_as_signature(clien
     assert r.status_code == 200, r.text
     first = _page_texts(r)[0]
     assert "12/12/2026" in first and "AS" in first and "09/11/2026 13:48:56" in first and "09/11/2026 15:00:00" in first
+
+
+# --- texto do signatário nunca sai da caixa -----------------------------------------------------------------------
+from reportlab.pdfbase.pdfmetrics import stringWidth
+
+import report as sealer_report
+
+
+def test_wrap_breaks_a_word_longer_than_the_box():
+    lines = sealer_report._wrap_lines("x" * 200, "Helvetica", 11, 170)
+    assert len(lines) > 1
+    assert all(stringWidth(l, "Helvetica", 11) <= 170 + 0.01 for l in lines)
+    assert "".join(lines) == "x" * 200  # nada se perde
+
+
+def test_wrap_keeps_words_and_respects_width():
+    lines = sealer_report._wrap_lines("Rua das Flores numero 10 Centro Sao Paulo", "Helvetica", 11, 120)
+    assert all(stringWidth(l, "Helvetica", 11) <= 120 + 0.01 for l in lines)
+    assert " ".join(lines) == "Rua das Flores numero 10 Centro Sao Paulo"
+
+
+def test_fit_text_marks_the_cut_with_an_ellipsis_when_it_cannot_fit():
+    lines, size = sealer_report._fit_text("palavra " * 200, 180, 30)
+    assert lines[-1].endswith("…")
+    assert len(lines) * size * 1.15 <= 30 + 0.01
+    assert all(stringWidth(l, "Helvetica", size) <= 180 + 0.01 for l in lines)
+
+
+def test_fit_text_leaves_short_text_untouched():
+    lines, size = sealer_report._fit_text("12/12/2026", 180, 30)
+    assert lines == ["12/12/2026"] and size == 11.0
+
+
+def test_safe_text_replaces_what_helvetica_cannot_draw_and_keeps_accents():
+    out = sealer_report._safe_text("Olá ção 😀 世界")
+    assert "Olá ção" in out and "😀" not in out and "世" not in out
+
+
+def test_long_unbroken_text_and_emoji_do_not_break_the_seal(client):
+    p = [{"kind": "text", "page": 1, "x": 0.1, "y": 0.3, "width": 0.32, "height": 0.04, "name": "Ana", "signed_at": "x", "type": "text", "image": None, "text": "y" * 200 + " 😀 世界"}]
+    r = seal(client, pdf_pages([A4]), {**REPORT, "placements": p})
+    assert r.status_code == 200, r.text
+    assert "yyyyyyyy" in _page_texts(r)[0]

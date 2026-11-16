@@ -46,7 +46,12 @@
             </div>
         @endif
 
-        @if ($envelope->status->value === 'draft')
+        @if ($envelope->status->value === 'draft' && $envelope->wizard_step !== null)
+            <div class="border rounded p-3 mb-3 d-flex flex-wrap align-items-center gap-3">
+                <div class="me-auto">Este documento ainda está sendo preparado no assistente. Termine os passos para liberar.</div>
+                <a class="btn btn-primary" href="{{ $envelope->openUrl() }}"><i class="bx bx-right-arrow-alt"></i> Continuar no assistente</a>
+            </div>
+        @elseif ($envelope->status->value === 'draft')
             <form method="post" action="{{ route('envelopes.send', $envelope) }}" class="border rounded p-3 mb-3 d-flex flex-wrap align-items-center gap-3">
                 @csrf
                 <div class="form-check form-switch mb-0 me-auto">

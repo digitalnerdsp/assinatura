@@ -29,6 +29,7 @@ class Envelope extends Model
             'status' => EnvelopeStatus::class,
             'signing_order' => SigningOrder::class,
             'sent_at' => 'datetime',
+            'deadline_at' => 'datetime',
             'expires_at' => 'datetime',
             'completed_at' => 'datetime',
             'sealed_at' => 'datetime',

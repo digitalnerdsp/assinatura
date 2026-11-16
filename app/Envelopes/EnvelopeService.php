@@ -256,20 +256,42 @@ final class EnvelopeService
         $tenant = $envelope->tenant;
         $this->assertPdf($tenant, $pdfContents);
 
-        DB::transaction(function () use ($envelope, $tenant, $pdfContents, $filename) {
-            $old = $envelope->document;
-            $new = $this->storeDocument($tenant, $pdfContents, $filename);
+        $newPath = null;
+        $oldPath = null;
+        try {
+            DB::transaction(function () use ($envelope, $tenant, $pdfContents, $filename, &$newPath, &$oldPath) {
+                // Trava a linha e confere de novo: outra aba pode ter enviado o documento nesse meio tempo.
+                $locked = Envelope::query()->whereKey($envelope->getKey())->lockForUpdate()->firstOrFail();
+                $this->assertDraft($locked);
 
-            $envelope->signatureFields()->delete();
-            $envelope->update(['document_id' => $new->getKey(), 'wizard_step' => 1]);
+                $old = $locked->document;
+                $new = $this->storeDocument($tenant, $pdfContents, $filename);
+                $newPath = $new->storage_path;
 
-            app(\App\Plans\StorageUsage::class)->remove($tenant, (int) $old->size);
-            Storage::disk('local')->delete($old->storage_path);
-            $old->delete();
+                $locked->signatureFields()->delete();
+                $locked->update(['document_id' => $new->getKey(), 'wizard_step' => 1]);
+                $locked->touch();
 
-            $this->evidence->record($envelope, 'document_replaced', ['document_sha256' => $new->sha256]);
-            $envelope->unsetRelation('document');
-        });
+                app(\App\Plans\StorageUsage::class)->remove($tenant, (int) $old->size);
+                $oldPath = $old->storage_path;
+                $old->delete();
+
+                $this->evidence->record($locked, 'document_replaced', ['document_sha256' => $new->sha256]);
+            });
+        } catch (\Throwable $e) {
+            if ($newPath !== null) {
+                Storage::disk('local')->delete($newPath); // o banco desfez tudo: o arquivo novo ficaria órfão
+            }
+
+            throw $e;
+        }
+
+        // Só depois do commit o arquivo antigo pode sumir.
+        if ($oldPath !== null) {
+            Storage::disk('local')->delete($oldPath);
+        }
+        $envelope->unsetRelation('document');
+        $envelope->refresh();
     }
 
     /**
@@ -342,6 +364,7 @@ final class EnvelopeService
                 'required_level' => ($otp || $selfie || $docPhoto) ? 'advanced' : 'simple',
             ]);
             $this->reachStep($envelope, 2);
+            $envelope->touch();
 
             app(\App\Contacts\ContactService::class)->rememberFromSigners($envelope->tenant, $people);
         });
@@ -392,6 +415,7 @@ final class EnvelopeService
                 $envelope->signatureFields()->create($row);
             }
             $this->reachStep($envelope, 3);
+            $envelope->touch();
         });
     }
 
@@ -430,11 +454,13 @@ final class EnvelopeService
         if (array_key_exists('allow_refuse', $options)) {
             $update['allow_refuse'] = (bool) $options['allow_refuse'];
         }
+        if (array_key_exists('deadline_at', $options)) {
+            $update['deadline_at'] = $options['deadline_at']; // fim do dia escolhido, ou null (usa validity_days)
+        }
 
         DB::transaction(function () use ($envelope, $update, $options) {
-            if ($update !== []) {
-                $envelope->update($update);
-            }
+            $envelope->forceFill($update)->save();
+            $envelope->touch();
             if (array_key_exists('tags', $options)) {
                 $envelope->tags()->sync(
                     Tag::query()->where('tenant_id', $envelope->tenant_id)->whereIn('id', (array) $options['tags'])->pluck('id')->all()
@@ -452,7 +478,11 @@ final class EnvelopeService
         if (! $signers->contains(fn (Signer $s) => $s->isSender() || $s->role === 'signer')) {
             throw FlowException::because('no_signers', 'Informe ao menos um signatário.');
         }
-        if ($autoSend && $signers->contains(fn (Signer $s) => ! $s->isSender() && ! filter_var((string) $s->email, FILTER_VALIDATE_EMAIL))) {
+        $missingEmail = fn () => $signers->contains(fn (Signer $s) => ! $s->isSender() && ! filter_var((string) $s->email, FILTER_VALIDATE_EMAIL));
+        if ($envelope->require_otp && $missingEmail()) {
+            throw FlowException::because('otp_email_required', 'O código por e-mail exige o e-mail de todos os signatários.');
+        }
+        if ($autoSend && $missingEmail()) {
             throw FlowException::because('email_required', 'Informe o e-mail de todos os signatários para enviar os links automaticamente.');
         }
     }
@@ -500,6 +530,12 @@ final class EnvelopeService
             throw FlowException::because('tenant_suspended', 'Esta conta está suspensa. Entre em contato com o suporte.');
         }
 
+        // Rascunho do assistente pode estar incompleto: sem signatário ou sem e-mail necessário não há como assinar.
+        $this->assertSendable($envelope, ($envelope->notify_channels ?? ['email']) !== ['manual']);
+        if ($envelope->deadline_at !== null && $envelope->deadline_at->isPast()) {
+            throw FlowException::because('deadline_passed', 'A data limite escolhida já passou. Escolha outra no último passo.');
+        }
+
         // Limites do plano (documentos, teste vencido, assinatura bloqueada). A cobrança com trava vem logo abaixo.
         \App\Plans\Entitlements::for($tenant)->canSendDocument()->orFail();
 
@@ -530,7 +566,7 @@ final class EnvelopeService
             $envelope->update([
                 'status' => EnvelopeStatus::Sent,
                 'sent_at' => now(),
-                'expires_at' => now()->addDays($validDays),
+                'expires_at' => $envelope->deadline_at ?? now()->addDays($validDays),
             ]);
 
             $this->evidence->record($envelope, 'document_sent', ['expires_at' => $envelope->expires_at?->toIso8601String()], null, $context);

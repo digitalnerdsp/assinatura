@@ -326,7 +326,8 @@ final class DocumentWizardController extends Controller
             'remind' => ['nullable', 'boolean'],
             'remind_days' => ['nullable', 'integer', Rule::in([1, 2, 3, 5, 7, 10, 14])],
             'limit' => ['nullable', 'boolean'],
-            'limit_date' => ['nullable', 'date_format:Y-m-d', 'after:today', 'before_or_equal:'.now()->addDays(365)->toDateString()],
+            // "Hoje" é o dia em Brasília (o servidor roda em UTC e passaria a virar o dia às 21h).
+            'limit_date' => ['nullable', 'date_format:Y-m-d', 'after:'.now('America/Sao_Paulo')->toDateString(), 'before_or_equal:'.now('America/Sao_Paulo')->addDays(365)->toDateString()],
             'allow_refuse' => ['nullable', 'boolean'],
             'tags' => ['nullable', 'array', 'max:10'],
             'tags.*' => ['uuid'],
@@ -346,8 +347,10 @@ final class DocumentWizardController extends Controller
             $given = array_key_exists((string) $s->getKey(), $emails) ? trim((string) $emails[(string) $s->getKey()]) : (string) $s->email;
             if ($given !== '' && ! filter_var($given, FILTER_VALIDATE_EMAIL)) {
                 $errors['emails.'.$s->getKey()] = 'Esse e-mail não parece válido.';
-            } elseif ($strict && $auto && $given === '') {
-                $errors['emails.'.$s->getKey()] = 'Informe o e-mail para enviar o link automaticamente.';
+            } elseif ($strict && $given === '' && ($auto || $envelope->require_otp)) {
+                $errors['emails.'.$s->getKey()] = $auto
+                    ? 'Informe o e-mail para enviar o link automaticamente.'
+                    : 'Informe o e-mail: o código de confirmação é enviado por e-mail.';
             }
         }
         if ($errors !== []) {
@@ -367,8 +370,11 @@ final class DocumentWizardController extends Controller
             }
 
             $validity = (int) config('signing.default_validity_days');
+            $deadline = null;
             if ($request->boolean('limit') && ! empty($data['limit_date'])) {
-                $validity = max(1, (int) ceil(now()->startOfDay()->diffInDays(\Illuminate\Support\Carbon::parse($data['limit_date'])->startOfDay(), true)));
+                // A data limite vale até o fim daquele dia em Brasília.
+                $deadline = \Illuminate\Support\Carbon::parse($data['limit_date'].' 23:59:59', 'America/Sao_Paulo')->utc();
+                $validity = max(1, min(365, (int) ceil(now()->diffInDays($deadline, true))));
             }
             $this->envelopes->applyDelivery($envelope, [
                 'message' => $data['message'] ?? null,
@@ -377,6 +383,7 @@ final class DocumentWizardController extends Controller
                 'channels' => $auto ? ($data['channels'] ?? ['email']) : ['manual'],
                 'reminder_every_days' => ($auto && $request->boolean('remind')) ? (int) ($data['remind_days'] ?? 3) : null,
                 'validity_days' => $validity,
+                'deadline_at' => $deadline,
             ]);
         } catch (FlowException $e) {
             if ($e->reason === 'not_draft') {
@@ -439,8 +446,8 @@ final class DocumentWizardController extends Controller
             'sendChannels' => $envelope && ($envelope->notify_channels ?? ['email']) !== ['manual'] ? ($envelope->notify_channels ?? ['email']) : ['email'],
             'remindOn' => $envelope ? ($envelope->reminder_every_days !== null && ($envelope->notify_channels ?? ['email']) !== ['manual']) : true,
             'remindDays' => $envelope?->reminder_every_days ?? (int) config('signing.default_reminder_days'),
-            'limitOn' => $envelope && (int) $envelope->validity_days !== (int) config('signing.default_validity_days'),
-            'limitDate' => $envelope ? now()->addDays((int) $envelope->validity_days)->toDateString() : now()->addDays((int) config('signing.default_validity_days'))->toDateString(),
+            'limitOn' => $envelope && $envelope->deadline_at !== null,
+            'limitDate' => $envelope?->deadline_at ? $envelope->deadline_at->copy()->timezone('America/Sao_Paulo')->toDateString() : now('America/Sao_Paulo')->addDays((int) config('signing.default_validity_days'))->toDateString(),
             'allTags' => \App\Models\Tag::query()->where('tenant_id', $request->user()->tenant_id)->orderBy('name')->get(),
             'selectedTags' => $envelope ? $envelope->tags()->pluck('tags.id')->all() : [],
             'envelope' => $envelope,

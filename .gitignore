@@ -27,3 +27,7 @@ Homestead.yaml
 Thumbs.db
 
 /.claude/launch.json
+
+# Python
+__pycache__/
+*.pyc
