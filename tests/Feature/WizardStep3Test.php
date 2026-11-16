@@ -84,7 +84,7 @@ it('recusa campos inválidos e não grava nada', function () {
 
     wzPut3($u, $e, ['fields' => [wzF($ana->id, ['x' => 1.2])]])->assertSessionHasErrors('fields');
     wzPut3($u, $e, ['fields' => [wzF($ana->id, ['page' => 0])]])->assertSessionHasErrors('fields.0.page');
-    wzPut3($u, $e, ['fields' => [wzF($ana->id, ['type' => 'text'])]])->assertSessionHasErrors('fields');
+    wzPut3($u, $e, ['fields' => [wzF($ana->id, ['type' => 'carimbo'])]])->assertSessionHasErrors('fields');
     wzPut3($u, $e, ['fields' => [wzF($foreign->id)]])->assertSessionHasErrors('fields');
     wzPut3($u, $e, ['fields' => [wzF($ana->id, ['width' => 'abc'])]])->assertSessionHasErrors('fields.0.width');
     wzPut3($u, $e, ['fields' => array_fill(0, 61, wzF($ana->id))])->assertSessionHasErrors('fields');

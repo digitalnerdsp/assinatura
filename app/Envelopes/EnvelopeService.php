@@ -361,6 +361,7 @@ final class EnvelopeService
         }
 
         $mine = $envelope->signers()->pluck('id')->map(fn ($id) => (string) $id)->all();
+        $senderId = (string) ($envelope->signers()->where('is_sender', true)->value('id') ?? '');
         $rows = [];
         foreach ($fields as $f) {
             if (! in_array((string) ($f['signer_id'] ?? ''), $mine, true)) {
@@ -368,6 +369,9 @@ final class EnvelopeService
             }
             if (! in_array($f['type'] ?? '', \App\Models\SignatureField::TYPES, true)) {
                 throw FlowException::because('invalid_field_type', 'O tipo de campo não é válido.');
+            }
+            if ((string) $f['signer_id'] === $senderId && $f['type'] !== 'signature') {
+                throw FlowException::because('invalid_field_type', 'O remetente só pode ter campo de assinatura (visto e texto são preenchidos por quem recebe o link).');
             }
             if ((int) ($f['page'] ?? 0) < 1 || (int) $f['page'] > 2000) {
                 throw FlowException::because('invalid_field_page', 'A página do campo é inválida.');

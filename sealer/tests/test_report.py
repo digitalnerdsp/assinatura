@@ -178,3 +178,62 @@ def test_brand_with_corrupt_logo_or_bad_color_never_breaks_sealing(client):
 def test_report_without_brand_is_unchanged(client):
     r = seal(client, pdf_pages([A4]), {**REPORT, "brand": None})
     assert r.status_code == 200 and "Marca Exemplo" not in _report_text(r)
+
+
+def _page_texts(response):
+    reader = PdfReader(io.BytesIO(base64.b64decode(response.json()["pdf_base64"])))
+    return [p.extract_text() for p in reader.pages]
+
+
+def test_text_placement_writes_the_value_without_a_signature_caption(client):
+    p = [{"kind": "text", "page": 1, "x": 0.1, "y": 0.3, "width": 0.4, "height": 0.04, "name": "Ana Souza", "signed_at": "09/11/2026 13:48:56",
+          "type": "text", "image": None, "text": "Rua das Flores, 10 - Centro"}]
+    r = seal(client, pdf_pages([A4]), {**REPORT, "placements": p})
+    assert r.status_code == 200, r.text
+    first = _page_texts(r)[0]
+    assert "Rua das Flores, 10 - Centro" in first
+    assert "09/11/2026 13:48:56" not in first  # texto não leva a legenda de assinatura
+
+
+def test_long_text_placement_wraps_inside_the_box_and_does_not_break(client):
+    long = "palavra " * 60
+    p = [{"kind": "text", "page": 1, "x": 0.1, "y": 0.3, "width": 0.3, "height": 0.05, "name": "Ana", "signed_at": "x",
+          "type": "text", "image": None, "text": long}]
+    r = seal(client, pdf_pages([A4]), {**REPORT, "placements": p})
+    assert r.status_code == 200, r.text
+    assert "palavra" in _page_texts(r)[0]
+
+
+def test_initials_placement_draws_the_image_or_the_typed_text(client):
+    placements = [
+        {"kind": "initials", "page": 1, "x": 0.1, "y": 0.6, "width": 0.15, "height": 0.07, "name": "Ana Souza", "signed_at": "09/11/2026 13:48:56",
+         "type": "drawn", "image": PNG_B64, "text": None},
+        {"kind": "initials", "page": 2, "x": 0.5, "y": 0.6, "width": 0.15, "height": 0.07, "name": "Bruno Lima", "signed_at": "09/11/2026 14:01:00",
+         "type": "typed", "image": None, "text": "BL"},
+    ]
+    r = seal(client, pdf_pages([A4, A4]), {**REPORT, "placements": placements})
+    assert r.status_code == 200, r.text
+    text = _page_texts(r)
+    assert "BL" in text[1]
+    assert "09/11/2026 14:01:00" not in text[1]  # o visto não leva a data
+
+
+def test_initials_with_corrupt_image_falls_back_to_the_name_initials(client):
+    p = [{"kind": "initials", "page": 1, "x": 0.1, "y": 0.6, "width": 0.15, "height": 0.07, "name": "Zélia Moura", "signed_at": "x",
+          "type": "drawn", "image": "nao-e-uma-imagem", "text": None}]
+    r = seal(client, pdf_pages([A4]), {**REPORT, "placements": p})
+    assert r.status_code == 200, r.text
+    assert "ZM" in _page_texts(r)[0]
+
+
+def test_all_three_kinds_together_and_unknown_kind_is_treated_as_signature(client):
+    placements = [
+        {"kind": "signature", "page": 1, "x": 0.1, "y": 0.8, "width": 0.28, "height": 0.07, "name": "Ana Souza", "signed_at": "09/11/2026 13:48:56", "type": "typed", "image": None, "text": "Ana Souza"},
+        {"kind": "initials", "page": 1, "x": 0.5, "y": 0.8, "width": 0.15, "height": 0.07, "name": "Ana Souza", "signed_at": "x", "type": "typed", "image": None, "text": "AS"},
+        {"kind": "text", "page": 1, "x": 0.1, "y": 0.5, "width": 0.4, "height": 0.04, "name": "Ana Souza", "signed_at": "x", "type": "text", "image": None, "text": "12/12/2026"},
+        {"kind": "carimbo", "page": 1, "x": 0.1, "y": 0.2, "width": 0.28, "height": 0.07, "name": "Desconhecido", "signed_at": "09/11/2026 15:00:00", "type": "typed", "image": None, "text": "Desconhecido"},
+    ]
+    r = seal(client, pdf_pages([A4]), {**REPORT, "placements": placements})
+    assert r.status_code == 200, r.text
+    first = _page_texts(r)[0]
+    assert "12/12/2026" in first and "AS" in first and "09/11/2026 13:48:56" in first and "09/11/2026 15:00:00" in first

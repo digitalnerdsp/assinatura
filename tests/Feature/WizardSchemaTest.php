@@ -42,5 +42,5 @@ it('o campo de assinatura nasce do tipo assinatura', function () {
     $e = wzSchemaEnvelope();
     $s = Signer::create(['envelope_id' => $e->id, 'name' => 'Ana', 'email' => 'a@a.com', 'role' => 'signer', 'position' => 1, 'status' => 'pending']);
     $f = SignatureField::create(['envelope_id' => $e->id, 'signer_id' => $s->id, 'page' => 1, 'x' => 0.1, 'y' => 0.1])->refresh();
-    expect($f->type)->toBe('signature')->and($f->value)->toBeNull()->and(SignatureField::TYPES)->toBe(['signature']);
+    expect($f->type)->toBe('signature')->and($f->value)->toBeNull()->and(SignatureField::TYPES)->toBe(['signature', 'initials', 'text']);
 });

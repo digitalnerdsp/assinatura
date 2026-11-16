@@ -40,5 +40,5 @@
 @endsection
 @push('scripts')
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script src="{{ asset('assets/js/wizard-placement.js') }}?v=1"></script>
+<script src="{{ asset('assets/js/wizard-placement.js') }}?v=2"></script>
 @endpush

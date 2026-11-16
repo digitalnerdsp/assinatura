@@ -21,6 +21,7 @@
   var saveBtns = [document.getElementById('wz-save'), document.getElementById('wz-save2')];
 
   function nameOf(id) { for (var i = 0; i < people.length; i++) { if (people[i].id === id) { return people[i].name; } } return '—'; }
+  function isSender(id) { for (var k = 0; k < people.length; k++) { if (people[k].id === id) { return !!people[k].sender; } } return false; }
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) { e.className = cls; } if (text) { e.textContent = text; } return e; }
 
   function toast(msg) {
@@ -123,6 +124,13 @@
       grid.appendChild(b);
     });
     p.appendChild(grid);
+    var note = el('p', 'wz-muted wz-small', 'Visto e Texto são preenchidos por quem recebe o link; o remetente só tem assinatura.'); note.hidden = true; p.appendChild(note);
+    function limitTypes() {
+      var snd = isSender(sel.value);
+      grid.querySelectorAll('button').forEach(function (b) { var off = snd && b.dataset.t !== 'signature'; b.disabled = off; b.setAttribute('aria-disabled', off ? 'true' : 'false'); });
+      note.hidden = !snd;
+    }
+    sel.addEventListener('change', limitTypes); limitTypes();
     document.body.appendChild(p);
     if (!mq.matches) {
       p.style.left = Math.min(window.innerWidth - 310, Math.max(8, e.clientX)) + 'px';

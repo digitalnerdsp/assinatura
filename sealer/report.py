@@ -22,7 +22,7 @@ from qrcode.constants import ERROR_CORRECT_L, ERROR_CORRECT_M
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.lib.utils import ImageReader
+from reportlab.lib.utils import ImageReader, simpleSplit
 from reportlab.pdfgen import canvas
 from reportlab.platypus import KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
@@ -86,6 +86,59 @@ def _footer_overlay(width: float, height: float, code: str, url: str) -> PdfRead
     return PdfReader(buf)
 
 
+def _initials_of(name: str) -> str:
+    parts = [w for w in re.split(r"\s+", (name or "").strip()) if w]
+
+    return "".join(w[0] for w in parts[:3]).upper() or "?"
+
+
+def _draw_text(c: canvas.Canvas, text: str, x0: float, y0: float, bw: float, bh: float) -> None:
+    """Escreve o texto na caixa (quebra por largura; diminui a fonte até caber; corta o que sobrar)."""
+    text = text.strip()
+    if not text:
+        return
+    size = max(6.0, min(11.0, bh * 0.7))
+    lines = simpleSplit(text, "Helvetica", size, max(bw - 2, 8))
+    while size > 6 and len(lines) * size * 1.15 > bh:
+        size -= 0.5
+        lines = simpleSplit(text, "Helvetica", size, max(bw - 2, 8))
+    max_lines = max(1, int(bh // (size * 1.15)))
+    c.setFillColor(colors.HexColor("#111111"))
+    c.setFont("Helvetica", size)
+    y = y0 + bh - size
+    for line in lines[:max_lines]:
+        c.drawString(x0 + 1, y, line)
+        y -= size * 1.15
+
+
+def _draw_initials(c: canvas.Canvas, p: dict, x0: float, y0: float, bw: float, bh: float) -> None:
+    """Rubrica do signatário numa caixa pequena: imagem desenhada ou o texto digitado (iniciais)."""
+    c.setStrokeColor(colors.HexColor("#9aa6c4"))
+    c.setLineWidth(0.5)
+    c.setFillColor(colors.white)
+    c.roundRect(x0, y0, bw, bh, 2, stroke=1, fill=1)
+
+    drew = False
+    if p.get("image"):
+        try:
+            raw = base64.b64decode(p["image"], validate=False)
+            img = ImageReader(io.BytesIO(raw))
+            iw, ih = img.getSize()
+            scale = min((bw - 4) / iw, (bh - 4) / ih)
+            c.drawImage(img, x0 + (bw - iw * scale) / 2, y0 + (bh - ih * scale) / 2, iw * scale, ih * scale, mask="auto")
+            drew = True
+        except Exception:  # imagem corrompida: cai para as iniciais do nome
+            drew = False
+    if not drew:
+        text = str(p.get("text") or "").strip()[:30] or _initials_of(str(p.get("name") or ""))
+        size = min(16.0, bh * 0.6)
+        while size > 5 and c.stringWidth(text, "Times-Italic", size) > bw - 4:
+            size -= 0.5
+        c.setFillColor(colors.HexColor("#1f2a5a"))
+        c.setFont("Times-Italic", size)
+        c.drawCentredString(x0 + bw / 2, y0 + (bh - size) / 2 + size * 0.2, text)
+
+
 def _placement_overlay(width: float, height: float, placements: list[dict]) -> PdfReader:
     """Desenha as assinaturas dos signatários nas posições escolhidas (frações da página, origem no topo)."""
     buf = io.BytesIO()
@@ -95,6 +148,15 @@ def _placement_overlay(width: float, height: float, placements: list[dict]) -> P
         bw, bh = float(p["width"]) * width, float(p["height"]) * height
         x0 = float(p["x"]) * width
         y0 = height - float(p["y"]) * height - bh  # y do PDF cresce para cima
+        kind = p.get("kind") or "signature"
+
+        if kind == "text":  # texto escrito pelo signatário: só o texto, sem caixa nem legenda
+            _draw_text(c, str(p.get("text") or ""), x0, y0, bw, bh)
+            continue
+
+        if kind == "initials":  # visto (rubrica): caixa com a rubrica, sem legenda de data
+            _draw_initials(c, p, x0, y0, bw, bh)
+            continue
 
         c.setStrokeColor(colors.HexColor("#9aa6c4"))
         c.setLineWidth(0.5)

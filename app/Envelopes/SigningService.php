@@ -113,7 +113,11 @@ final class SigningService
     /**
      * @param  'drawn'|'typed'  $type
      */
-    public function sign(Signer $signer, string $type, string $data, bool $acceptedTerms, ?RequestContext $context = null): void
+    /**
+     * @param  array{type:string,data:string}|null  $initials  visto (rubrica), exigido se o signatário tem campo Visto
+     * @param  array<string,string>  $texts  id do campo de texto => texto, exigido para cada campo Texto do signatário
+     */
+    public function sign(Signer $signer, string $type, string $data, bool $acceptedTerms, ?RequestContext $context = null, ?array $initials = null, array $texts = []): void
     {
         $this->assertOpen($signer);
 
@@ -140,7 +144,44 @@ final class SigningService
 
         $this->assertMyTurn($signer, $envelope);
 
-        $this->recordSignature($signer, $type, $data, $context);
+        $this->recordSignature($signer, $type, $data, $context, [], null, $this->fieldInputs($signer, $initials, $texts));
+    }
+
+    /**
+     * Visto e textos que o signatário precisa informar por causa dos campos que lhe foram dados. Só conta o que é dele:
+     * ids de campos de outros signatários são ignorados.
+     *
+     * @param  array{type:string,data:string}|null  $initials
+     * @param  array<string,string>  $texts
+     * @return array{initials:?array{type:string,data:string},texts:array<string,string>}
+     */
+    private function fieldInputs(Signer $signer, ?array $initials, array $texts): array
+    {
+        $fields = $signer->envelope->signatureFields()->where('signer_id', $signer->getKey())->whereIn('type', ['initials', 'text'])->get();
+
+        $mark = null;
+        if ($fields->contains('type', 'initials')) {
+            $kind = $initials['type'] ?? null;
+            $value = trim((string) ($initials['data'] ?? ''));
+            $valid = ($kind === 'drawn' && str_starts_with($value, 'data:image/png;base64,') && strlen($value) <= 300000
+                    && base64_decode(substr($value, strlen('data:image/png;base64,')), true) !== false)
+                || ($kind === 'typed' && $value !== '' && mb_strlen($value) <= 30);
+            if (! $valid) {
+                throw FlowException::because('initials_required', 'Faça o seu visto (rubrica) para assinar.');
+            }
+            $mark = ['type' => $kind, 'data' => $value];
+        }
+
+        $values = [];
+        foreach ($fields->where('type', 'text') as $field) {
+            $text = trim((string) ($texts[(string) $field->getKey()] ?? ''));
+            if ($text === '' || mb_strlen($text) > 200) {
+                throw FlowException::because('text_required', 'Preencha todos os campos de texto (até 200 caracteres) para assinar.');
+            }
+            $values[(string) $field->getKey()] = $text;
+        }
+
+        return ['initials' => $mark, 'texts' => $values];
     }
 
     /**
@@ -150,11 +191,11 @@ final class SigningService
      *
      * @param  array<string,mixed>  $evidence
      */
-    public function recordSignature(Signer $signer, string $type, string $data, ?RequestContext $context = null, array $evidence = [], ?string $level = null): void
+    public function recordSignature(Signer $signer, string $type, string $data, ?RequestContext $context = null, array $evidence = [], ?string $level = null, array $extras = []): void
     {
         $envelope = $signer->envelope;
 
-        $allSigned = DB::transaction(function () use ($signer, $envelope, $type, $data, $context, $evidence, $level) {
+        $allSigned = DB::transaction(function () use ($signer, $envelope, $type, $data, $context, $evidence, $level, $extras) {
             // Trava o signatário para impedir assinatura dupla concorrente.
             $fresh = Signer::query()->whereKey($signer->getKey())->lockForUpdate()->firstOrFail();
             if ($fresh->status === SignerStatus::Signed) {
@@ -171,7 +212,14 @@ final class SigningService
                 'document_sha256' => $envelope->document->sha256,
                 'level' => $level,
                 'signed_at' => $now,
+                'initials_type' => $extras['initials']['type'] ?? null,
+                'initials_data' => $extras['initials']['data'] ?? null,
             ]);
+
+            // Textos dos campos Texto: gravados junto da assinatura, antes de qualquer selagem.
+            foreach ((array) ($extras['texts'] ?? []) as $fieldId => $text) {
+                $envelope->signatureFields()->where('signer_id', $fresh->getKey())->whereKey($fieldId)->update(['value' => $text]);
+            }
 
             $fresh->update(['status' => SignerStatus::Signed, 'signed_at' => $now]);
 
@@ -180,7 +228,10 @@ final class SigningService
                 'level' => $level,
                 'document_sha256' => $envelope->document->sha256,
                 'signature_sha256' => hash('sha256', $data),
-            ] + $evidence, $fresh, $context);
+            ] + ((! empty($extras['initials']) || ! empty($extras['texts'])) ? ['fields' => [
+                'initials_sha256' => ! empty($extras['initials']) ? hash('sha256', $extras['initials']['data']) : null,
+                'texts_sha256' => ! empty($extras['texts']) ? hash('sha256', json_encode($extras['texts'], JSON_UNESCAPED_UNICODE)) : null,
+            ]] : []) + $evidence, $fresh, $context);
 
             $pending = $envelope->signers()->whereIn('role', Envelope::PARTICIPANT_ROLES)->where('status', '!=', SignerStatus::Signed->value)->count();
 

@@ -12,8 +12,8 @@ class SignatureField extends Model
 {
     use HasUuids;
 
-    /** Tipos de campo que o assistente aceita (assinatura; visto e texto entram na Tarefa 8). */
-    public const TYPES = ['signature'];
+    /** Tipos de campo do assistente: assinatura, visto (rubrica do signatário) e texto (preenchido pelo signatário). */
+    public const TYPES = ['signature', 'initials', 'text'];
 
     protected $guarded = [];
 

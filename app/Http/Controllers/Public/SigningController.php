@@ -165,7 +165,16 @@ final class SigningController extends Controller
             'typed' => ['nullable', 'string', 'max:150', 'required_if:type,typed'],
             'drawn' => ['nullable', 'string', 'max:300000', 'starts_with:data:image/png;base64,', 'required_if:type,drawn'],
             'terms' => ['accepted'],
-        ], ['terms.accepted' => 'É necessário aceitar os termos para assinar.']);
+            'initials_type' => ['nullable', 'in:drawn,typed'],
+            'initials_typed' => ['nullable', 'string', 'max:30'],
+            'initials_drawn' => ['nullable', 'string', 'max:300000', 'starts_with:data:image/png;base64,'],
+            'texts' => ['nullable', 'array', 'max:60'],
+            'texts.*' => ['nullable', 'string', 'max:200'],
+        ], [
+            'terms.accepted' => 'É necessário aceitar os termos para assinar.',
+            'initials_drawn.starts_with' => 'O visto desenhado é inválido. Desenhe de novo.',
+            'texts.*.max' => 'Cada texto pode ter no máximo 200 caracteres.',
+        ]);
 
         return $this->guard($token, function (Signer $signer) use ($request, $data) {
             $this->signing->sign(
@@ -174,6 +183,8 @@ final class SigningController extends Controller
                 $data['type'] === 'typed' ? $data['typed'] : $data['drawn'],
                 true,
                 RequestContext::fromRequest($request),
+                ! empty($data['initials_type']) ? ['type' => $data['initials_type'], 'data' => (string) ($data['initials_type'] === 'drawn' ? ($data['initials_drawn'] ?? '') : ($data['initials_typed'] ?? ''))] : null,
+                array_map('strval', (array) ($data['texts'] ?? [])),
             );
 
             \App\Branding\BrandService::useTenant(request(), $signer->envelope->tenant);

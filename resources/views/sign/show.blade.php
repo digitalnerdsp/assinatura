@@ -172,6 +172,44 @@ document.getElementById('geobtn').addEventListener('click', function () {
                 <div class="sign-preview" id="preview" aria-hidden="true">{{ $signer->name }}</div>
             </div>
 
+            @php
+                $myFields = $envelope->signatureFields->where('signer_id', $signer->id);
+                $hasInitials = $myFields->contains('type', 'initials');
+                $textFields = $myFields->where('type', 'text')->sortBy([['page', 'asc'], ['y', 'asc']])->values();
+            @endphp
+            @if ($hasInitials)
+            <hr class="my-4">
+            <h6 class="mb-1"><i class="bx bx-edit-alt me-1"></i> Seu visto (rubrica)</h6>
+            <p class="text-secondary small">Ele aparece nos campos "Visto" marcados para você no documento.</p>
+            <input type="hidden" name="initials_type" id="initials_type" value="drawn">
+            <ul class="nav nav-pills nav-fill mb-3" role="tablist">
+                <li class="nav-item"><button type="button" class="nav-link active" id="tab-i-drawn"><i class="bx bx-edit-alt"></i> Desenhar</button></li>
+                <li class="nav-item"><button type="button" class="nav-link" id="tab-i-typed"><i class="bx bx-text"></i> Digitar</button></li>
+            </ul>
+            <div id="pane-i-drawn">
+                <canvas class="pad" id="pad-i" style="height:110px"></canvas>
+                <input type="hidden" name="initials_drawn" id="initials_drawn">
+                <button type="button" class="btn btn-sm btn-outline-secondary mt-2" id="clear-i">Limpar</button>
+            </div>
+            <div id="pane-i-typed" hidden>
+                <label for="initials_typed" class="form-label">Suas iniciais</label>
+                <input type="text" class="form-control" name="initials_typed" id="initials_typed" maxlength="30" value="{{ old('initials_typed') }}" disabled>
+            </div>
+            @error('initials_drawn')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
+            @endif
+
+            @if ($textFields->isNotEmpty())
+            <hr class="my-4">
+            <h6 class="mb-1"><i class="bx bx-text me-1"></i> Campos de texto</h6>
+            <p class="text-secondary small">Estes textos serão escritos no documento, nos lugares marcados para você.</p>
+            @foreach ($textFields as $i => $f)
+                <div class="mb-3">
+                    <label for="text_{{ $f->id }}" class="form-label">Texto {{ $i + 1 }} <span class="text-secondary small">(página {{ $f->page }})</span></label>
+                    <input type="text" class="form-control" id="text_{{ $f->id }}" name="texts[{{ $f->id }}]" maxlength="200" required value="{{ old('texts.'.$f->id) }}">
+                </div>
+            @endforeach
+            @endif
+
             <div class="form-check mt-4">
                 <input class="form-check-input" type="checkbox" name="terms" value="1" id="terms" required>
                 <label class="form-check-label" for="terms">Li o documento e concordo em assinar eletronicamente. Declaro que meus dados de acesso (IP, data e hora, dispositivo) e as verificações realizadas serão registrados como prova desta assinatura.</label>
@@ -226,6 +264,40 @@ document.getElementById('geobtn').addEventListener('click', function () {
     size();
 })();
 </script>
+@if ($hasInitials)
+<script>
+(function () {
+    /* Quadro do visto (rubrica): mesmo funcionamento do quadro da assinatura, em campos próprios. */
+    const $ = id => document.getElementById(id);
+    const pad = $('pad-i'), ctx = pad.getContext('2d'), drawn = $('initials_drawn'), type = $('initials_type');
+    let down = false, dirty = false, sized = false;
+    function size() {
+        const r = pad.getBoundingClientRect(); if (!r.width) return;
+        pad.width = r.width * 2; pad.height = r.height * 2; ctx.scale(2, 2);
+        ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#111'; sized = true;
+    }
+    const pos = e => { const r = pad.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+    pad.addEventListener('pointerdown', e => { e.preventDefault(); down = true; ctx.beginPath(); ctx.moveTo(...pos(e)); pad.setPointerCapture(e.pointerId); });
+    pad.addEventListener('pointermove', e => { if (!down) return; ctx.lineTo(...pos(e)); ctx.stroke(); dirty = true; });
+    const end = () => { if (!down) return; down = false; drawn.value = dirty ? pad.toDataURL('image/png') : ''; };
+    pad.addEventListener('pointerup', end); pad.addEventListener('pointercancel', end);
+    $('clear-i').addEventListener('click', () => { ctx.clearRect(0, 0, pad.width, pad.height); dirty = false; drawn.value = ''; });
+    function tab(t) {
+        const d = t === 'drawn'; type.value = t;
+        $('pane-i-drawn').hidden = !d; $('pane-i-typed').hidden = d; $('initials_typed').disabled = d;
+        $('tab-i-drawn').classList.toggle('active', d); $('tab-i-typed').classList.toggle('active', !d);
+        if (d && !sized) size();
+    }
+    $('tab-i-drawn').addEventListener('click', () => tab('drawn'));
+    $('tab-i-typed').addEventListener('click', () => tab('typed'));
+    $('signform').addEventListener('submit', e => {
+        if (type.value === 'drawn' && !drawn.value) { e.preventDefault(); alert('Faça o seu visto no quadro ou use a aba "Digitar".'); }
+        if (type.value === 'typed' && !$('initials_typed').value.trim()) { e.preventDefault(); alert('Digite as suas iniciais.'); }
+    });
+    size();
+})();
+</script>
+@endif
 @endpush
 @endif
 @endsection

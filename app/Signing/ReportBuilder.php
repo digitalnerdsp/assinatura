@@ -96,16 +96,38 @@ final class ReportBuilder
                 continue;
             }
 
-            $drawn = $sig->type === 'drawn';
-            $out[] = [
+            $kind = in_array($field->type, \App\Models\SignatureField::TYPES, true) ? $field->type : 'signature';
+            $base = [
+                'kind' => $kind,
                 'page' => $field->page,
                 'x' => $field->x, 'y' => $field->y, 'width' => $field->width, 'height' => $field->height,
                 'name' => $signer->name,
                 'signed_at' => $this->at($signer->signed_at),
-                'type' => $sig->type,
-                'image' => $drawn ? substr((string) $sig->data, (int) strpos((string) $sig->data, ',') + 1) : null,
-                'text' => $drawn ? null : $sig->data,
             ];
+
+            if ($kind === 'text') {
+                if ($field->value === null || trim((string) $field->value) === '') {
+                    continue;
+                }
+                $out[] = $base + ['type' => 'text', 'image' => null, 'text' => $field->value];
+            } elseif ($kind === 'initials') {
+                if ($sig->initials_data === null) {
+                    continue;
+                }
+                $mark = $sig->initials_type === 'drawn';
+                $out[] = $base + [
+                    'type' => (string) $sig->initials_type,
+                    'image' => $mark ? substr((string) $sig->initials_data, (int) strpos((string) $sig->initials_data, ',') + 1) : null,
+                    'text' => $mark ? null : $sig->initials_data,
+                ];
+            } else {
+                $drawn = $sig->type === 'drawn';
+                $out[] = $base + [
+                    'type' => $sig->type,
+                    'image' => $drawn ? substr((string) $sig->data, (int) strpos((string) $sig->data, ',') + 1) : null,
+                    'text' => $drawn ? null : $sig->data,
+                ];
+            }
         }
 
         return $out;

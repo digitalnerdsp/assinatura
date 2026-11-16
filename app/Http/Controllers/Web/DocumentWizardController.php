@@ -428,7 +428,7 @@ final class DocumentWizardController extends Controller
             'people' => $signers->reject(fn ($s) => $s->isSender())->values(),
             'hasSender' => $signers->contains(fn ($s) => $s->isSender()),
             // Passo 3: quem pode receber campo e os campos já salvos (frações da página, origem no canto superior esquerdo).
-            'placePeople' => $signers->sortBy('position')->map(fn ($s) => ['id' => (string) $s->getKey(), 'name' => $s->isSender() ? 'Você (remetente)' : $s->name])->values(),
+            'placePeople' => $signers->sortBy('position')->map(fn ($s) => ['id' => (string) $s->getKey(), 'name' => $s->isSender() ? 'Você (remetente)' : $s->name, 'sender' => $s->isSender()])->values(),
             'placeFields' => $envelope ? $envelope->signatureFields()->get()->map(fn ($f) => [
                 'signer_id' => (string) $f->signer_id, 'type' => $f->type, 'page' => (int) $f->page,
                 'x' => (float) $f->x, 'y' => (float) $f->y, 'width' => (float) $f->width, 'height' => (float) $f->height,

@@ -129,7 +129,7 @@ it('valida os campos posicionados', function () {
     expect($e->signatureFields()->count())->toBe(1);
 
     expect(fn () => $svc->syncFields($e, [wzField($other->signers()->first()->id)]))->toThrow(FlowException::class, 'signatário');
-    expect(fn () => $svc->syncFields($e, [wzField($ana->id, ['type' => 'text'])]))->toThrow(FlowException::class, 'tipo');
+    expect(fn () => $svc->syncFields($e, [wzField($ana->id, ['type' => 'carimbo'])]))->toThrow(FlowException::class, 'tipo');
     expect(fn () => $svc->syncFields($e, [wzField($ana->id, ['x' => 1.2])]))->toThrow(FlowException::class, 'posição');
     expect(fn () => $svc->syncFields($e, [wzField($ana->id, ['page' => 0])]))->toThrow(FlowException::class, 'página');
     expect(fn () => $svc->syncFields($e, array_fill(0, 61, wzField($ana->id))))->toThrow(FlowException::class, '60');
