@@ -80,6 +80,12 @@ Route::middleware(['auth', 'tenant.active'])->group(function () {
 
     Route::get('/documentos/novo', [EnvelopeController::class, 'create'])->name('envelopes.create');
     Route::post('/documentos', [EnvelopeController::class, 'store'])->name('envelopes.store');
+    // Assistente de criação de documento (4 passos). /documentos/assistente é provisório até substituir /documentos/novo.
+    Route::get('/documentos/assistente', [\App\Http\Controllers\Web\DocumentWizardController::class, 'create'])->name('envelopes.wizard');
+    Route::post('/documentos/assistente', [\App\Http\Controllers\Web\DocumentWizardController::class, 'upload'])->middleware('throttle:30,1,wizard-upload')->name('envelopes.wizard.upload');
+    Route::post('/documentos/pasta-rapida', [\App\Http\Controllers\Web\DocumentWizardController::class, 'quickFolder'])->middleware('throttle:30,1,wizard-folder')->name('documents.folders.quick');
+    Route::get('/documentos/{envelope}/passo/{n}', [\App\Http\Controllers\Web\DocumentWizardController::class, 'show'])->where('n', '[1-4]')->name('envelopes.step');
+    Route::put('/documentos/{envelope}/passo/{n}', [\App\Http\Controllers\Web\DocumentWizardController::class, 'save'])->where('n', '[1-4]')->name('envelopes.step.save');
     Route::get('/documentos/{envelope}', [EnvelopeController::class, 'show'])->name('envelopes.show');
     Route::post('/documentos/{envelope}/enviar', [EnvelopeController::class, 'send'])->name('envelopes.send');
     Route::post('/documentos/{envelope}/signatarios/{signer}/reenviar', [EnvelopeController::class, 'resend'])->name('envelopes.resend');
