@@ -1,6 +1,6 @@
 # Assistente de criação de documento em 4 passos — desenho
 
-Status: **para aprovação do dono**. Fontes: os dois PDFs de escopo do ZapSign (plano gratuito), os prints do celular enviados pelo dono e o código atual. Copiamos o **fluxo e a usabilidade**, não a aparência (o visual segue o tema ativo).
+Status: **implementado** (plano executado; ver docs/ESCOPO.md, seção "Assistente de criação de documento"). Aprovado pelo dono depois do protótipo. Fontes: os dois PDFs de escopo do ZapSign (plano gratuito), os prints do celular enviados pelo dono e o código atual. Copiamos o **fluxo e a usabilidade**, não a aparência (o visual segue o tema ativo).
 
 ## Objetivo
 Trocar a página única "Novo documento" (documento, signatários, testemunhas, posição, opções, tudo junto) por um assistente linear de 4 passos, uma decisão por tela, com rascunho gravado e dados mantidos ao voltar.

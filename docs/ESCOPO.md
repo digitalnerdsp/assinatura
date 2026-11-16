@@ -285,3 +285,13 @@ Referência interativa em `/api/docs` e especificação em `/api/v1/openapi.json
 
 ## Temas (central de temas)
 Plataforma › Temas (super admin): upload de pacote .zip, ativação com teste de abertura e reserva automática. Dois temas vêm com o sistema (Able Pro, padrão, e W3 CRM). Contrato e modelo de confiança em `docs/TEMAS.md`.
+
+## Assistente de criação de documento (4 passos)
+Substitui a página única "Novo documento" (`/documentos/novo`). Cada passo é uma página (`/documentos/{id}/passo/{1..4}`) e o rascunho vive no banco (`envelopes.wizard_step` = último passo concluído; nulo = criado fora do assistente, como API e modelos). Desenho e decisões: `docs/superpowers/specs/2026-11-16-assistente-criacao-documento-design.md`.
+- **Passo 1:** PDF (um arquivo, até `signing.max_pdf_mb`), nome do documento e pasta (escolher ou criar na hora). Trocar o PDF apaga o antigo, acerta o armazenamento e **zera os campos posicionados**.
+- **Passo 2:** signatários só com o nome (e-mail, CPF, celular e função "testemunha" na **Autenticação avançada**), "Eu vou assinar" pela política da empresa (`always|optional|never`), contatos, ordem sequencial e verificações do documento. Observadores e grupos de contatos ficam para depois.
+- **Passo 3 (opcional):** clique ou toque no documento abre o popup com signatário e tipo: **Assinatura**, **Visto** (rubrica) ou **Texto**. Arrastar, redimensionar, duplicar e remover; teclado (setas, Delete). Continuar sem posicionar pede confirmação e as assinaturas ficam só no relatório. O remetente só pode ter campo de assinatura.
+- **Passo 4:** envio automático dos links (e-mail obrigatório por signatário) ou manual (os links aparecem no detalhe), mensagem (até 500), lembretes, data limite (1 a 365 dias), **permitir recusar** (padrão desligado no assistente; `envelopes.allow_refuse` é `true` por padrão, então API e modelos seguem recusáveis) e etiquetas. "Enviar e finalizar" trava a linha do documento: dois cliques enviam e cobram uma vez só.
+- **Tela do signatário:** com campo Visto ele faz a rubrica (desenhar ou digitar); com campo Texto preenche cada texto (obrigatórios, até 200 caracteres). O carimbo do PDF selado (`sealer/report.py`) desenha assinatura, visto e texto; o evento `document_signed` guarda o SHA-256 do visto e dos textos.
+- **Rascunhos abandonados:** `documents:trash-stale-drafts` (diário, 14 dias sem alteração, só os do assistente) manda para a lixeira; a lixeira apaga de vez em 30 dias e devolve o armazenamento.
+- **Colunas novas:** `envelopes.wizard_step`, `envelopes.allow_refuse`, `signers.email` nulo no rascunho (exigido no envio automático), `signature_fields.type|value`, `signatures.initials_type|initials_data`.
