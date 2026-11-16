@@ -3,7 +3,7 @@
 @section('section', 'Documentos')
 @section('content')
 @php($labels = [
-    'document_created' => 'Documento criado', 'document_sent' => 'Liberado para assinatura', 'document_viewed' => 'Documento visualizado',
+    'document_created' => 'Documento criado', 'document_replaced' => 'Arquivo trocado', 'document_sent' => 'Liberado para assinatura', 'document_viewed' => 'Documento visualizado',
     'otp_sent' => 'Código enviado', 'otp_failed' => 'Código incorreto', 'otp_verified' => 'Código confirmado',
     'document_signed' => 'Documento assinado', 'all_signed' => 'Todas as assinaturas coletadas', 'signer_refused' => 'Assinatura recusada',
     'selfie_captured' => 'Selfie registrada', 'document_photo_captured' => 'Foto do documento registrada', 'geolocation_captured' => 'Localização registrada',

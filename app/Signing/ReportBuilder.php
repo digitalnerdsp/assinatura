@@ -21,7 +21,7 @@ final class ReportBuilder
     private const TZ = 'America/Sao_Paulo';
 
     private const LABELS = [
-        'document_created' => 'Documento criado', 'document_sent' => 'Liberado para assinatura',
+        'document_created' => 'Documento criado', 'document_replaced' => 'Arquivo trocado', 'document_sent' => 'Liberado para assinatura',
         'document_viewed' => 'Documento visualizado', 'otp_sent' => 'Código enviado', 'otp_failed' => 'Código incorreto',
         'otp_verified' => 'Código confirmado', 'selfie_captured' => 'Selfie registrada',
         'document_photo_captured' => 'Foto do documento registrada', 'geolocation_captured' => 'Localização registrada',

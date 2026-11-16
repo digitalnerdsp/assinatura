@@ -56,13 +56,7 @@ final class EnvelopeService
         $geolocation = (bool) ($verifications['geolocation'] ?? false);
         $requiredLevel = ($otp || $selfie || $docPhoto) ? 'advanced' : 'simple';
 
-        if (! str_starts_with($pdfContents, '%PDF-')) {
-            throw FlowException::because('invalid_document', 'O arquivo enviado não é um PDF válido.');
-        }
-        if (strlen($pdfContents) > (int) config('signing.max_pdf_mb') * 1024 * 1024) {
-            throw FlowException::because('document_too_large', 'O PDF excede o limite de '.config('signing.max_pdf_mb').' MB.');
-        }
-        \App\Plans\Entitlements::for($tenant)->canUpload(strlen($pdfContents))->orFail();
+        $this->assertPdf($tenant, $pdfContents);
         $this->assertParticipants($signers, ! empty($options['sender']));
 
         $validity = max(1, min(365, (int) ($options['validity_days'] ?? config('signing.default_validity_days'))));
@@ -80,17 +74,7 @@ final class EnvelopeService
         }
 
         return DB::transaction(function () use ($tenant, $creator, $pdfContents, $filename, $title, $signers, $order, $requiredLevel, $message, $otp, $selfie, $docPhoto, $geolocation, $validity, $reminder, $channels, $folderId, $options, $externalId) {
-            $path = "tenants/{$tenant->getKey()}/documents/".Str::uuid().'.pdf';
-            Storage::disk('local')->put($path, $pdfContents);
-
-            $document = Document::query()->create([
-                'tenant_id' => $tenant->getKey(),
-                'name' => $filename,
-                'storage_path' => $path,
-                'sha256' => hash('sha256', $pdfContents),
-                'size' => strlen($pdfContents),
-            ]);
-            app(\App\Plans\StorageUsage::class)->add($tenant, strlen($pdfContents));
+            $document = $this->storeDocument($tenant, $pdfContents, $filename);
 
             $envelope = Envelope::query()->create([
                 'tenant_id' => $tenant->getKey(),
@@ -184,6 +168,289 @@ final class EnvelopeService
 
             return $envelope;
         });
+    }
+
+    /** PDF de verdade, dentro do limite e cabendo no plano. */
+    private function assertPdf(Tenant $tenant, string $pdfContents): void
+    {
+        if (! str_starts_with($pdfContents, '%PDF-')) {
+            throw FlowException::because('invalid_document', 'O arquivo enviado não é um PDF válido.');
+        }
+        if (strlen($pdfContents) > (int) config('signing.max_pdf_mb') * 1024 * 1024) {
+            throw FlowException::because('document_too_large', 'O PDF excede o limite de '.config('signing.max_pdf_mb').' MB.');
+        }
+        \App\Plans\Entitlements::for($tenant)->canUpload(strlen($pdfContents))->orFail();
+    }
+
+    /** Grava o PDF no disco e a linha do documento, somando ao armazenamento da empresa. */
+    private function storeDocument(Tenant $tenant, string $pdfContents, string $filename): Document
+    {
+        $path = "tenants/{$tenant->getKey()}/documents/".Str::uuid().'.pdf';
+        Storage::disk('local')->put($path, $pdfContents);
+
+        $document = Document::query()->create([
+            'tenant_id' => $tenant->getKey(),
+            'name' => $filename,
+            'storage_path' => $path,
+            'sha256' => hash('sha256', $pdfContents),
+            'size' => strlen($pdfContents),
+        ]);
+        app(\App\Plans\StorageUsage::class)->add($tenant, strlen($pdfContents));
+
+        return $document;
+    }
+
+    private function assertDraft(Envelope $envelope): void
+    {
+        if ($envelope->status !== EnvelopeStatus::Draft) {
+            throw FlowException::because('not_draft', 'Somente rascunhos podem ser alterados.');
+        }
+    }
+
+    /** Avança o progresso do assistente sem nunca voltar atrás. */
+    private function reachStep(Envelope $envelope, int $step): void
+    {
+        $envelope->update(['wizard_step' => max((int) $envelope->wizard_step, $step)]);
+    }
+
+    /** Passo 1: cria o rascunho só com o PDF (sem signatários). A recusa pelo signatário começa desligada no assistente. */
+    public function createDraft(Tenant $tenant, User $creator, string $pdfContents, string $filename, string $title, ?string $folderId = null): Envelope
+    {
+        $this->assertPdf($tenant, $pdfContents);
+        if ($folderId !== null && ! Folder::query()->where('tenant_id', $tenant->getKey())->whereKey($folderId)->exists()) {
+            throw FlowException::because('invalid_folder', 'Pasta inválida.');
+        }
+
+        return DB::transaction(function () use ($tenant, $creator, $pdfContents, $filename, $title, $folderId) {
+            $document = $this->storeDocument($tenant, $pdfContents, $filename);
+
+            $envelope = Envelope::query()->create([
+                'tenant_id' => $tenant->getKey(),
+                'created_by' => $creator->getKey(),
+                'document_id' => $document->getKey(),
+                'title' => $title,
+                'status' => EnvelopeStatus::Draft,
+                'wizard_step' => 1,
+                'allow_refuse' => false,
+                'signing_order' => SigningOrder::Parallel,
+                'required_level' => 'simple',
+                'verification_code' => strtoupper(Str::random(12)),
+                'validity_days' => (int) config('signing.default_validity_days'),
+                'reminder_every_days' => (int) config('signing.default_reminder_days'),
+                'notify_channels' => ['email'],
+                'folder_id' => $folderId,
+            ]);
+
+            $this->evidence->record($envelope, 'document_created', [
+                'document_sha256' => $document->sha256, 'signers' => 0, 'required_level' => 'simple', 'verifications' => [],
+            ]);
+
+            return $envelope;
+        });
+    }
+
+    /** Passo 1 de novo: troca o PDF. Os campos posicionados são apagados (o número de páginas pode mudar). */
+    public function replaceDocument(Envelope $envelope, string $pdfContents, string $filename): void
+    {
+        $this->assertDraft($envelope);
+        $tenant = $envelope->tenant;
+        $this->assertPdf($tenant, $pdfContents);
+
+        DB::transaction(function () use ($envelope, $tenant, $pdfContents, $filename) {
+            $old = $envelope->document;
+            $new = $this->storeDocument($tenant, $pdfContents, $filename);
+
+            $envelope->signatureFields()->delete();
+            $envelope->update(['document_id' => $new->getKey(), 'wizard_step' => 1]);
+
+            app(\App\Plans\StorageUsage::class)->remove($tenant, (int) $old->size);
+            Storage::disk('local')->delete($old->storage_path);
+            $old->delete();
+
+            $this->evidence->record($envelope, 'document_replaced', ['document_sha256' => $new->sha256]);
+            $envelope->unsetRelation('document');
+        });
+    }
+
+    /**
+     * Passo 2: signatários, testemunhas e remetente. Quem vem com `id` do próprio documento é mantido (e seus campos
+     * também); quem some da lista é removido junto com os campos dele.
+     *
+     * @param  list<array{id?:string,name:string,email?:?string,phone?:?string,cpf?:?string,role?:string}>  $people
+     * @param  array{otp?:bool,selfie?:bool,document?:bool,geolocation?:bool}  $verifications
+     */
+    public function syncPeople(Envelope $envelope, User $by, array $people, bool $withSender, SigningOrder $order, array $verifications = []): void
+    {
+        $this->assertDraft($envelope);
+        $people = array_values($people);
+        $this->assertParticipants($people, $withSender);
+        if (count($people) > 20) {
+            throw FlowException::because('too_many_signers', 'No máximo 20 signatários por documento.');
+        }
+
+        DB::transaction(function () use ($envelope, $by, $people, $withSender, $order, $verifications) {
+            $existing = $envelope->signers()->get()->keyBy(fn (Signer $s) => (string) $s->getKey());
+            $keep = [];
+            foreach ($people as $p) {
+                $id = (string) ($p['id'] ?? '');
+                if ($id !== '' && $existing->has($id) && ! $existing[$id]->isSender()) {
+                    $keep[] = $id;
+                }
+            }
+            $envelope->signers()->where('is_sender', false)->whereNotIn('id', $keep)->delete();
+
+            $sender = $existing->first(fn (Signer $s) => $s->isSender());
+            if (! $withSender && $sender !== null) {
+                $sender->delete();
+            }
+            if ($withSender && $sender === null) {
+                $envelope->signers()->create([
+                    'name' => $by->name, 'email' => mb_strtolower($by->email), 'role' => 'signer', 'position' => 0,
+                    'status' => SignerStatus::Pending, 'is_sender' => true,
+                ]);
+            }
+
+            $last = collect($people)->map(fn ($p, $i) => ($p['role'] ?? 'signer') === 'signer' ? $i + 1 : 0)->max() ?: 1;
+            foreach ($people as $i => $p) {
+                $role = $p['role'] ?? 'signer';
+                $email = mb_strtolower(trim((string) ($p['email'] ?? '')));
+                $attrs = [
+                    'name' => trim((string) $p['name']),
+                    'email' => $email === '' ? null : $email,
+                    'phone' => ($p['phone'] ?? '') === '' ? null : ($p['phone'] ?? null),
+                    'cpf' => ($p['cpf'] ?? '') === '' ? null : ($p['cpf'] ?? null),
+                    'role' => $role,
+                    'position' => $role === 'witness' ? $last + 1 : $i + 1,
+                ];
+                $id = (string) ($p['id'] ?? '');
+                if (in_array($id, $keep, true)) {
+                    $existing[$id]->update($attrs);
+                } else {
+                    $envelope->signers()->create($attrs + ['status' => SignerStatus::Pending]);
+                }
+            }
+
+            $otp = (bool) ($verifications['otp'] ?? false);
+            $selfie = (bool) ($verifications['selfie'] ?? false);
+            $docPhoto = (bool) ($verifications['document'] ?? false);
+            $envelope->update([
+                'signing_order' => $order,
+                'require_otp' => $otp,
+                'require_selfie' => $selfie,
+                'require_document' => $docPhoto,
+                'require_geolocation' => (bool) ($verifications['geolocation'] ?? false),
+                'required_level' => ($otp || $selfie || $docPhoto) ? 'advanced' : 'simple',
+            ]);
+            $this->reachStep($envelope, 2);
+
+            app(\App\Contacts\ContactService::class)->rememberFromSigners($envelope->tenant, $people);
+        });
+    }
+
+    /**
+     * Passo 3: substitui o conjunto de campos posicionados no PDF.
+     *
+     * @param  list<array{signer_id:string,type:string,page:int,x:float,y:float,width:float,height:float}>  $fields
+     */
+    public function syncFields(Envelope $envelope, array $fields): void
+    {
+        $this->assertDraft($envelope);
+        $fields = array_values($fields);
+        if (count($fields) > 60) {
+            throw FlowException::because('too_many_fields', 'No máximo 60 campos por documento.');
+        }
+
+        $mine = $envelope->signers()->pluck('id')->map(fn ($id) => (string) $id)->all();
+        $rows = [];
+        foreach ($fields as $f) {
+            if (! in_array((string) ($f['signer_id'] ?? ''), $mine, true)) {
+                throw FlowException::because('invalid_field_signer', 'Há um campo de um signatário que não está neste documento.');
+            }
+            if (! in_array($f['type'] ?? '', \App\Models\SignatureField::TYPES, true)) {
+                throw FlowException::because('invalid_field_type', 'O tipo de campo não é válido.');
+            }
+            if ((int) ($f['page'] ?? 0) < 1 || (int) $f['page'] > 2000) {
+                throw FlowException::because('invalid_field_page', 'A página do campo é inválida.');
+            }
+            $x = (float) ($f['x'] ?? -1);
+            $y = (float) ($f['y'] ?? -1);
+            $w = (float) ($f['width'] ?? 0);
+            $h = (float) ($f['height'] ?? 0);
+            if ($x < 0 || $y < 0 || $w <= 0 || $h <= 0 || $x + $w > 1.0001 || $y + $h > 1.0001) {
+                throw FlowException::because('invalid_field_position', 'A posição do campo está fora da página.');
+            }
+            $rows[] = ['signer_id' => $f['signer_id'], 'type' => $f['type'], 'page' => (int) $f['page'], 'x' => $x, 'y' => $y, 'width' => $w, 'height' => $h];
+        }
+
+        DB::transaction(function () use ($envelope, $rows) {
+            $envelope->signatureFields()->delete();
+            foreach ($rows as $row) {
+                $envelope->signatureFields()->create($row);
+            }
+            $this->reachStep($envelope, 3);
+        });
+    }
+
+    /**
+     * Passo 4: mensagem, lembretes, prazo, canais, recusa e etiquetas. Só grava as chaves que vierem.
+     *
+     * @param  array{message?:?string,reminder_every_days?:?int,validity_days?:?int,channels?:list<string>,allow_refuse?:bool,tags?:list<string>}  $options
+     */
+    public function applyDelivery(Envelope $envelope, array $options): void
+    {
+        $this->assertDraft($envelope);
+        $update = [];
+
+        if (array_key_exists('message', $options)) {
+            $message = trim((string) $options['message']);
+            if (mb_strlen($message) > 500) {
+                throw FlowException::because('message_too_long', 'A mensagem pode ter no máximo 500 caracteres.');
+            }
+            $update['message'] = $message === '' ? null : $message;
+        }
+        if (array_key_exists('reminder_every_days', $options)) {
+            $r = $options['reminder_every_days'];
+            $update['reminder_every_days'] = $r === null ? null : max(1, min(30, (int) $r));
+        }
+        if (array_key_exists('validity_days', $options)) {
+            $v = (int) $options['validity_days'];
+            if ($v < 1 || $v > 365) {
+                throw FlowException::because('invalid_validity', 'O prazo deve ficar entre 1 e 365 dias.');
+            }
+            $update['validity_days'] = $v;
+        }
+        if (array_key_exists('channels', $options)) {
+            $channels = array_values(array_intersect((array) $options['channels'], ['email', 'whatsapp', 'sms', 'manual']));
+            $update['notify_channels'] = in_array('manual', $channels, true) ? ['manual'] : ($channels ?: ['email']);
+        }
+        if (array_key_exists('allow_refuse', $options)) {
+            $update['allow_refuse'] = (bool) $options['allow_refuse'];
+        }
+
+        DB::transaction(function () use ($envelope, $update, $options) {
+            if ($update !== []) {
+                $envelope->update($update);
+            }
+            if (array_key_exists('tags', $options)) {
+                $envelope->tags()->sync(
+                    Tag::query()->where('tenant_id', $envelope->tenant_id)->whereIn('id', (array) $options['tags'])->pluck('id')->all()
+                );
+            }
+        });
+    }
+
+    /** O que precisa existir antes de liberar o rascunho. */
+    public function assertSendable(Envelope $envelope, bool $autoSend): void
+    {
+        $this->assertDraft($envelope);
+        $signers = $envelope->signers()->get();
+
+        if (! $signers->contains(fn (Signer $s) => $s->isSender() || $s->role === 'signer')) {
+            throw FlowException::because('no_signers', 'Informe ao menos um signatário.');
+        }
+        if ($autoSend && $signers->contains(fn (Signer $s) => ! $s->isSender() && ! filter_var((string) $s->email, FILTER_VALIDATE_EMAIL))) {
+            throw FlowException::because('email_required', 'Informe o e-mail de todos os signatários para enviar os links automaticamente.');
+        }
     }
 
     /** Papéis aceitos, limite de testemunhas e ao menos um signatário. @param list<array<string,mixed>> $signers */
