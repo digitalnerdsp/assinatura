@@ -80,6 +80,7 @@ final class DocumentWizardController extends Controller
         return match ($n) {
             1 => $this->saveStep1($request, $envelope),
             2 => $this->saveStep2($request, $envelope),
+            3 => $this->saveStep3($request, $envelope),
             default => abort(404),
         };
     }
@@ -198,6 +199,34 @@ final class DocumentWizardController extends Controller
         return redirect()->route('envelopes.step', [$envelope, 3]);
     }
 
+    private function saveStep3(Request $request, Envelope $envelope): RedirectResponse
+    {
+        $data = $request->validate([
+            'skipped' => ['nullable', 'boolean'],
+            'fields' => ['nullable', 'array', 'max:60'],
+            'fields.*.signer_id' => ['required', 'string', 'max:40'],
+            'fields.*.type' => ['required', 'string', 'max:16'],
+            'fields.*.page' => ['required', 'integer', 'min:1', 'max:2000'],
+            'fields.*.x' => ['required', 'numeric'],
+            'fields.*.y' => ['required', 'numeric'],
+            'fields.*.width' => ['required', 'numeric'],
+            'fields.*.height' => ['required', 'numeric'],
+        ], ['fields.max' => 'No máximo 60 campos por documento.']);
+
+        $fields = array_values($data['fields'] ?? []);
+        if ($fields === [] && ! $request->boolean('skipped')) {
+            return back()->withErrors(['fields' => 'Posicione ao menos uma assinatura ou escolha continuar sem posicionar.']);
+        }
+
+        try {
+            $this->envelopes->syncFields($envelope, $fields);
+        } catch (FlowException $e) {
+            return back()->withErrors(['fields' => $e->getMessage()]);
+        }
+
+        return redirect()->route('envelopes.step', [$envelope, 4]);
+    }
+
     /** Documento da empresa, rascunho e no passo que já foi alcançado; senão devolve o redirecionamento certo. */
     private function guard(Request $request, Envelope $envelope, ?int $n = null): ?RedirectResponse
     {
@@ -236,6 +265,13 @@ final class DocumentWizardController extends Controller
             'senderUser' => $request->user(),
             'people' => $signers->reject(fn ($s) => $s->isSender())->values(),
             'hasSender' => $signers->contains(fn ($s) => $s->isSender()),
+            // Passo 3: quem pode receber campo e os campos já salvos (frações da página, origem no canto superior esquerdo).
+            'placePeople' => $signers->sortBy('position')->map(fn ($s) => ['id' => (string) $s->getKey(), 'name' => $s->isSender() ? 'Você (remetente)' : $s->name])->values(),
+            'placeFields' => $envelope ? $envelope->signatureFields()->get()->map(fn ($f) => [
+                'signer_id' => (string) $f->signer_id, 'type' => $f->type, 'page' => (int) $f->page,
+                'x' => (float) $f->x, 'y' => (float) $f->y, 'width' => (float) $f->width, 'height' => (float) $f->height,
+            ])->values() : collect(),
+            'fieldTypes' => \App\Models\SignatureField::TYPES,
             'envelope' => $envelope,
             'step' => $n,
             'reached' => (int) ($envelope?->wizard_step ?? 0),
