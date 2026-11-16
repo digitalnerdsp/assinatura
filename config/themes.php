@@ -6,12 +6,16 @@ return [
     // Onde os temas instalados ficam (fora de public: os assets saem por rota própria).
     'path' => storage_path('app/themes'),
 
+    // Tema do sistema ativado na primeira instalação (slug de resources/themes-src).
+    'default' => 'able',
+
     // Versão do contrato de variáveis/arquivos que o sistema entende.
     'contract' => 1,
 
     'max_zip_mb' => 25,
     'max_file_mb' => 8,
     'max_total_mb' => 80,
+    'max_files' => 3000,
 
     // Extensões aceitas dentro do pacote ("blade.php" é tratado à parte).
     'allowed_ext' => ['json', 'css', 'js', 'map', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'ico', 'woff', 'woff2', 'ttf', 'otf', 'eot', 'txt', 'md'],

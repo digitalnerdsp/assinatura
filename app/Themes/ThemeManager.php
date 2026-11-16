@@ -18,6 +18,15 @@ final class ThemeManager
 {
     public const FALLBACK_LAYOUT = 'layouts.legacy';
 
+    /** Tema em teste de ativação (ainda não ativo). */
+    private static ?Theme $testing = null;
+
+    /** Tema que está desenhando a tela agora (o ativo, ou o que está sendo testado). */
+    public function current(): ?Theme
+    {
+        return self::$testing ?? $this->active();
+    }
+
     public function active(): ?Theme
     {
         $id = Setting::get('active_theme');
@@ -57,13 +66,24 @@ final class ThemeManager
     public function activate(Theme $theme): void
     {
         View::replaceNamespace('theme', [$theme->directory()]);
+        $guest = ! auth()->check();
+        self::$testing = $theme;
         try {
+            if ($guest) {
+                // O layout sempre recebe um usuário logado; no teste usamos um de exemplo (não salvo).
+                auth()->setUser(new \App\Models\User(['name' => 'Usuário de exemplo', 'email' => 'exemplo@exemplo.test', 'role' => 'member']));
+            }
             view('theme::pages.dashboard', ThemeData::sample())->render();
         } catch (\Throwable $e) {
             $theme->forceFill(['status' => 'error', 'error' => mb_substr($e->getMessage(), 0, 500)])->save();
             Log::warning('Tema recusado na ativação', ['theme' => $theme->slug, 'error' => $e->getMessage()]);
             $this->registerActive();
             throw FlowException::because('theme_broken', 'O tema não abriu e não foi ativado: '.mb_substr($e->getMessage(), 0, 200));
+        } finally {
+            self::$testing = null;
+            if ($guest) {
+                auth()->forgetUser();
+            }
         }
 
         $theme->forceFill(['status' => 'installed', 'error' => null])->save();

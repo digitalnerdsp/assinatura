@@ -282,3 +282,6 @@ Referência interativa em `/api/docs` e especificação em `/api/v1/openapi.json
 - **Segurança e robustez:** chave somente leitura; `Idempotency-Key` (24 h); erros em formato único; 120 req/min por chave.
 
 **Fora da API por enquanto:** criar/revogar chaves, usuários da conta, provas biométricas (selfie e foto do documento, de propósito), cobrança, sandbox separado, paginação por cursor.
+
+## Temas (central de temas)
+Plataforma › Temas (super admin): upload de pacote .zip, ativação com teste de abertura e reserva automática. Dois temas vêm com o sistema (Able Pro, padrão, e W3 CRM). Contrato e modelo de confiança em `docs/TEMAS.md`.

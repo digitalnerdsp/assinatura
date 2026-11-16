@@ -10,7 +10,10 @@ Trocar a aparência do sistema (Bootstrap → Tailwind) por **temas instaláveis
 - Editor visual de temas, loja de temas, temas de terceiros sem revisão.
 - Reescrever todas as telas internas: elas continuam em Bootstrap dentro da casca do tema até migrarem (ver "Compatibilidade").
 
-## Riscos que não podemos aceitar
+## Riscos (atualizado após revisão de segurança)
+A validação por lista de bloqueios **não garante** que um pacote malicioso seja inofensivo (Blade executa PHP). O modelo adotado é: tema = código confiável; só super admin envia; a tela avisa. Endurecimentos feitos: sem chamada dinâmica, `new`, backtick, `$__env`, `<x-`; `@include/@extends` só com literal `theme::`; nomes de arquivo restritos; teto de arquivos; tipos do `theme.json`.
+
+## Riscos que não podemos aceitar (intenção original)
 - **Upload de PHP/Blade com código executável = execução remota.** O pacote nunca roda sem validação; o tema só pode usar um conjunto fixo de diretivas e variáveis.
 - Tema quebrado derrubando o painel: sempre há o **tema padrão (atual)** como reserva automática.
 - Quebrar white label e contraste (≥ 4,5:1): o tema usa as variáveis de marca (`--brand`) geradas pelo BrandService.

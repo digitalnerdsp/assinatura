@@ -184,3 +184,61 @@ it('upload recusado mostra o motivo', function () {
     $this->actingAs($super)->post('/admin/temas', ['package' => $file])->assertSessionHasErrors('package');
     expect(Theme::count())->toBe(0);
 });
+
+it('o layout do tema recebe menu por perfil, marca, usuário e avisos', function () {
+    $super = thUser('s@x.com', 'super_admin');
+    $layout = "<html><body><nav>@foreach (\$menu as \$m)<a class=\"mi\" href=\"{{ \$m['url'] }}\">{{ \$m['label'] }}</a>@foreach (\$m['children'] as \$c)<i class=\"ch\">{{ \$c['label'] }}</i>@endforeach @endforeach</nav>"
+        ."<b>{{ \$brand['name'] }}</b><u>{{ \$user->name }}</u><div id=\"flash\">{{ \$flash }}</div><div id=\"legacy\">{{ \$legacyCss[1] }}</div><main>@yield('content')</main>{{ \$legacyScripts }}</body></html>";
+    $theme = app(ThemeInstaller::class)->install($super, thZip(['layouts/app.blade.php' => $layout]));
+    app(ThemeManager::class)->activate($theme);
+
+    $this->actingAs($super)->withSession(['status' => 'Salvo com sucesso'])->get('/painel')
+        ->assertOk()->assertSee('Painel')->assertSee('Documentos criados')->assertSee('Usuários da plataforma')->assertSee('Temas')
+        ->assertSee('P s@x.com')->assertSee('Salvo com sucesso')->assertSee('legacy-scope.css', false)->assertSee('bootstrap.bundle.min.js', false)
+        ->assertSee('Total 0');
+
+    $comum = thUser('c@x.com');
+    $this->actingAs($comum)->get('/painel')->assertOk()->assertDontSee('Usuários da plataforma')->assertSee('Plano e uso');
+    $membro = User::create(['tenant_id' => $comum->tenant_id, 'name' => 'Membro', 'email' => 'm@x.com', 'password' => 'senha-muito-forte', 'role' => 'member']);
+    $this->actingAs($membro->fresh())->get('/painel')->assertOk()->assertDontSee('Plano e uso')->assertDontSee('Webhooks');
+});
+
+it('telas internas continuam abrindo dentro do tema ativo', function () {
+    $super = thUser('s@x.com', 'super_admin');
+    $theme = app(ThemeInstaller::class)->install($super, thZip(['layouts/app.blade.php' => "<html><body><main>@yield('content')</main>{{ \$legacyScripts }}</body></html>"]));
+    app(ThemeManager::class)->activate($theme);
+
+    $this->actingAs($super)->get('/admin/temas')->assertOk()->assertSee('Temas instalados');
+});
+
+it('fecha contornos comuns da revisão de segurança', function (array $override, string $needle) {
+    $problems = implode(' | ', (new ThemeValidator())->validate(thZip($override)));
+    expect($problems)->toContain($needle);
+})->with([
+    'função montada em string' => [['layouts/app.blade.php' => "{{ ('str'.'rev')('abc') }}"], 'chamada dinâmica'],
+    'variável como função' => [['layouts/app.blade.php' => "@if(\$f('abc')) x @endif"], 'chamada dinâmica'],
+    'comentário antes do parêntese' => [['layouts/app.blade.php' => '{{ config/**/(\'app.name\') }}'], 'comentário'],
+    'backtick' => [['layouts/app.blade.php' => '{{ `id` }}'], 'backtick'],
+    'container interno' => [['layouts/app.blade.php' => '{{ get_class($__env->getContainer()) }}'], '$__env'],
+    'new' => [['layouts/app.blade.php' => '{{ (new \ArrayObject([1]))->count() }}'], 'new'],
+    'include dinâmico' => [['layouts/app.blade.php' => '@include($v)'], '@include'],
+    'extends dinâmico' => [['pages/dashboard.blade.php' => '@extends($v)'], '@extends'],
+    'componente dinâmico' => [['layouts/app.blade.php' => '<x-dynamic-component :component="$c" />'], '<x-'],
+    'slug com quebra de linha' => [['theme.json' => json_encode(['name' => 'X', 'slug' => "t\n", 'version' => '1.0.0', 'contract' => 1])], 'slug'],
+    'versão com quebra de linha' => [['theme.json' => json_encode(['name' => 'X', 'slug' => 't', 'version' => "1.0.0\n", 'contract' => 1])], 'versão'],
+    'slug como lista' => [['theme.json' => json_encode(['name' => 'X', 'slug' => ['a'], 'version' => '1.0.0', 'contract' => 1])], 'slug'],
+    'nome como lista' => [['theme.json' => json_encode(['name' => ['a'], 'slug' => 't', 'version' => '1.0.0', 'contract' => 1])], 'name'],
+    'nome de arquivo com dois-pontos' => [['assets/a.php:x.css' => 'a{}'], 'a.php:x.css'],
+    'nome reservado do Windows' => [['assets/con.css' => 'a{}'], 'con.css'],
+    'php dentro de css' => [['assets/x.css' => '<?php echo 1;'], '<?'],
+]);
+
+it('limita o número de arquivos do pacote', function () {
+    config(['themes.max_files' => 3]);
+    expect(implode(' ', (new ThemeValidator())->validate(thZip(['assets/a.css' => 'a{}', 'assets/b.css' => 'b{}']))))->toContain('arquivos');
+});
+
+it('os temas do sistema continuam passando no validador', function (string $slug) {
+    \Illuminate\Support\Facades\Artisan::call('themes:pack', ['slug' => $slug, '--out' => sys_get_temp_dir().'/bundled-'.$slug.'.zip']);
+    expect((new ThemeValidator())->validate(sys_get_temp_dir().'/bundled-'.$slug.'.zip'))->toBe([]);
+})->with(['able', 'w3crm']);

@@ -1,0 +1,8 @@
+{
+    "name": "Able Pro",
+    "slug": "able",
+    "version": "1.0.0",
+    "contract": 1,
+    "author": "Phoenixcoded (adaptado)",
+    "description": "Painel claro e escuro com menu lateral recolhível, cards e gráficos ApexCharts, baseado no Able Pro (Tailwind)."
+}

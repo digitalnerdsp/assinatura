@@ -46,7 +46,8 @@
         <div class="card radius-10">
             <div class="card-body">
                 <h5>Enviar tema</h5>
-                <p class="text-secondary small">Envie um pacote .zip com <code>theme.json</code>, <code>layouts/app.blade.php</code>, <code>pages/dashboard.blade.php</code> e a pasta <code>assets/</code>. O sistema confere o pacote inteiro antes de instalar e recusa código PHP, funções perigosas e arquivos fora da lista.</p>
+                <p class="text-secondary small">Envie um pacote .zip com <code>theme.json</code>, <code>layouts/app.blade.php</code>, <code>pages/dashboard.blade.php</code> e a pasta <code>assets/</code>. O sistema confere o pacote antes de instalar e recusa os erros e os truques mais comuns.</p>
+                <div class="alert alert-warning border-0 small"><strong>Envie só temas de quem você confia.</strong> Um tema roda como parte do sistema, com acesso às telas de todos os clientes. A conferência pega erros e truques comuns, mas não substitui a sua confiança em quem fez o tema.</div>
                 <form method="post" action="{{ route('admin.themes.store') }}" enctype="multipart/form-data">
                     @csrf
                     <label class="form-label" for="package">Pacote (.zip, até 25 MB)</label>

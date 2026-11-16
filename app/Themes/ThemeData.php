@@ -11,7 +11,7 @@ final class ThemeData
     public static function sample(): array
     {
         return [
-            'tenant' => null,
+            'tenant' => new \App\Models\Tenant(['name' => 'Empresa de exemplo']),
             'kpi' => ['month' => 0, 'monthDelta' => 0, 'pending' => 0, 'completedMonth' => 0, 'completedDelta' => 0, 'failed' => 0, 'total' => 0],
             'labels' => [],
             'created' => [],

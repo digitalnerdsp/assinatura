@@ -34,6 +34,8 @@ class AppServiceProvider extends ServiceProvider
         } catch (\Throwable) {
         }
 
+        \Illuminate\Support\Facades\View::composer('theme::layouts.*', \App\Themes\ThemeComposer::class);
+
         // Tema ativo da plataforma (namespace "theme::"); sem tabela ainda (antes das migrations) segue no padrão.
         try {
             $this->app->make(\App\Themes\ThemeManager::class)->registerActive();
