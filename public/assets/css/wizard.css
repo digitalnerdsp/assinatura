@@ -164,3 +164,18 @@ html.dark-theme .wz-pop { background: #172131; color: #e9eef6; border-color: #2b
 html.dark-theme .wz-pop select { background: #1f2b3d; border-bottom-color: #a6b2c3; }
 html.dark-theme .wz-pop .wz-types button { background: #172131; border-color: #2b3649; }
 html.dark-theme .wz-pop .wz-types button:hover, html.dark-theme .wz-pop .wz-types button:focus-visible { border-color: #5aa9ff; }
+
+/* Passo 4: envio */
+.wz .wz-info { color: var(--wz-link); font-weight: 600; margin: 0 0 16px; }
+.wz .wz-chans { border: 0; padding: 0; margin: 14px 0 0; display: flex; flex-wrap: wrap; gap: 4px 18px; align-items: center; }
+.wz .wz-chans legend { float: none; width: 100%; padding: 0; margin: 0 0 4px; font-size: 13px; }
+.wz .wz-srow { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin: 16px 0 0; }
+.wz .wz-sname { margin-top: 24px; min-width: 140px; }
+.wz .wz-semail { flex: 1 1 320px; max-width: 520px; margin: 4px 0; }
+.wz .wz-wide { max-width: none; margin-top: 18px; }
+.wz .wz-count { display: flex; justify-content: space-between; font-size: 12px; color: var(--wz-muted); margin-top: 4px; }
+.wz .wz-inline { flex-wrap: wrap; }
+.wz .wz-inline select, .wz .wz-inline input[type=date] { background: var(--wz-field); color: var(--wz-ink); border: 0; border-bottom: 1px solid var(--wz-muted); padding: 6px 8px; font: inherit; }
+.wz .wz-inline input[hidden] { display: none; }
+.wz .wz-tags { margin: 14px 0; display: flex; gap: 6px 14px; align-items: center; flex-wrap: wrap; }
+.wz .wz-tag { margin: 0; }

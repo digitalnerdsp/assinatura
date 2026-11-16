@@ -20,46 +20,41 @@ function witnessUiRegister(): void
     \App\Models\TenantSigningSetting::updateOrCreate(['tenant_id' => \App\Models\User::firstOrFail()->tenant_id], ['sender_policy' => 'never']);
 }
 
-it('o formulário tem a seção Testemunhas (opcional) com adicionar e remover', function () {
+it('o passo dos signatários oferece a função Assinar como testemunha', function () {
+    Storage::fake('local');
     witnessUiRegister();
+    $e = wzWeb();
 
-    $this->get('/documentos/novo')->assertOk()
-        ->assertSee('Testemunhas (opcional)')->assertSee('Adicionar testemunha');
+    $this->get("/documentos/{$e->id}/passo/2")->assertOk()->assertSee('Assinar como testemunha');
 });
 
 it('cria o envelope com testemunhas e mostra o papel na página', function () {
     Storage::fake('local');
     witnessUiRegister();
 
-    $this->post('/documentos', [
-        'title' => 'Contrato com testemunhas', 'signing_order' => 'parallel',
-        'document' => UploadedFile::fake()->createWithContent('a.pdf', "%PDF-1.4\n%%EOF"),
-        'signers' => [['name' => 'Parte', 'email' => 'parte@ex.com']],
-        'witnesses' => [
-            ['name' => 'Testemunha Um', 'email' => 't1@ex.com'],
-            ['name' => 'Testemunha Dois', 'email' => 't2@ex.com'],
+    $envelope = wzWeb([
+        'title' => 'Contrato com testemunhas',
+        'people' => [
+            ['name' => 'Parte', 'email' => 'parte@ex.com'],
+            ['name' => 'Testemunha Um', 'email' => 't1@ex.com', 'role' => 'witness'],
+            ['name' => 'Testemunha Dois', 'email' => 't2@ex.com', 'role' => 'witness'],
         ],
-    ])->assertRedirect();
-
-    $envelope = Envelope::firstOrFail();
+    ]);
     expect($envelope->signers)->toHaveCount(3)
         ->and($envelope->signers->where('role', 'witness'))->toHaveCount(2);
 
     $this->get("/documentos/{$envelope->id}")->assertOk()->assertSee('Testemunha Um')->assertSee('Testemunha');
 });
 
-it('recusa testemunha sem e-mail', function () {
+it('com envio automático a testemunha sem e-mail barra o envio', function () {
     Storage::fake('local');
     witnessUiRegister();
+    $e = wzWeb(['title' => 'X', 'people' => [['name' => 'Parte', 'email' => 'parte@ex.com'], ['name' => 'Sem e-mail', 'role' => 'witness']]]);
+    $witness = $e->signers()->where('role', 'witness')->firstOrFail();
 
-    $this->from('/documentos/novo')->post('/documentos', [
-        'title' => 'X', 'signing_order' => 'parallel',
-        'document' => UploadedFile::fake()->createWithContent('a.pdf', "%PDF-1.4\n%%EOF"),
-        'signers' => [['name' => 'Parte', 'email' => 'parte@ex.com']],
-        'witnesses' => [['name' => 'Sem e-mail', 'email' => '']],
-    ])->assertSessionHasErrors('witnesses.0.email');
+    $this->post("/documentos/{$e->id}/finalizar", ['auto' => 1])->assertSessionHasErrors("emails.{$witness->id}");
 
-    expect(Envelope::count())->toBe(0);
+    expect($e->fresh()->status->value)->toBe('draft');
 });
 
 it('a API aceita role witness e devolve o papel', function () {

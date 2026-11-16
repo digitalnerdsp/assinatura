@@ -180,6 +180,7 @@ document.getElementById('geobtn').addEventListener('click', function () {
         </form>
     </div>
 </div>
+@if ($envelope->allow_refuse)
 <div class="card radius-10">
     <div class="card-body">
         <details><summary class="text-danger">Recusar assinatura</summary>
@@ -192,6 +193,7 @@ document.getElementById('geobtn').addEventListener('click', function () {
         </details>
     </div>
 </div>
+@endif
 @push('scripts')
 <script>
 (function () {

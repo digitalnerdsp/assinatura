@@ -21,18 +21,18 @@ function wzPdfFile(string $name = 'contrato.pdf', string $content = WZ_PDF): Upl
 
 function wzUpload(User $u, array $extra = [], ?UploadedFile $file = null)
 {
-    return test()->actingAs($u)->post('/documentos/assistente', $extra + ['document' => $file ?? wzPdfFile()]);
+    return test()->actingAs($u)->post('/documentos', $extra + ['document' => $file ?? wzPdfFile()]);
 }
 
 it('o passo 1 mostra o título, a pasta e a zona de envio', function () {
     $u = wzOwner();
-    $this->actingAs($u)->get('/documentos/assistente')->assertOk()
+    $this->actingAs($u)->get('/documentos/novo')->assertOk()
         ->assertSee('Novo documento')->assertSee('Alterar pasta')->assertSee('Qual documento será assinado?')->assertSee('Selecionar documento')->assertSee('Enviar documento');
 });
 
 it('exige entrar na conta', function () {
-    $this->get('/documentos/assistente')->assertRedirect('/entrar');
-    $this->post('/documentos/assistente', [])->assertRedirect('/entrar');
+    $this->get('/documentos/novo')->assertRedirect('/entrar');
+    $this->post('/documentos', [])->assertRedirect('/entrar');
 });
 
 it('o upload cria o rascunho e leva ao passo 2', function () {
@@ -57,7 +57,7 @@ it('recusa arquivo que não é PDF, PDF grande demais e pasta de outra empresa',
     $u = wzOwner();
     wzUpload($u, [], wzPdfFile('a.pdf', 'isto não é pdf'))->assertSessionHasErrors('document');
     wzUpload($u, [], UploadedFile::fake()->create('a.txt', 1, 'text/plain'))->assertSessionHasErrors('document');
-    $this->actingAs($u)->post('/documentos/assistente', [])->assertSessionHasErrors('document');
+    $this->actingAs($u)->post('/documentos', [])->assertSessionHasErrors('document');
 
     $foreign = Folder::create(['tenant_id' => wzOwner('o@wz.test')->tenant_id, 'name' => 'Alheia']);
     wzUpload($u, ['folder_id' => $foreign->id])->assertSessionHasErrors('folder_id');

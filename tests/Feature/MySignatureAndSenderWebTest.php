@@ -46,12 +46,11 @@ function sigWithSaved(User $user): void
     test()->actingAs($user->fresh()); // o guard guarda o usuário da requisição de cadastro: recarrega
 }
 
-function sigStore(array $extra = []): \Illuminate\Testing\TestResponse
+function sigStore(array $extra = []): Envelope
 {
-    return test()->post('/documentos', $extra + [
-        'title' => 'Contrato', 'signing_order' => 'sequential',
-        'document' => UploadedFile::fake()->createWithContent('a.pdf', "%PDF-1.4\n%%EOF"),
-        'signers' => [['name' => 'Parte', 'email' => 'parte@ex.com']],
+    return wzWeb([
+        'title' => 'Contrato', 'order' => 'sequential', 'people' => [['name' => 'Parte', 'email' => 'parte@ex.com']],
+        'sender' => $extra['sender_signs'] ?? 0, 'fields' => $extra['signature_fields'] ?? [],
     ]);
 }
 
@@ -89,44 +88,13 @@ it('a assinatura de um usuário não aparece para outra empresa', function () {
     $this->get("/perfil/foto/{$a->id}")->assertNotFound(); // e nenhuma rota de perfil entrega dados de outro usuário
 });
 
-it('o formulário mostra a linha Eu (remetente) fixa quando a política é always', function () {
-    $user = sigRegister();
-    sigWithSaved($user);
-
-    $this->get('/documentos/novo')->assertOk()
-        ->assertSee('Eu (remetente)')->assertSee('Dono da Empresa')
-        ->assertSee('name="sender_signs" value="1"', false)->assertDontSee('type="checkbox" name="sender_signs"', false);
-});
-
-it('com optional vira caixa marcada e com never não aparece', function () {
-    $user = sigRegister();
-    sigWithSaved($user);
-
-    sigPolicy($user, 'optional');
-    $this->get('/documentos/novo')->assertOk()->assertSee('type="checkbox" name="sender_signs"', false)->assertSee('checked', false);
-
-    sigPolicy($user, 'never');
-    $this->get('/documentos/novo')->assertOk()->assertDontSee('id="sender-row"', false);
-});
-
-it('sem Minha assinatura salva a criação é recusada com link para o perfil', function () {
-    sigRegister();
-    Storage::fake('local');
-
-    sigStore()->assertSessionHasErrors('sender');
-
-    expect(Envelope::count())->toBe(0);
-    $this->get('/documentos/novo')->assertSee('Crie a sua assinatura em')->assertSee('#minha-assinatura', false);
-});
-
 it('criar e liberar assina na hora, sem avisar o remetente, e convida os demais', function () {
     $user = sigRegister();
     sigWithSaved($user);
     Storage::fake('local');
     Queue::fake();
     Mail::fake();
-    sigStore(['sender_signs' => 1])->assertSessionHasNoErrors()->assertRedirect();
-    $envelope = Envelope::firstOrFail();
+    $envelope = sigStore(['sender_signs' => 1]);
     $this->post("/documentos/{$envelope->id}/enviar")->assertRedirect();
 
     $sender = $envelope->signers()->where('is_sender', true)->firstOrFail();
@@ -146,8 +114,7 @@ it('quem libera é o remetente: o rascunho de um colega assina com a assinatura 
     Storage::fake('local');
     Queue::fake();
     Mail::fake();
-    sigStore(['sender_signs' => 1]);
-    $envelope = Envelope::firstOrFail();
+    $envelope = sigStore(['sender_signs' => 1]);
 
     $colega = User::create(['name' => 'Colega', 'email' => 'colega@acme.com', 'password' => 'senha-muito-forte', 'tenant_id' => $dono->tenant_id, 'role' => 'member']);
     $colega->forceFill(['signature_type' => 'typed', 'signature_data' => 'Colega Assina'])->save();
@@ -166,9 +133,9 @@ it('com política optional e a caixa desmarcada não cria remetente', function (
     sigPolicy($user, 'optional');
     Storage::fake('local');
 
-    sigStore()->assertRedirect();
+    $envelope = sigStore();
 
-    expect(Envelope::firstOrFail()->signers()->where('is_sender', true)->count())->toBe(0);
+    expect($envelope->signers()->where('is_sender', true)->count())->toBe(0);
 });
 
 it('o posicionamento aceita o remetente', function () {
@@ -176,12 +143,10 @@ it('o posicionamento aceita o remetente', function () {
     sigWithSaved($user);
     Storage::fake('local');
 
-    sigStore(['sender_signs' => 1, 'signature_fields' => [
+    $envelope = sigStore(['sender_signs' => 1, 'signature_fields' => [
         ['signer' => 'sender', 'page' => 1, 'x' => 0.1, 'y' => 0.8],
         ['signer' => 0, 'page' => 1, 'x' => 0.5, 'y' => 0.8],
-    ]])->assertRedirect();
-
-    $envelope = Envelope::firstOrFail();
+    ]]);
     $sender = $envelope->signers()->where('is_sender', true)->firstOrFail();
     expect($envelope->signatureFields()->where('signer_id', $sender->id)->count())->toBe(1)
         ->and($envelope->signatureFields()->count())->toBe(2);
@@ -193,8 +158,7 @@ it('envio manual não avisa ninguém por e-mail, nem o próximo da fila', functi
     Storage::fake('local');
     Queue::fake();
     Mail::fake();
-    sigStore(['sender_signs' => 1]);
-    $envelope = Envelope::firstOrFail();
+    $envelope = sigStore(['sender_signs' => 1]);
 
     $this->post("/documentos/{$envelope->id}/enviar", ['skip_email' => 1])->assertRedirect();
 
@@ -206,8 +170,7 @@ it('sem assinatura salva na hora de liberar, o envio é recusado e nada muda', f
     $user = sigRegister();
     sigWithSaved($user);
     Storage::fake('local');
-    sigStore(['sender_signs' => 1]);
-    $envelope = Envelope::firstOrFail();
+    $envelope = sigStore(['sender_signs' => 1]);
     $user->forceFill(['signature_type' => null, 'signature_data' => null])->save();
     $this->actingAs($user->fresh());
 

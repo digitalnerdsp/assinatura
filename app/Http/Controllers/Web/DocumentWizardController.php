@@ -9,6 +9,9 @@ use App\Enums\SigningOrder;
 use App\Envelopes\EnvelopeService;
 use App\Envelopes\Exceptions\FlowException;
 use App\Envelopes\SenderPolicy;
+use App\Envelopes\SenderSignature;
+use App\Evidence\RequestContext;
+use App\Notifications\SignerNotifier;
 use App\Folders\FolderService;
 use App\Http\Controllers\Controller;
 use App\Models\Envelope;
@@ -16,6 +19,7 @@ use App\Models\Folder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -25,6 +29,7 @@ final class DocumentWizardController extends Controller
     public function __construct(
         private readonly EnvelopeService $envelopes,
         private readonly FolderService $folders,
+        private readonly SignerNotifier $notifier,
     ) {
     }
 
@@ -81,6 +86,7 @@ final class DocumentWizardController extends Controller
             1 => $this->saveStep1($request, $envelope),
             2 => $this->saveStep2($request, $envelope),
             3 => $this->saveStep3($request, $envelope),
+            4 => $this->saveStep4($request, $envelope),
             default => abort(404),
         };
     }
@@ -227,6 +233,162 @@ final class DocumentWizardController extends Controller
         return redirect()->route('envelopes.step', [$envelope, 4]);
     }
 
+    /** Passo 4 sem enviar: grava as opções. "Voltar" (go=back) grava sem exigir e-mails e leva ao passo 3. */
+    private function saveStep4(Request $request, Envelope $envelope): RedirectResponse
+    {
+        $back = $request->input('go') === 'back';
+        if ($error = $this->applyStep4($request, $envelope, ! $back)) {
+            return $error;
+        }
+
+        return $back
+            ? redirect()->route('envelopes.step', [$envelope, 3])
+            : redirect()->route('envelopes.step', [$envelope, 4])->with('status', 'Opções salvas.');
+    }
+
+    /** Libera o rascunho: grava as opções, envia (assinando como remetente, se for o caso) e avisa os signatários. */
+    public function finish(Request $request, Envelope $envelope): RedirectResponse
+    {
+        if ($redirect = $this->guard($request, $envelope, 4)) {
+            return $redirect;
+        }
+        if ($error = $this->applyStep4($request, $envelope, true)) {
+            return $error;
+        }
+
+        $user = $request->user();
+        $context = RequestContext::fromRequest($request);
+        $auto = $request->boolean('auto');
+
+        try {
+            // Trava a linha do documento: dois cliques seguidos enviam e cobram uma vez só.
+            DB::transaction(function () use ($envelope, $user, $context, $auto): void {
+                $locked = Envelope::query()->whereKey($envelope->getKey())->lockForUpdate()->firstOrFail();
+                if ($locked->status !== EnvelopeStatus::Draft) {
+                    throw FlowException::because('not_draft', 'Somente rascunhos podem ser enviados.');
+                }
+                $this->envelopes->assertSendable($locked, $auto);
+
+                if ($locked->signers()->where('is_sender', true)->exists()) {
+                    if (! $user->hasSignature()) {
+                        throw FlowException::because('no_signature', 'Crie a sua assinatura em Meu perfil antes de liberar: o documento sai assinado por você, como remetente.');
+                    }
+                    $this->envelopes->sendAndSignAsSender(
+                        $locked,
+                        new SenderSignature((string) $user->signature_type, (string) $user->signature_data, 'session', $user->getKey()),
+                        $context,
+                        null,
+                        ['name' => $user->name, 'email' => $user->email, 'cpf' => null],
+                    );
+                } else {
+                    $this->envelopes->send($locked, $context);
+                }
+            });
+        } catch (FlowException $e) {
+            if ($e->reason === 'not_draft') {
+                return redirect()->route('envelopes.show', $envelope);
+            }
+
+            return back()->withInput()->withErrors(['options' => $e->getMessage()]);
+        }
+
+        $envelope = $envelope->fresh();
+        if (! $auto) {
+            return redirect()->route('envelopes.show', $envelope)->with('status', 'Documento liberado para assinatura. Copie o link de cada signatário abaixo e envie como preferir.');
+        }
+
+        $failed = $this->notifier->inviteActive($envelope);
+        if ($failed !== []) {
+            return redirect()->route('envelopes.show', $envelope)->withErrors([
+                'envelope' => 'O documento foi liberado, mas o aviso não pôde ser enviado para: '.implode(', ', $failed)
+                    .'. Copie o link de cada signatário abaixo e envie manualmente (ou confira e-mail/telefone e a configuração de envio com o administrador).',
+            ]);
+        }
+
+        return redirect()->route('envelopes.show', $envelope)->with('status', $envelope->signing_order === SigningOrder::Sequential
+            ? 'Convite enviado ao primeiro signatário. Os próximos serão avisados na vez deles.'
+            : 'Convites enviados.');
+    }
+
+    /**
+     * Valida e grava as opções do passo 4. Devolve um redirecionamento quando algo impede (e-mail faltando, limite...),
+     * ou nulo quando gravou.
+     */
+    private function applyStep4(Request $request, Envelope $envelope, bool $strict): ?RedirectResponse
+    {
+        $data = $request->validate([
+            'auto' => ['nullable', 'boolean'],
+            'emails' => ['nullable', 'array', 'max:20'],
+            'emails.*' => ['nullable', 'string', 'max:190'],
+            'channels' => ['nullable', 'array'],
+            'channels.*' => ['in:email,whatsapp,sms'],
+            'message' => ['nullable', 'string', 'max:500'],
+            'remind' => ['nullable', 'boolean'],
+            'remind_days' => ['nullable', 'integer', Rule::in([1, 2, 3, 5, 7, 10, 14])],
+            'limit' => ['nullable', 'boolean'],
+            'limit_date' => ['nullable', 'date_format:Y-m-d', 'after:today', 'before_or_equal:'.now()->addDays(365)->toDateString()],
+            'allow_refuse' => ['nullable', 'boolean'],
+            'tags' => ['nullable', 'array', 'max:10'],
+            'tags.*' => ['uuid'],
+        ], [
+            'message.max' => 'A mensagem pode ter no máximo 500 caracteres.',
+            'limit_date.after' => 'A data limite precisa ser depois de hoje.',
+            'limit_date.before_or_equal' => 'A data limite pode ser no máximo daqui a 365 dias.',
+            'limit_date.date_format' => 'Informe a data limite no formato correto.',
+        ]);
+
+        $auto = $request->boolean('auto');
+        $signers = $envelope->signers()->where('is_sender', false)->get();
+        $emails = (array) ($data['emails'] ?? []);
+
+        $errors = [];
+        foreach ($signers as $s) {
+            $given = array_key_exists((string) $s->getKey(), $emails) ? trim((string) $emails[(string) $s->getKey()]) : (string) $s->email;
+            if ($given !== '' && ! filter_var($given, FILTER_VALIDATE_EMAIL)) {
+                $errors['emails.'.$s->getKey()] = 'Esse e-mail não parece válido.';
+            } elseif ($strict && $auto && $given === '') {
+                $errors['emails.'.$s->getKey()] = 'Informe o e-mail para enviar o link automaticamente.';
+            }
+        }
+        if ($errors !== []) {
+            return back()->withInput()->withErrors($errors);
+        }
+
+        try {
+            if ($signers->isNotEmpty() && $emails !== []) {
+                $people = $signers->map(fn ($s) => [
+                    'id' => (string) $s->getKey(), 'name' => $s->name, 'phone' => $s->phone, 'cpf' => $s->cpf, 'role' => $s->role,
+                    'email' => array_key_exists((string) $s->getKey(), $emails) ? $emails[(string) $s->getKey()] : $s->email,
+                ])->all();
+                $this->envelopes->syncPeople(
+                    $envelope, $request->user(), $people, $envelope->signers()->where('is_sender', true)->exists(), $envelope->signing_order,
+                    ['otp' => $envelope->require_otp, 'selfie' => $envelope->require_selfie, 'document' => $envelope->require_document, 'geolocation' => $envelope->require_geolocation],
+                );
+            }
+
+            $validity = (int) config('signing.default_validity_days');
+            if ($request->boolean('limit') && ! empty($data['limit_date'])) {
+                $validity = max(1, (int) ceil(now()->startOfDay()->diffInDays(\Illuminate\Support\Carbon::parse($data['limit_date'])->startOfDay(), true)));
+            }
+            $this->envelopes->applyDelivery($envelope, [
+                'message' => $data['message'] ?? null,
+                'allow_refuse' => $request->boolean('allow_refuse'),
+                'tags' => $data['tags'] ?? [],
+                'channels' => $auto ? ($data['channels'] ?? ['email']) : ['manual'],
+                'reminder_every_days' => ($auto && $request->boolean('remind')) ? (int) ($data['remind_days'] ?? 3) : null,
+                'validity_days' => $validity,
+            ]);
+        } catch (FlowException $e) {
+            if ($e->reason === 'not_draft') {
+                return redirect()->route('envelopes.show', $envelope);
+            }
+
+            return back()->withInput()->withErrors(['options' => $e->getMessage()]);
+        }
+
+        return null;
+    }
+
     /** Documento da empresa, rascunho e no passo que já foi alcançado; senão devolve o redirecionamento certo. */
     private function guard(Request $request, Envelope $envelope, ?int $n = null): ?RedirectResponse
     {
@@ -272,6 +434,15 @@ final class DocumentWizardController extends Controller
                 'x' => (float) $f->x, 'y' => (float) $f->y, 'width' => (float) $f->width, 'height' => (float) $f->height,
             ])->values() : collect(),
             'fieldTypes' => \App\Models\SignatureField::TYPES,
+            // Passo 4: opções de envio já salvas (ou o padrão).
+            'sendAuto' => $envelope ? ($envelope->notify_channels ?? ['email']) !== ['manual'] : true,
+            'sendChannels' => $envelope && ($envelope->notify_channels ?? ['email']) !== ['manual'] ? ($envelope->notify_channels ?? ['email']) : ['email'],
+            'remindOn' => $envelope ? ($envelope->reminder_every_days !== null && ($envelope->notify_channels ?? ['email']) !== ['manual']) : true,
+            'remindDays' => $envelope?->reminder_every_days ?? (int) config('signing.default_reminder_days'),
+            'limitOn' => $envelope && (int) $envelope->validity_days !== (int) config('signing.default_validity_days'),
+            'limitDate' => $envelope ? now()->addDays((int) $envelope->validity_days)->toDateString() : now()->addDays((int) config('signing.default_validity_days'))->toDateString(),
+            'allTags' => \App\Models\Tag::query()->where('tenant_id', $request->user()->tenant_id)->orderBy('name')->get(),
+            'selectedTags' => $envelope ? $envelope->tags()->pluck('tags.id')->all() : [],
             'envelope' => $envelope,
             'step' => $n,
             'reached' => (int) ($envelope?->wizard_step ?? 0),

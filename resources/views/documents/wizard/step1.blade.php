@@ -5,7 +5,7 @@
     $folderId = old('folder_id', $envelope?->folder_id);
     $currentName = $folderId && isset($folderPaths[$folderId]) ? $folderPaths[$folderId] : 'Documentos';
 @endphp
-<form method="post" action="{{ $envelope ? route('envelopes.step.save', [$envelope, 1]) : route('envelopes.wizard.upload') }}" enctype="multipart/form-data" id="wz-form" data-quick-folder="{{ route('documents.folders.quick') }}" data-has-file="{{ $envelope ? '1' : '0' }}">
+<form method="post" action="{{ $envelope ? route('envelopes.step.save', [$envelope, 1]) : route('envelopes.store') }}" enctype="multipart/form-data" id="wz-form" data-quick-folder="{{ route('documents.folders.quick') }}" data-has-file="{{ $envelope ? '1' : '0' }}">
     @csrf
     @if ($envelope)@method('PUT')@endif
     <input type="hidden" name="folder_id" id="wz-folder-id" value="{{ $folderId }}">

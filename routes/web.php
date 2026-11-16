@@ -78,11 +78,10 @@ Route::middleware(['auth', 'tenant.active'])->group(function () {
     Route::get('/painel', [\App\Http\Controllers\Web\DashboardController::class, 'index'])->name('dashboard');
     Route::get('/documentos', [EnvelopeController::class, 'index'])->name('envelopes.index');
 
-    Route::get('/documentos/novo', [EnvelopeController::class, 'create'])->name('envelopes.create');
-    Route::post('/documentos', [EnvelopeController::class, 'store'])->name('envelopes.store');
-    // Assistente de criação de documento (4 passos). /documentos/assistente é provisório até substituir /documentos/novo.
-    Route::get('/documentos/assistente', [\App\Http\Controllers\Web\DocumentWizardController::class, 'create'])->name('envelopes.wizard');
-    Route::post('/documentos/assistente', [\App\Http\Controllers\Web\DocumentWizardController::class, 'upload'])->middleware('throttle:30,1,wizard-upload')->name('envelopes.wizard.upload');
+    // Assistente de criação de documento (4 passos); o rascunho vive no banco e cada passo é uma página.
+    Route::get('/documentos/novo', [\App\Http\Controllers\Web\DocumentWizardController::class, 'create'])->name('envelopes.create');
+    Route::post('/documentos', [\App\Http\Controllers\Web\DocumentWizardController::class, 'upload'])->middleware('throttle:30,1,wizard-upload')->name('envelopes.store');
+    Route::post('/documentos/{envelope}/finalizar', [\App\Http\Controllers\Web\DocumentWizardController::class, 'finish'])->middleware('throttle:20,1,wizard-finish')->name('envelopes.finish');
     Route::post('/documentos/pasta-rapida', [\App\Http\Controllers\Web\DocumentWizardController::class, 'quickFolder'])->middleware('throttle:30,1,wizard-folder')->name('documents.folders.quick');
     Route::get('/documentos/{envelope}/passo/{n}', [\App\Http\Controllers\Web\DocumentWizardController::class, 'show'])->where('n', '[1-4]')->name('envelopes.step');
     Route::put('/documentos/{envelope}/passo/{n}', [\App\Http\Controllers\Web\DocumentWizardController::class, 'save'])->where('n', '[1-4]')->name('envelopes.step.save');

@@ -305,6 +305,10 @@ final class SigningService
     {
         $this->assertOpen($signer);
 
+        if (! $signer->envelope->allow_refuse) {
+            throw FlowException::because('refuse_disabled', 'Este documento não permite recusar a assinatura.');
+        }
+
         DB::transaction(function () use ($signer, $reason, $context) {
             $signer->update(['status' => SignerStatus::Refused, 'refused_reason' => $reason]);
             $signer->envelope->update(['status' => EnvelopeStatus::Refused]);

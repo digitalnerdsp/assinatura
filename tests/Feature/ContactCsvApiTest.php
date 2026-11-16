@@ -40,10 +40,13 @@ it('sugere contatos da empresa ao digitar, no máximo 8', function () {
     expect($this->getJson('/contatos/sugestoes?q=a')->json())->toBe([]);
 });
 
-it('o formulário de criar documento sabe onde buscar as sugestões', function () {
-    csvUser();
+it('o passo dos signatários sabe onde buscar as sugestões', function () {
+    $user = csvUser();
+    \App\Models\TenantSigningSetting::updateOrCreate(['tenant_id' => $user->tenant_id], ['sender_policy' => 'never']);
+    Storage::fake('local');
+    $e = wzWeb();
 
-    $this->get('/documentos/novo')->assertOk()->assertSee('data-suggest-url="'.route('contacts.suggest').'"', false);
+    $this->get("/documentos/{$e->id}/passo/2")->assertOk()->assertSee('data-suggest-url="'.route('contacts.suggest').'"', false);
 });
 
 it('importa CSV com ponto e vírgula, BOM e cabeçalhos em português', function () {

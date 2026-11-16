@@ -187,6 +187,7 @@ final class SigningController extends Controller
         $data = $request->validate(['reason' => ['required', 'string', 'max:1000']]);
 
         return $this->guard($token, function (Signer $signer) use ($request, $data) {
+            abort_unless($signer->envelope->allow_refuse, 403, 'Este documento não permite recusar a assinatura.');
             $this->signing->refuse($signer, $data['reason'], RequestContext::fromRequest($request));
 
             \App\Branding\BrandService::useTenant(request(), $signer->envelope->tenant);

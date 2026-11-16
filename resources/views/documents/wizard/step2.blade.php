@@ -34,7 +34,7 @@
         <button type="button" class="wz-link" id="wz-contacts"><i class="bx bx-user-circle" aria-hidden="true"></i> Contatos</button>
         <span class="wz-muted wz-obs" title="Em breve"><i class="bx bx-low-vision" aria-hidden="true"></i> Observadores <small>(em breve)</small></span>
     </div>
-    @error('sender')<div class="wz-err" role="alert">{{ $message }} @if (str_contains($message, 'Meu perfil'))<a href="{{ route('profile.edit') }}">Abrir Meu perfil</a>@endif</div>@enderror
+    @error('sender')<div class="wz-err" role="alert">{{ $message }} @if (str_contains($message, 'Meu perfil'))<a href="{{ route('profile.edit') }}#minha-assinatura">Abrir Meu perfil</a>@endif</div>@enderror
     @error('people')<div class="wz-err" role="alert">{{ $message }}</div>@enderror
 
     <div class="wz-note wz-adv-only">Sem e-mail aqui, ele só é pedido no último passo. A função "testemunha" assina depois dos signatários.</div>

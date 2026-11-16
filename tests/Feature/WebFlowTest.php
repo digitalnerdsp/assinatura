@@ -35,13 +35,10 @@ function registerUser(string $email = 'dono@acme.com', string $company = 'ACME')
 
 function createEnvelopeViaWeb(string $level = 'simple'): Envelope
 {
-    test()->post('/documentos', [
-        'title' => 'Contrato de serviço', 'document' => pdfFile(), 'signing_order' => 'parallel',
-        'require_otp' => $level === 'advanced' ? 1 : 0,
-        'signers' => [['name' => 'Ana', 'email' => 'ana@ex.com'], ['name' => 'Beto', 'email' => 'beto@ex.com']],
-    ])->assertSessionHasNoErrors()->assertRedirect();
-
-    return Envelope::latest()->firstOrFail();
+    return wzWeb([
+        'title' => 'Contrato de serviço', 'verif' => $level === 'advanced' ? ['require_otp' => 1] : [],
+        'people' => [['name' => 'Ana', 'email' => 'ana@ex.com'], ['name' => 'Beto', 'email' => 'beto@ex.com']],
+    ]);
 }
 
 it('cadastra empresa, cria e envia um envelope pelo painel', function () {
@@ -122,6 +119,7 @@ it('exige aceite dos termos e permite recusar', function () {
     Mail::fake();
     registerUser();
     $envelope = createEnvelopeViaWeb();
+    $envelope->update(['allow_refuse' => true]); // o assistente começa com a recusa desligada
     $this->post("/documentos/{$envelope->id}/enviar");
     $this->post('/sair');
 

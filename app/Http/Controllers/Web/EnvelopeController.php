@@ -176,27 +176,6 @@ final class EnvelopeController extends Controller
         return back()->with('status', $message);
     }
 
-    public function create(Request $request): View
-    {
-        return view('envelopes.create', $this->formData($request));
-    }
-
-    /** @return array<string,mixed> */
-    private function formData(Request $request): array
-    {
-        $tenantId = $request->user()->tenant_id;
-
-        $user = $request->user();
-
-        return [
-            'folderPaths' => app(FolderService::class)->paths($request->user()->tenant),
-            'tags' => Tag::query()->where('tenant_id', $tenantId)->orderBy('name')->get(),
-            'senderPolicy' => app(SenderPolicy::class)->policy($user->tenant),
-            'senderUser' => $user,
-            'hasSignature' => $user->hasSignature(),
-        ];
-    }
-
     /** Mover o documento para uma pasta (ou para fora das pastas). */
     public function moveToFolder(Request $request, Envelope $envelope): RedirectResponse
     {
@@ -255,96 +234,6 @@ final class EnvelopeController extends Controller
         $envelope->tags()->sync(Tag::query()->where('tenant_id', $tenantId)->whereIn('id', $data['tags'] ?? [])->pluck('id')->all());
 
         return back()->with('status', 'Organização atualizada.');
-    }
-
-    public function store(Request $request): RedirectResponse
-    {
-        $data = $request->validate([
-            'title' => ['required', 'string', 'max:190'],
-            'message' => ['nullable', 'string', 'max:2000'],
-            'document' => ['required', 'file', 'mimes:pdf', 'max:'.((int) config('signing.max_pdf_mb') * 1024)],
-            'signing_order' => ['required', Rule::enum(SigningOrder::class)],
-            'validity_days' => ['nullable', 'integer', 'between:1,365'],
-            'reminder_every_days' => ['nullable', 'string', 'in:off,1,2,3,5,7,10,14'],
-            'channels' => ['nullable', 'array'],
-            'channels.*' => ['in:email,whatsapp,sms'],
-            'folder_id' => ['nullable', 'uuid'],
-            'tags' => ['nullable', 'array', 'max:10'],
-            'tags.*' => ['uuid'],
-            'signature_fields' => ['nullable', 'array', 'max:60'],
-            'signature_fields.*.signer' => ['required', 'regex:/^(sender|\d{1,2})$/'],
-            'sender_signs' => ['nullable', 'boolean'],
-            'signature_fields.*.page' => ['required', 'integer', 'min:1', 'max:2000'],
-            'signature_fields.*.x' => ['required', 'numeric', 'between:0,1'],
-            'signature_fields.*.y' => ['required', 'numeric', 'between:0,1'],
-            'require_otp' => ['nullable', 'boolean'],
-            'require_selfie' => ['nullable', 'boolean'],
-            'require_document' => ['nullable', 'boolean'],
-            'require_geolocation' => ['nullable', 'boolean'],
-            'signers' => ['required', 'array', 'min:1', 'max:20'],
-            'signers.*.name' => ['required', 'string', 'max:150'],
-            'signers.*.email' => ['required', 'email', 'max:190'],
-            'signers.*.phone' => ['nullable', 'string', 'max:30'],
-            'signers.*.cpf' => ['nullable', 'string', 'max:14'],
-            'witnesses' => ['nullable', 'array', 'max:'.(int) config('signing.max_witnesses')],
-            'witnesses.*.name' => ['required', 'string', 'max:150'],
-            'witnesses.*.email' => ['required', 'email', 'max:190'],
-            'witnesses.*.phone' => ['nullable', 'string', 'max:30'],
-            'witnesses.*.cpf' => ['nullable', 'string', 'max:14'],
-        ]);
-
-        // Signatários primeiro, testemunhas depois: os índices de signature_fields seguem essa ordem.
-        $people = array_merge(
-            array_values($data['signers']),
-            array_map(fn ($w) => $w + ['role' => 'witness'], array_values($data['witnesses'] ?? [])),
-        );
-
-        // Remetente: a política da empresa decide se quem cria também assina (sempre | opcional | nunca).
-        $user = $request->user();
-        try {
-            $wantsSender = app(SenderPolicy::class)->wantsSenderSignature(
-                $user->tenant,
-                $request->has('sender_signs') ? $request->boolean('sender_signs') : null,
-            );
-        } catch (FlowException $e) {
-            return back()->withInput()->withErrors(['sender' => $e->getMessage()]);
-        }
-        if ($wantsSender && ! $user->hasSignature()) {
-            return back()->withInput()->withErrors(['sender' => 'Crie a sua assinatura em Meu perfil antes de enviar documentos como remetente.']);
-        }
-
-        try {
-            $envelope = $this->envelopes->create(
-                $request->user()->tenant,
-                $request->user(),
-                (string) file_get_contents($request->file('document')->getRealPath()),
-                $request->file('document')->getClientOriginalName(),
-                $data['title'],
-                $people,
-                SigningOrder::from($data['signing_order']),
-                'simple',
-                $data['message'] ?? null,
-                [
-                    'otp' => $request->boolean('require_otp'),
-                    'selfie' => $request->boolean('require_selfie'),
-                    'document' => $request->boolean('require_document'),
-                    'geolocation' => $request->boolean('require_geolocation'),
-                ],
-                [
-                    'validity_days' => $data['validity_days'] ?? null,
-                    'reminder_every_days' => ($data['reminder_every_days'] ?? '3') === 'off' ? null : (int) ($data['reminder_every_days'] ?? 3),
-                    'channels' => $data['channels'] ?? ['email'],
-                    'folder_id' => $data['folder_id'] ?? null,
-                    'tags' => $data['tags'] ?? [],
-                    'signature_fields' => array_values($data['signature_fields'] ?? []),
-                    'sender' => $wantsSender ? ['name' => $user->name, 'email' => $user->email] : null,
-                ],
-            );
-        } catch (FlowException $e) {
-            return back()->withInput()->withErrors(['document' => $e->getMessage()]);
-        }
-
-        return redirect()->route('envelopes.show', $envelope)->with('status', 'Documento criado. Revise e envie para assinatura.');
     }
 
     public function show(Request $request, Envelope $envelope): View

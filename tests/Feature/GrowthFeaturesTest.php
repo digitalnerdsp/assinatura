@@ -56,12 +56,7 @@ function growthRegister(string $email = 'dono@acme.com', string $company = 'ACME
 
 function growthWebEnvelope(): Envelope
 {
-    test()->post('/documentos', [
-        'title' => 'Contrato de serviço', 'document' => growthPdf(), 'signing_order' => 'parallel',
-        'signers' => [['name' => 'Ana', 'email' => 'ana@ex.com'], ['name' => 'Beto', 'email' => 'beto@ex.com']],
-    ])->assertSessionHasNoErrors()->assertRedirect();
-
-    return Envelope::latest()->firstOrFail();
+    return wzWeb(['title' => 'Contrato de serviço', 'people' => [['name' => 'Ana', 'email' => 'ana@ex.com'], ['name' => 'Beto', 'email' => 'beto@ex.com']]]);
 }
 
 final class GrowthFakeSender implements MessageSender
@@ -333,13 +328,12 @@ it('cria envelope pelo painel com posições de assinatura e opções de entrega
     $folder = Folder::create(['tenant_id' => auth()->user()->tenant_id, 'name' => 'Contratos']);
     $tag = Tag::create(['tenant_id' => auth()->user()->tenant_id, 'name' => 'Urgente', 'color' => 'danger']);
 
-    $this->post('/documentos', [
-        'title' => 'Com posições', 'document' => growthPdf(), 'signing_order' => 'sequential',
-        'validity_days' => 10, 'reminder_every_days' => 'off', 'channels' => ['email', 'whatsapp'],
-        'folder_id' => $folder->id, 'tags' => [$tag->id],
-        'signers' => [['name' => 'Ana', 'email' => 'ana@ex.com', 'phone' => '11999998888']],
-        'signature_fields' => [['signer' => 0, 'page' => 1, 'x' => 0.2, 'y' => 0.9]],
-    ])->assertSessionHasNoErrors();
+    wzWeb([
+        'title' => 'Com posições', 'order' => 'sequential', 'folder_id' => $folder->id,
+        'people' => [['name' => 'Ana', 'email' => 'ana@ex.com', 'phone' => '11999998888']],
+        'fields' => [['signer' => 0, 'page' => 1, 'x' => 0.2, 'y' => 0.9]],
+        'delivery' => ['auto' => 1, 'channels' => ['email', 'whatsapp'], 'remind' => 0, 'limit' => 1, 'limit_date' => now()->addDays(10)->toDateString(), 'tags' => [$tag->id]],
+    ]);
 
     $envelope = Envelope::with(['tags', 'signatureFields'])->firstOrFail();
     expect($envelope->validity_days)->toBe(10)
@@ -366,8 +360,7 @@ it('organiza e busca envelopes por pasta, etiqueta, status e texto', function ()
 
     $a = growthWebEnvelope();
     $this->post("/documentos/{$a->id}/organizar", ['folder_id' => $folder->id, 'tags' => [$tag->id]])->assertRedirect();
-    $this->post('/documentos', ['title' => 'Aluguel do galpão', 'document' => growthPdf(), 'signing_order' => 'parallel',
-        'signers' => [['name' => 'Zeca Silva', 'email' => 'zeca@loja.com']]])->assertSessionHasNoErrors();
+    wzWeb(['title' => 'Aluguel do galpão', 'people' => [['name' => 'Zeca Silva', 'email' => 'zeca@loja.com']]]);
 
     $this->get('/documentos?folder='.$folder->id)->assertOk()->assertSee('Contrato de serviço')->assertDontSee('Aluguel do galpão');
     $this->get('/documentos?tag='.$tag->id)->assertSee('Contrato de serviço')->assertDontSee('Aluguel do galpão');
@@ -502,9 +495,7 @@ it('envio manual (sem e-mail) não avisa ninguém sozinho, nem o próximo da fil
     Mail::fake();
     Storage::fake('local');
     growthRegister('m@m.com', 'M');
-    $this->post('/documentos', ['title' => 'Manual', 'document' => growthPdf(), 'signing_order' => 'sequential',
-        'signers' => [['name' => 'Ana', 'email' => 'ana@ex.com'], ['name' => 'Beto', 'email' => 'beto@ex.com']]])->assertSessionHasNoErrors();
-    $envelope = Envelope::firstOrFail();
+    $envelope = wzWeb(['title' => 'Manual', 'order' => 'sequential', 'people' => [['name' => 'Ana', 'email' => 'ana@ex.com'], ['name' => 'Beto', 'email' => 'beto@ex.com']]]);
 
     $this->post("/documentos/{$envelope->id}/enviar", ['skip_email' => 1])->assertRedirect();
     Queue::fake([\App\Jobs\SealEnvelope::class]);
