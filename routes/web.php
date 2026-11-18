@@ -201,6 +201,7 @@ Route::prefix('assinar/{token}')->middleware('throttle:60,1,sign')->group(functi
 Route::get('/api/docs', [\App\Http\Controllers\Api\V1\DocsController::class, 'page'])->name('api.docs');
 
 // Verificação pública
+Route::get('/copia/{signer}/documentos.zip', [SigningController::class, 'observerZip'])->whereUuid('signer')->middleware(['signed', 'throttle:30,1,observer-copy'])->name('observer.copy.zip');
 Route::get('/verificar', [VerificationController::class, 'index'])->name('verify.index');
 Route::post('/verificar', [VerificationController::class, 'lookup'])->middleware('throttle:20,1,verify-lookup')->name('verify.lookup');
 Route::get('/verificar/{code}', [VerificationController::class, 'show'])->middleware('throttle:60,1,verify-show')->name('verify.show');

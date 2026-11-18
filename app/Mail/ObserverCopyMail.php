@@ -14,6 +14,14 @@ use Illuminate\Support\Facades\Storage;
 /** Cópia do documento concluído para quem foi incluído como observador (não assina, não tem link). */
 final class ObserverCopyMail extends Mailable
 {
+    use \App\Mail\Concerns\SealedAttachments;
+
+    /** Link assinado (30 dias) para o observador baixar todos os PDFs selados em zip: ele não tem link de assinatura. */
+    public static function zipUrl(Signer $observer): string
+    {
+        return \Illuminate\Support\Facades\URL::temporarySignedRoute('observer.copy.zip', now()->addDays(30), ['signer' => $observer->getKey()]);
+    }
+
     public function __construct(public readonly Signer $observer)
     {
     }
@@ -30,19 +38,14 @@ final class ObserverCopyMail extends Mailable
         return new Content(view: 'mail.observer-copy', with: [
             'brand' => app(\App\Branding\BrandService::class)->for($envelope->tenant),
             'verifyUrl' => route('verify.show', $envelope->verification_code),
+            'zipUrl' => self::zipUrl($this->observer),
+            'partial' => $this->sealedAttachments($envelope)[1],
         ]);
     }
 
-    /** @return list<Attachment> um PDF selado por arquivo do envio */
+    /** @return list<Attachment> um PDF selado por arquivo do envio, até o teto de tamanho */
     public function attachments(): array
     {
-        $out = [];
-        foreach ($this->observer->envelope->files() as $file) {
-            if ($file->finalPath !== null && Storage::disk('local')->exists($file->finalPath)) {
-                $out[] = Attachment::fromStorageDisk('local', $file->finalPath)->as('assinado-'.$file->name)->withMime('application/pdf');
-            }
-        }
-
-        return $out;
+        return $this->sealedAttachments($this->observer->envelope)[0];
     }
 }

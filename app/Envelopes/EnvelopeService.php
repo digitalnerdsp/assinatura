@@ -339,7 +339,7 @@ final class EnvelopeService
                 $new = $this->storeDocument($tenant, $pdfContents, $filename);
                 $newPath = $new->storage_path;
 
-                $locked->signatureFields()->delete();
+                $locked->signatureFields()->whereNull('envelope_document_id')->delete(); // os campos dos outros arquivos continuam valendo
                 $locked->update(['document_id' => $new->getKey(), 'wizard_step' => 1]);
                 $locked->touch();
 
@@ -671,7 +671,8 @@ final class EnvelopeService
                 'expires_at' => $envelope->deadline_at ?? now()->addDays($validDays),
             ]);
 
-            $this->evidence->record($envelope, 'document_sent', ['expires_at' => $envelope->expires_at?->toIso8601String()], null, $context);
+            $files = $envelope->files();
+            $this->evidence->record($envelope, 'document_sent', ['expires_at' => $envelope->expires_at?->toIso8601String()] + ($files->count() > 1 ? ['documents' => $files->map(fn ($f) => ['n' => $f->n, 'name' => $f->name, 'sha256' => $f->sha256])->all()] : []), null, $context);
             app(\App\Plans\UsageLedger::class)->charge($envelope, 'send'); // sem saldo: lança e desfaz o envio
 
             return $tokens;

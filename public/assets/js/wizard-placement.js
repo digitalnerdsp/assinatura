@@ -152,7 +152,9 @@
     var l = document.getElementById('wz-loading'); if (l) { l.remove(); }
     document.getElementById('wz-loaderr').hidden = false;
   }
-  function buildPages(doc) {
+  var loadGen = 0; // cada carga tem um número: respostas de abas já trocadas são descartadas
+  function buildPages(doc, gen) {
+    if (gen !== loadGen) { return; }
     var l = document.getElementById('wz-loading'); if (l) { l.remove(); }
     viewer.setAttribute('aria-busy', 'false');
     var io = ('IntersectionObserver' in window) ? new IntersectionObserver(function (entries) {
@@ -186,12 +188,13 @@
   function loadPdf() {
     if (!window.pdfjsLib) { showError(); return; }
     document.getElementById('wz-loaderr').hidden = true;
+    var gen = ++loadGen;
     window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     fetch(docs[curDoc].url, { credentials: 'same-origin' })
       .then(function (r) { if (!r.ok) { throw new Error('pdf'); } return r.arrayBuffer(); })
       .then(function (buf) { return window.pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise; })
-      .then(buildPages)
-      .catch(showError);
+      .then(function (doc) { buildPages(doc, gen); })
+      .catch(function () { if (gen === loadGen) { showError(); } });
   }
 
   /* ---------- salvar e continuar ---------- */

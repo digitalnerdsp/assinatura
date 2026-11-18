@@ -26,6 +26,9 @@ return [
     // Máximo de arquivos por envio (principal + acrescentados).
     'max_documents' => (int) env('SIGNING_MAX_DOCUMENTS', 10),
 
+    // Teto de anexos por e-mail de cópia (MB). Acima disso o e-mail leva só o que cabe e o link para baixar o resto.
+    'mail_attachment_max_mb' => (float) env('SIGNING_MAIL_ATTACHMENT_MB', 15),
+
     'max_pdf_mb' => (int) env('SIGNING_MAX_PDF_MB', 20),
 
     // Validade padrão do documento e intervalo padrão de lembretes (dias).

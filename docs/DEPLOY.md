@@ -113,3 +113,8 @@ Veja `loadtest/README.md` (k6). O limite de PDF é conferido no app (`SIGNING_MA
 - `SIGNING_MAX_DOCUMENTS` (padrão 10): arquivos por envio. `SIGNING_MAX_PDF_MB` vale para cada arquivo.
 - Arquivos DOCX são convertidos pelo selador (`/v1/convert`, até 60 s por arquivo, no máximo 2 conversões ao mesmo tempo: `SEALER_CONVERT_SLOTS`). Se o selador estiver fora do ar, o envio de DOCX mostra um aviso e PDF continua funcionando.
 - Cada arquivo é selado separadamente; se um falhar, o envio fica em "selando" e a nova tentativa sela só o que falta.
+
+### Segurança da conversão de DOCX
+- O LibreOffice roda com ambiente mínimo (sem o token nem os certificados do selador), em grupo próprio de processos, com limite de memória (`SEALER_CONVERT_MAX_MB`, padrão 3072) e de CPU (`SEALER_CONVERT_MAX_CPU`, padrão 120 s). No tempo limite o grupo inteiro é encerrado. Sem vaga livre (`SEALER_CONVERT_SLOTS`), a conversão é recusada na hora.
+- Limite que ainda **não** existe: o conversor roda no mesmo contêiner do selador, com acesso à rede e ao mesmo usuário. Antes de aceitar DOCX de qualquer cliente desconhecido, o ideal é movê-lo para um contêiner próprio, sem rede e sem os certificados (por exemplo o Gotenberg).
+- `SIGNING_MAIL_ATTACHMENT_MB` (padrão 15): teto de anexos por e-mail de cópia. O que não couber vai pelo link.

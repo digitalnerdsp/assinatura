@@ -411,3 +411,125 @@ it('a tela do remetente tem um botão de original e de selado para cada arquivo'
 
     $this->actingAs($u)->get("/documentos/{$e->id}")->assertOk()->assertSee('n=2', false)->assertSee('segundo.pdf');
 });
+
+// ------------------------------------------------------------------ revisão: vínculo da assinatura com todos os arquivos
+
+it('a assinatura e a trilha guardam o hash de cada arquivo assinado, não só do principal', function () {
+    [, $e] = edReadyToSeal();
+    $files = $e->files();
+
+    $event = $e->evidenceEvents()->where('type', 'document_signed')->first();
+    $docs = $event->payload['documents'];
+    expect($docs)->toHaveCount(2)->and($docs[1])->toMatchArray(['n' => 2, 'name' => 'segundo.pdf', 'sha256' => $files[1]->sha256]);
+
+    $signature = $e->signers()->where('role', 'signer')->first()->signature;
+    $expected = hash('sha256', "1:{$files[0]->sha256}\n2:{$files[1]->sha256}");
+    expect($signature->document_sha256)->toBe($expected)->and($event->payload['bundle_sha256'])->toBe($expected);
+});
+
+it('um envio de um arquivo só continua guardando o hash do próprio arquivo', function () {
+    Mail::fake();
+    Queue::fake([SealEnvelope::class]);
+    $u = wzOwner();
+    \App\Models\TenantSigningSetting::query()->updateOrCreate(['tenant_id' => $u->tenant_id], ['sender_policy' => 'never']);
+    $e = wzDraft($u);
+    wzSync($e->fresh(), $u, [wzPerson('Ana', 'ana@x.com')]);
+    app(EnvelopeService::class)->syncFields($e->fresh(), []);
+    app(EnvelopeService::class)->send($e->fresh());
+    $ana = $e->signers()->where('role', 'signer')->first();
+
+    app(SigningService::class)->sign($ana, 'typed', 'Ana', true);
+
+    expect($ana->fresh()->signature->document_sha256)->toBe($e->fresh()->document->sha256)
+        ->and($e->evidenceEvents()->where('type', 'document_signed')->first()->payload)->not->toHaveKey('documents');
+});
+
+it('o signatário que abre um arquivo do pacote deixa isso na trilha', function () {
+    [, $e, $url] = edSent();
+
+    $this->get($url.'/pdf?n=2')->assertOk();
+
+    $ev = $e->evidenceEvents()->where('type', 'document_file_viewed')->first();
+    expect($ev->payload)->toMatchArray(['document_n' => 2, 'name' => 'segundo.pdf']);
+});
+
+it('trocar o arquivo principal não apaga os campos posicionados nos outros arquivos', function () {
+    $u = wzOwner();
+    $e = wzDraft($u);
+    $extra = app(EnvelopeService::class)->addDocument($e, edPdf(), 'a.pdf');
+    $signer = $e->signers()->create(['name' => 'Ana', 'email' => 'a@x.com', 'role' => 'signer', 'position' => 1, 'status' => 'pending', 'token_hash' => 'h']);
+    SignatureField::query()->create(['envelope_id' => $e->id, 'signer_id' => $signer->id, 'page' => 1, 'x' => .1, 'y' => .1, 'envelope_document_id' => $extra->id]);
+    SignatureField::query()->create(['envelope_id' => $e->id, 'signer_id' => $signer->id, 'page' => 1, 'x' => .2, 'y' => .2]);
+
+    app(EnvelopeService::class)->replaceDocument($e->fresh(), edPdf('novo'), 'novo.pdf');
+
+    expect($e->signatureFields()->count())->toBe(1)->and($e->signatureFields()->first()->envelope_document_id)->toBe($extra->id);
+});
+
+it('duas selagens ao mesmo tempo do mesmo envio não duplicam e-mails nem armazenamento', function () {
+    [$u, $e] = edReadyToSeal();
+    wzSealNow($e);
+    $storage = (int) $u->tenant->fresh()->storage_bytes;
+    $mails = Mail::sent(\App\Mail\SignedCopyMail::class)->count();
+
+    wzSealNow($e); // segunda execução já com o envio concluído
+
+    expect((int) $u->tenant->fresh()->storage_bytes)->toBe($storage)->and(Mail::sent(\App\Mail\SignedCopyMail::class)->count())->toBe($mails);
+});
+
+it('o job de selagem não roda em paralelo para o mesmo envio', function () {
+    $mw = (new SealEnvelope('abc'))->middleware();
+
+    expect($mw)->toHaveCount(1)->and($mw[0])->toBeInstanceOf(\Illuminate\Queue\Middleware\WithoutOverlapping::class);
+});
+
+it('a verificação pela API reconhece o hash de qualquer arquivo e lista os arquivos', function () {
+    [, $e] = edCompleted();
+    $files = $e->fresh()->files();
+
+    $r = $this->getJson("/api/v1/verify/{$e->verification_code}?sha256={$files[1]->finalSha256}");
+    $r->assertOk()->assertJsonPath('match', 'final')->assertJsonPath('documents.1.name', 'segundo.pdf')->assertJsonPath('documents.1.final_sha256', $files[1]->finalSha256);
+    $this->getJson("/api/v1/verify/{$e->verification_code}?sha256={$files[1]->sha256}")->assertJsonPath('match', 'original');
+    $this->getJson("/api/v1/verify/{$e->verification_code}?sha256=".str_repeat('a', 64))->assertJsonPath('match', 'none');
+});
+
+it('e-mail com anexos acima do teto manda só o que cabe e o link para baixar o resto', function () {
+    config(['signing.mail_attachment_max_mb' => 0.00002]); // ~20 bytes: nada cabe
+    [$u, $e] = edCompleted();
+
+    $sent = Mail::sent(\App\Mail\SignedCopyMail::class)->first(fn ($m) => $m->hasTo('ana@x.com'));
+    expect($sent)->not->toBeNull()->and($sent->attachments())->toHaveCount(0)->and($sent->render())->toContain('não couberam');
+});
+
+it('o teto não impede o primeiro arquivo de ir quando ele sozinho cabe', function () {
+    [$u, $e] = edReadyToSeal();
+    wzSealNow($e);
+    $first = $e->fresh()->files()[0]->finalSize;
+    config(['signing.mail_attachment_max_mb' => ($first + 10) / 1048576]);
+
+    $mail = new \App\Mail\SignedCopyMail($e->fresh(), 'Ana', 'http://x/y');
+
+    expect($mail->attachments())->toHaveCount(1)->and($mail->render())->toContain('não couberam');
+});
+
+it('o observador recebe um link assinado que baixa todos os arquivos em zip, e o link adulterado é recusado', function () {
+    [$u, $e] = edReadyToSeal();
+    $obs = $e->signers()->create(['name' => 'Obs', 'email' => 'obs@x.com', 'role' => 'observer', 'position' => 9, 'status' => 'pending']);
+    wzSealNow($e);
+
+    $url = \App\Mail\ObserverCopyMail::zipUrl($obs->fresh());
+    $r = $this->get($url);
+    $r->assertOk();
+    expect($r->headers->get('content-type'))->toContain('zip');
+    $this->get($url.'x')->assertForbidden();
+    $this->get(preg_replace('/signature=[^&]+/', 'signature=falsa', $url))->assertForbidden();
+});
+
+it('o link do observador não serve para quem não é observador nem para envio não concluído', function () {
+    [$u, $e, ] = edReadyToSeal(); // ainda "sealing"
+    $obs = $e->signers()->create(['name' => 'Obs', 'email' => 'obs@x.com', 'role' => 'observer', 'position' => 9, 'status' => 'pending']);
+    $ana = $e->signers()->where('role', 'signer')->first();
+
+    $this->get(\App\Mail\ObserverCopyMail::zipUrl($obs))->assertNotFound();
+    $this->get(\Illuminate\Support\Facades\URL::temporarySignedRoute('observer.copy.zip', now()->addDay(), ['signer' => $ana->id]))->assertNotFound();
+});

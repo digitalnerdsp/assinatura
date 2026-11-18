@@ -31,16 +31,15 @@ def make_docx(extra: dict | None = None, document=True) -> bytes:
 
 
 def fake_soffice(monkeypatch, *, pdf=b"%PDF-1.7 ok", exc=None, write=True):
-    def run(cmd, **kw):
+    def run(cmd, work):
         if exc:
             raise exc
         if write:
             out_dir = cmd[cmd.index("--outdir") + 1]
             with open(os.path.join(out_dir, "in.pdf"), "wb") as fh:
                 fh.write(pdf)
-        return subprocess.CompletedProcess(cmd, 0)
 
-    monkeypatch.setattr(convert.subprocess, "run", run)
+    monkeypatch.setattr(convert, "_run", run)
 
 
 def test_converte_docx_valido(monkeypatch):
@@ -112,3 +111,41 @@ def test_rota_traduz_erros(monkeypatch):
     fake_soffice(monkeypatch, exc=FileNotFoundError())
     r = c.post("/v1/convert", files={"docx": ("a.docx", make_docx(), "application/octet-stream")}, headers=H)
     assert r.status_code == 503 and r.json()["error"] == "unavailable"
+
+
+def test_ambiente_do_libreoffice_nao_leva_segredos(monkeypatch):
+    monkeypatch.setenv("SEALER_PFX_X_PASSWORD", "segredo")
+    monkeypatch.setenv("SEALER_TOKEN", "t")
+    seen = {}
+
+    class P:
+        pid = 1
+        returncode = 0
+
+        def __init__(self, cmd, **kw):
+            seen.update(kw)
+
+        def communicate(self, timeout=None):
+            return None
+
+    monkeypatch.setattr(convert.subprocess, "Popen", P)
+    if os.name == "posix":
+        monkeypatch.setattr(convert.os, "killpg", lambda *a: None)
+    convert._run(["soffice"], "/tmp/w")
+
+    assert set(seen["env"]) == {"PATH", "HOME", "LANG"} and seen["env"]["HOME"] == "/tmp/w"
+
+
+def test_rota_recusa_na_hora_quando_nao_ha_vaga(monkeypatch):
+    fake_soffice(monkeypatch)
+    c = TestClient(sealer.app)
+    slots = sealer._convert_slots
+    taken = 0
+    while slots.acquire(blocking=False):
+        taken += 1
+    try:
+        r = c.post("/v1/convert", files={"docx": ("a.docx", make_docx(), "application/octet-stream")}, headers=H)
+        assert r.status_code == 503 and r.json()["error"] == "busy"
+    finally:
+        for _ in range(taken):
+            slots.release()

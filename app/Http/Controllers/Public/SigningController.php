@@ -64,7 +64,20 @@ final class SigningController extends Controller
     public function copyZip(Request $request, string $token): Response
     {
         $signer = $this->signedSigner($token);
-        $envelope = $signer?->envelope;
+
+        return $this->zipResponse($request, $signer?->envelope, $signer);
+    }
+
+    /** Observador: baixa o zip pelo link assinado enviado no e-mail (ele não assina, então não tem token). */
+    public function observerZip(Request $request, Signer $signer): Response
+    {
+        abort_unless($signer->role === 'observer', 404);
+
+        return $this->zipResponse($request, $signer->envelope, $signer);
+    }
+
+    private function zipResponse(Request $request, ?\App\Models\Envelope $envelope, ?Signer $signer): Response
+    {
         $files = $envelope?->files()->filter(fn ($f) => $f->finalPath !== null && Storage::disk('local')->exists($f->finalPath))->values();
         abort_if($files === null || $files->isEmpty() || $files->count() < $envelope->files()->count(), 404);
 
@@ -199,6 +212,10 @@ final class SigningController extends Controller
 
         $file = $signer->envelope->files()->firstWhere('n', max(1, (int) $request->query('n', 1)));
         abort_if($file === null, 404);
+
+        if ($signer->envelope->files()->count() > 1) {
+            app(\App\Evidence\EvidenceLogger::class)->record($signer->envelope, 'document_file_viewed', ['document_n' => $file->n, 'name' => $file->name, 'sha256' => $file->sha256], $signer, RequestContext::fromRequest($request));
+        }
 
         return response(Storage::disk('local')->get($file->storagePath), 200, [
             'Content-Type' => 'application/pdf',

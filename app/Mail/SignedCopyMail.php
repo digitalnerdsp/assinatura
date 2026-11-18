@@ -14,6 +14,8 @@ use Illuminate\Support\Facades\Storage;
 /** Cópia do documento concluído para quem assinou e para o remetente: o PDF selado vai em anexo e o link permite baixar de novo. */
 final class SignedCopyMail extends Mailable
 {
+    use \App\Mail\Concerns\SealedAttachments;
+
     public function __construct(
         public readonly EnvelopeModel $document,
         public readonly string $recipientName,
@@ -31,19 +33,13 @@ final class SignedCopyMail extends Mailable
         return new Content(view: 'mail.signed-copy', with: [
             'brand' => app(\App\Branding\BrandService::class)->for($this->document->tenant),
             'verifyUrl' => route('verify.show', $this->document->verification_code),
+            'partial' => $this->sealedAttachments($this->document)[1],
         ]);
     }
 
-    /** @return list<Attachment> um PDF selado por arquivo do envio */
+    /** @return list<Attachment> um PDF selado por arquivo do envio, até o teto de tamanho */
     public function attachments(): array
     {
-        $out = [];
-        foreach ($this->document->files() as $file) {
-            if ($file->finalPath !== null && Storage::disk('local')->exists($file->finalPath)) {
-                $out[] = Attachment::fromStorageDisk('local', $file->finalPath)->as('assinado-'.$file->name)->withMime('application/pdf');
-            }
-        }
-
-        return $out;
+        return $this->sealedAttachments($this->document)[0];
     }
 }

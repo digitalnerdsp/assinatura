@@ -254,7 +254,7 @@ _convert_slots = threading.BoundedSemaphore(int(os.environ.get("SEALER_CONVERT_S
 @app.post("/v1/convert", dependencies=[Depends(auth)])
 def convert_docx(docx: UploadFile = File(...)):
     """DOCX -> PDF pelo LibreOffice. 422: invalid_docx, timeout, convert_failed. 503: unavailable (sem LibreOffice) ou fila cheia."""
-    if not _convert_slots.acquire(timeout=30):
+    if not _convert_slots.acquire(blocking=False):  # fila cheia: recusa na hora, sem prender a thread que também sela
         return JSONResponse(status_code=503, content={"error": "busy"})
     try:
         out = convert.convert_docx(docx.file.read(convert.MAX_INPUT + 1))

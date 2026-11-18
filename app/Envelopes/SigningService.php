@@ -205,11 +205,15 @@ final class SigningService
             $now = now();
             $level ??= $fresh->requiresAdvanced() ? 'advanced' : 'simple'; // avançada só se este signatário passou por verificação adicional (já validada acima)
 
+            // Com vários arquivos, a assinatura vale para o conjunto: o hash guardado é o do pacote (n:hash de cada arquivo).
+            $files = $envelope->files();
+            $bundle = $files->count() > 1 ? hash('sha256', $files->map(fn ($f) => "{$f->n}:{$f->sha256}")->implode("\n")) : $envelope->document->sha256;
+
             $fresh->signature()->create([
                 'type' => $type,
                 'data' => $data,
                 'data_sha256' => hash('sha256', $data),
-                'document_sha256' => $envelope->document->sha256,
+                'document_sha256' => $bundle,
                 'level' => $level,
                 'signed_at' => $now,
                 'initials_type' => $extras['initials']['type'] ?? null,
@@ -228,7 +232,7 @@ final class SigningService
                 'level' => $level,
                 'document_sha256' => $envelope->document->sha256,
                 'signature_sha256' => hash('sha256', $data),
-            ] + ((! empty($extras['initials']) || ! empty($extras['texts'])) ? ['fields' => [
+            ] + ($files->count() > 1 ? ['bundle_sha256' => $bundle, 'documents' => $files->map(fn ($f) => ['n' => $f->n, 'name' => $f->name, 'sha256' => $f->sha256])->all()] : []) + ((! empty($extras['initials']) || ! empty($extras['texts'])) ? ['fields' => [
                 'initials_sha256' => ! empty($extras['initials']) ? hash('sha256', $extras['initials']['data']) : null,
                 'texts_sha256' => ! empty($extras['texts']) ? hash('sha256', json_encode($extras['texts'], JSON_UNESCAPED_UNICODE)) : null,
             ]] : []) + $evidence, $fresh, $context);

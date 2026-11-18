@@ -1,6 +1,9 @@
 @include('mail.partials.brand-header')
 <p>Olá, {{ $recipientName }}.</p>
 <p>O documento <strong>{{ $document->title }}</strong> foi assinado por todos e está concluído. A cópia assinada segue em anexo (PDF). Guarde este arquivo: ele é a sua via do documento.</p>
+@if ($partial)
+<p><strong>Alguns arquivos não couberam neste e-mail</strong> (limite de tamanho). Baixe todos pelo link abaixo.</p>
+@endif
 @if ($link)
 <p>Para baixar de novo ou ver o documento quando quiser, use este link:<br><a href="{{ $link }}">{{ $link }}</a></p>
 @endif

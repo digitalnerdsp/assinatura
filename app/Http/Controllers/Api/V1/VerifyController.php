@@ -33,6 +33,7 @@ final class VerifyController extends Controller
             'completed_at' => $envelope->completed_at?->toIso8601String(),
             'document_sha256' => $envelope->document->sha256,
             'final_sha256' => $envelope->final_sha256,
+            'documents' => $envelope->files()->map(fn ($f) => ['n' => $f->n, 'name' => $f->name, 'sha256' => $f->sha256, 'final_sha256' => $f->finalSha256])->all(),
             'chain_intact' => $evidence->isIntact($envelope),
             'signers' => $envelope->signers->reject(fn ($s) => $s->isObserver())->map(fn ($s) => [
                 'name' => $s->name, 'status' => $s->status->value, 'signed_at' => $s->signed_at?->toIso8601String(),
@@ -41,9 +42,10 @@ final class VerifyController extends Controller
 
         if ($request->filled('sha256')) {
             $hash = strtolower((string) $request->query('sha256'));
+            $files = $envelope->files();
             $body['match'] = match (true) {
-                $envelope->final_sha256 !== null && hash_equals($envelope->final_sha256, $hash) => 'final',
-                hash_equals($envelope->document->sha256, $hash) => 'original',
+                $files->contains(fn ($f) => $f->finalSha256 !== null && hash_equals($f->finalSha256, $hash)) => 'final',
+                $files->contains(fn ($f) => hash_equals($f->sha256, $hash)) => 'original',
                 default => 'none',
             };
         }

@@ -127,6 +127,12 @@ final class SealEnvelope implements ShouldQueue
     {
     }
 
+    /** Nunca duas selagens do mesmo envio ao mesmo tempo (a nova tentativa da fila e o botão "selar de novo" podem coincidir). */
+    public function middleware(): array
+    {
+        return [(new \Illuminate\Queue\Middleware\WithoutOverlapping($this->envelopeId))->releaseAfter(60)->expireAfter(900)];
+    }
+
     public function handle(SigningManager $manager, EvidenceLogger $evidence, ?ReportBuilder $reports = null, ?WebhookDispatcher $webhooks = null): void
     {
         $reports ??= new ReportBuilder();
@@ -146,7 +152,13 @@ final class SealEnvelope implements ShouldQueue
             $this->sealFile($envelope, $file, $files->count() > 1, $manager, $evidence, $reports);
         }
 
-        $envelope->update(['status' => EnvelopeStatus::Completed, 'completed_at' => now()]);
+        // Conclui só se ainda estiver selando: outra execução pode ter concluído enquanto esta trabalhava.
+        $claimed = Envelope::query()->whereKey($envelope->getKey())->where('status', EnvelopeStatus::Sealing->value)
+            ->update(['status' => EnvelopeStatus::Completed->value, 'completed_at' => now()]);
+        if ($claimed === 0) {
+            return;
+        }
+        $envelope->refresh();
 
         try {
             app(\App\Plans\UsageLedger::class)->charge($envelope, 'complete'); // um envio conta uma vez, mesmo com vários arquivos; nunca impede a conclusão
