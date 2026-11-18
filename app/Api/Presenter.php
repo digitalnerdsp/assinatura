@@ -71,16 +71,16 @@ final class Presenter
     }
 
     /** @return array<string,mixed> */
-    public static function template(DocumentTemplate $t, bool $withBody = false): array
+    public static function template(DocumentTemplate $t): array
     {
         return [
             'id' => $t->getKey(),
             'name' => $t->name,
-            'variables' => $t->variables(),
+            'page_count' => $t->page_count,
+            'fields' => $t->fields->map(fn ($f) => ['key' => $f->key, 'label' => $f->label, 'page' => $f->page, 'multiline' => $f->multiline, 'required' => $f->required])->values()->all(),
             'updated_at' => $t->updated_at?->toIso8601String(),
-        ] + ($withBody ? ['body' => $t->body] : []);
+        ];
     }
-
     /** @return array<string,mixed> */
     public static function webhook(WebhookEndpoint $w): array
     {

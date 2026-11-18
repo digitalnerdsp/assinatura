@@ -216,41 +216,7 @@ it('reenvio respeita a ordem sequencial e o envio manual', function () {
 
 // ---------------------------------------------------------------- modelos
 
-it('gerencia modelos e gera envelopes a partir deles', function () {
-    Mail::fake();
-    [, $h] = integ();
-
-    $t = $this->postJson('/api/v1/templates', ['name' => 'Contrato', 'body' => '<p onclick="x()">Contratante {{contratante}} - R$ {{valor}}</p><script>x</script>'], $h)
-        ->assertCreated()->assertJsonPath('variables', ['contratante', 'valor'])->json();
-    expect($t['body'])->not->toContain('script')->not->toContain('onclick');
-
-    $this->getJson('/api/v1/templates', $h)->assertOk()->assertJsonCount(1, 'data');
-    $this->putJson("/api/v1/templates/{$t['id']}", ['name' => 'Contrato v2', 'body' => '<p>{{nome}}</p>'], $h)->assertOk()->assertJsonPath('variables', ['nome']);
-
-    $this->postJson("/api/v1/templates/{$t['id']}/documents", ['title' => 'X', 'signers' => [['name' => 'A', 'email' => 'a@a.com']]], $h)
-        ->assertStatus(422)->assertJsonPath('error', 'validation_failed')->assertJsonStructure(['errors' => ['variables.nome']]);
-
-    $res = $this->postJson("/api/v1/templates/{$t['id']}/documents", [
-        'title' => 'Contrato Maria', 'variables' => ['nome' => 'Maria'], 'external_id' => 'tpl-1', 'send' => true,
-        'signers' => [['name' => 'Maria', 'email' => 'maria@ex.com']],
-    ], $h)->assertCreated()->assertJsonPath('status', 'sent')->assertJsonPath('external_id', 'tpl-1');
-    Mail::assertSent(SignatureRequestedMail::class, 1);
-    expect(str_starts_with(Storage::disk('local')->get(Envelope::firstOrFail()->document->storage_path), '%PDF-'))->toBeTrue();
-
-    $this->deleteJson("/api/v1/templates/{$t['id']}", [], $h)->assertNoContent();
-    $this->getJson("/api/v1/templates/{$t['id']}", $h)->assertNotFound();
-});
-
-it('modelos de outra conta são invisíveis', function () {
-    [, $a] = integ();
-    [, $b] = integ();
-    $id = $this->postJson('/api/v1/templates', ['name' => 'Meu', 'body' => '<p>x</p>'], $a)->json('id');
-
-    $this->getJson("/api/v1/templates/{$id}", $b)->assertNotFound();
-    $this->putJson("/api/v1/templates/{$id}", ['name' => 'x', 'body' => 'y'], $b)->assertNotFound();
-    $this->deleteJson("/api/v1/templates/{$id}", [], $b)->assertNotFound();
-    $this->postJson("/api/v1/templates/{$id}/documents", ['title' => 't', 'signers' => [['name' => 'A', 'email' => 'a@a.com']]], $b)->assertNotFound();
-});
+// Modelos em PDF pela API: TemplateApiTest.
 
 // ---------------------------------------------------------------- webhooks
 

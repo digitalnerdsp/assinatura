@@ -11,7 +11,6 @@ use App\Jobs\DeliverWebhook;
 use App\Mail\SignatureRequestedMail;
 use App\Messaging\MessageSender;
 use App\Messaging\Phone;
-use App\Models\DocumentTemplate;
 use App\Models\Envelope;
 use App\Models\Folder;
 use App\Models\Tag;
@@ -21,7 +20,6 @@ use App\Models\WebhookEndpoint;
 use App\Notifications\SignerNotifier;
 use App\Signing\ReportBuilder;
 use App\Support\SystemHealth;
-use App\Templates\TemplateRenderer;
 use App\Webhooks\UrlGuard;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -391,16 +389,6 @@ it('não aceita pasta ou etiqueta de outro tenant', function () {
 });
 
 // ---------------------------------------------------------------- modelos
-
-it('gera PDF do modelo escapando os valores e removendo HTML perigoso', function () {
-    $template = new DocumentTemplate(['name' => 'T', 'body' => '<p onclick="x()">Olá {{ nome }}</p><script>alert(1)</script><img src="http://evil.test/x.png">']);
-
-    expect($template->variables())->toBe(['nome']);
-    expect(TemplateRenderer::sanitize($template->body))->toBe('<p>Olá {{ nome }}</p>alert(1)');
-
-    $pdf = (new TemplateRenderer())->render($template, ['nome' => '<b>José</b> & Cia']);
-    expect(str_starts_with($pdf, '%PDF-'))->toBeTrue()->and(strlen($pdf))->toBeGreaterThan(1000);
-});
 
 // Criar, editar, usar e isolar modelos em PDF: TemplateServiceTest, TemplateWebTest, TemplateUseTest.
 // ---------------------------------------------------------------- limite de PDF

@@ -13,62 +13,57 @@ use App\Http\Controllers\Controller;
 use App\Models\DocumentTemplate;
 use App\Models\Tenant;
 use App\Notifications\SignerNotifier;
-use App\Templates\TemplateRenderer;
+use App\Templates\TemplateFiller;
+use App\Templates\TemplateService;
+use App\Templates\ValueDoesNotFit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Throwable;
 
-/** Modelos com {{variáveis}}: cadastro e geração de documentos. */
+/** Modelos em PDF com lacunas: consulta, remoção e geração de documentos. Criar e editar modelos é só pela tela (exige o PDF e as posições). */
 final class TemplateController extends Controller
 {
     public function __construct(
         private readonly EnvelopeService $envelopes,
-        private readonly TemplateRenderer $renderer,
         private readonly SignerNotifier $notifier,
     ) {
     }
 
     public function index(Request $request): JsonResponse
     {
-        $templates = DocumentTemplate::query()->where('tenant_id', $this->tenant($request)->getKey())->latest()->get();
+        $templates = DocumentTemplate::query()->where('tenant_id', $this->tenant($request)->getKey())->with('fields')->latest()->get();
 
         return response()->json(['data' => $templates->map(fn ($t) => Presenter::template($t))->all()]);
     }
 
     public function show(Request $request, string $id): JsonResponse
     {
-        return response()->json(Presenter::template($this->find($request, $id), withBody: true));
+        return response()->json(Presenter::template($this->find($request, $id)));
     }
 
-    public function store(Request $request): JsonResponse
+    /** Criar e editar modelos saiu da API: depende do PDF e das posições das lacunas, marcadas na tela Modelos. */
+    public function unavailable(): JsonResponse
     {
-        $data = $this->validated($request);
-        $template = DocumentTemplate::query()->create($data + ['tenant_id' => $this->tenant($request)->getKey()]);
-
-        return response()->json(Presenter::template($template, withBody: true), 201);
-    }
-
-    public function update(Request $request, string $id): JsonResponse
-    {
-        $template = $this->find($request, $id);
-        $template->update($this->validated($request));
-
-        return response()->json(Presenter::template($template->fresh(), withBody: true));
+        return response()->json([
+            'error' => 'templates_ui_only',
+            'message' => 'Modelos são criados e editados na tela Modelos do sistema. Pela API é possível consultar, remover e gerar documentos a partir deles.',
+        ], 410);
     }
 
     public function destroy(Request $request, string $id): JsonResponse
     {
-        $this->find($request, $id)->delete();
+        app(TemplateService::class)->delete($this->find($request, $id));
 
         return response()->json(null, 204);
     }
 
-    /** Gera um documento a partir do modelo. Corpo: title, variables{}, signers[] e as mesmas opções de POST /envelopes. */
+    /** Gera um documento a partir do modelo. Corpo: title, variables{chave da lacuna => texto}, signers[] e as mesmas opções de POST /envelopes. */
     public function generate(Request $request, string $id): JsonResponse
     {
         $template = $this->find($request, $id);
+        $filler = app(TemplateFiller::class);
 
         $rules = [
             'title' => ['required', 'string', 'max:190'],
@@ -95,14 +90,15 @@ final class TemplateController extends Controller
             'signers.*.phone' => ['nullable', 'string', 'max:30'],
             'signers.*.cpf' => ['nullable', 'string', 'max:14'],
             'signers.*.position' => ['nullable', 'integer', 'between:1,50'],
-        ];
-        foreach ($template->variables() as $var) {
-            $rules["variables.$var"] = ['required', 'string', 'max:500'];
-        }
+        ] + $filler->rules($template, 'variables');
         $data = $request->validate($rules);
 
         try {
-            $pdf = $this->renderer->render($template, $data['variables'] ?? []);
+            $pdf = $filler->render($template, $data['variables'] ?? []);
+        } catch (ValueDoesNotFit $e) {
+            return response()->json(['error' => 'does_not_fit', 'field' => $e->fieldKey, 'message' => $e->getMessage()], 422);
+        } catch (FlowException $e) {
+            return response()->json(['error' => $e->reason, 'message' => $e->getMessage()], 422);
         } catch (Throwable $e) {
             report($e);
 
@@ -154,22 +150,11 @@ final class TemplateController extends Controller
         return response()->json(Presenter::envelope($envelope->fresh()), 201);
     }
 
-    /** @return array{name:string,body:string} */
-    private function validated(Request $request): array
-    {
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:150'],
-            'body' => ['required', 'string', 'max:200000'],
-        ]);
-
-        return ['name' => $data['name'], 'body' => TemplateRenderer::sanitize($data['body'])];
-    }
-
     private function find(Request $request, string $id): DocumentTemplate
     {
         abort_unless(Str::isUuid($id), 404);
 
-        return DocumentTemplate::query()->where('tenant_id', $this->tenant($request)->getKey())->findOrFail($id);
+        return DocumentTemplate::query()->where('tenant_id', $this->tenant($request)->getKey())->with('fields')->findOrFail($id);
     }
 
     private function tenant(Request $request): Tenant

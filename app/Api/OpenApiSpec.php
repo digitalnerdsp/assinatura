@@ -105,17 +105,17 @@ final class OpenApiSpec
                 '/documents/{id}/signers/{signer}/new-link' => ['post' => ['tags' => ['Signatários'], 'summary' => 'Gera um link novo (o anterior para de funcionar)', 'parameters' => [$id, $uuid('signer', 'Id do signatário')], 'responses' => ['200' => $json($ref('Signer')), '409' => $err('Documento fechado ou signatário já respondeu')] + $common]],
 
                 '/templates' => [
+                    'post' => ['tags' => ['Modelos'], 'summary' => 'Descontinuado: criar modelo pela API', 'deprecated' => true, 'responses' => ['410' => $err('Descontinuado: modelos são criados e editados na tela Modelos (error: templates_ui_only)')] + $common],
                     'get' => ['tags' => ['Modelos'], 'summary' => 'Lista modelos', 'responses' => ['200' => $list('Template')] + $common],
-                    'post' => ['tags' => ['Modelos'], 'summary' => 'Cria um modelo', 'requestBody' => $body(['type' => 'object', 'required' => ['name', 'body'], 'properties' => ['name' => ['type' => 'string'], 'body' => ['type' => 'string', 'description' => 'HTML simples com {{variavel}}.']]]), 'responses' => ['201' => $json($ref('Template'))] + $common],
                 ],
                 '/templates/{id}' => [
+                    'put' => ['tags' => ['Modelos'], 'summary' => 'Descontinuado: editar modelo pela API', 'deprecated' => true, 'parameters' => [$id], 'responses' => ['410' => $err('Descontinuado: modelos são criados e editados na tela Modelos (error: templates_ui_only)')] + $common],
                     'get' => ['tags' => ['Modelos'], 'summary' => 'Consulta um modelo', 'parameters' => [$id], 'responses' => ['200' => $json($ref('Template'))] + $common],
-                    'put' => ['tags' => ['Modelos'], 'summary' => 'Atualiza um modelo', 'parameters' => [$id], 'requestBody' => $body(['type' => 'object', 'required' => ['name', 'body'], 'properties' => ['name' => ['type' => 'string'], 'body' => ['type' => 'string']]]), 'responses' => ['200' => $json($ref('Template'))] + $common],
                     'delete' => ['tags' => ['Modelos'], 'summary' => 'Remove um modelo', 'parameters' => [$id], 'responses' => ['204' => ['description' => 'Removido']] + $common],
                 ],
                 '/templates/{id}/documents' => ['post' => ['tags' => ['Modelos'], 'summary' => 'Gera um documento a partir do modelo', 'parameters' => [$id, $idem],
-                    'requestBody' => $body(['type' => 'object', 'required' => ['title', 'signers'], 'properties' => ['title' => ['type' => 'string'], 'variables' => ['type' => 'object', 'additionalProperties' => ['type' => 'string'], 'example' => ['contratante' => 'Maria Silva', 'valor' => '1.500,00']], 'signers' => $signersInput] + $options]),
-                    'responses' => ['201' => $json($ref('Documento')), '422' => $err('Variável faltando ou dados inválidos')] + $common]],
+                    'requestBody' => $body(['type' => 'object', 'required' => ['title', 'signers'], 'properties' => ['title' => ['type' => 'string'], 'variables' => ['type' => 'object', 'additionalProperties' => ['type' => 'string'], 'description' => 'Valores das lacunas, pela chave (campo key de GET /templates/{id}).', 'example' => ['nome_do_contratante' => 'Maria Silva', 'valor' => '1.500,00']], 'signers' => $signersInput] + $options]),
+                    'responses' => ['201' => $json($ref('Documento')), '422' => $err('Variável obrigatória faltando, texto que não cabe na lacuna (error: does_not_fit, field) ou dados inválidos')] + $common]],
 
                 '/webhooks' => [
                     'get' => ['tags' => ['Webhooks'], 'summary' => 'Lista webhooks', 'responses' => ['200' => $list('Webhook')] + $common],
@@ -180,7 +180,7 @@ final class OpenApiSpec
                         'expires_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true], 'completed_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
                         'final_sha256' => ['type' => 'string', 'nullable' => true], 'signers' => ['type' => 'array', 'items' => $ref('Signer')],
                     ]],
-                    'Template' => ['type' => 'object', 'properties' => ['id' => ['type' => 'string'], 'name' => ['type' => 'string'], 'variables' => ['type' => 'array', 'items' => ['type' => 'string']], 'body' => ['type' => 'string'], 'updated_at' => ['type' => 'string', 'format' => 'date-time']]],
+                    'Template' => ['type' => 'object', 'properties' => ['id' => ['type' => 'string'], 'name' => ['type' => 'string'], 'page_count' => ['type' => 'integer'], 'fields' => ['type' => 'array', 'items' => ['type' => 'object', 'properties' => ['key' => ['type' => 'string'], 'label' => ['type' => 'string'], 'page' => ['type' => 'integer'], 'multiline' => ['type' => 'boolean'], 'required' => ['type' => 'boolean']]]], 'updated_at' => ['type' => 'string', 'format' => 'date-time']]],
                     'Webhook' => ['type' => 'object', 'properties' => ['id' => ['type' => 'string'], 'url' => ['type' => 'string'], 'events' => ['type' => 'array', 'nullable' => true, 'items' => ['type' => 'string']], 'active' => ['type' => 'boolean'], 'secret' => ['type' => 'string', 'description' => 'Só na criação.'], 'created_at' => ['type' => 'string', 'format' => 'date-time']]],
                     'Folder' => ['type' => 'object', 'properties' => ['id' => ['type' => 'string'], 'name' => ['type' => 'string'], 'parent_id' => ['type' => 'string', 'nullable' => true], 'path' => ['type' => 'string', 'description' => 'Caminho, ex.: Contratos / 2026.']]],
                     'Contact' => ['type' => 'object', 'properties' => ['id' => ['type' => 'string'], 'name' => ['type' => 'string'], 'email' => ['type' => 'string'], 'phone' => ['type' => 'string', 'nullable' => true, 'description' => 'E.164'], 'document' => ['type' => 'string', 'nullable' => true], 'company' => ['type' => 'string', 'nullable' => true], 'notes' => ['type' => 'string', 'nullable' => true], 'created_at' => ['type' => 'string', 'format' => 'date-time']]],

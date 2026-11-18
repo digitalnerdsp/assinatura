@@ -27,14 +27,6 @@ class DocumentTemplate extends Model
         return $this->hasMany(TemplateField::class, 'template_id')->orderBy('position');
     }
 
-    /** LEGADO (modelo em HTML): sai na Tarefa 6 junto com o TemplateRenderer, quando web e API passarem a usar as lacunas. @return list<string> */
-    public function variables(): array
-    {
-        preg_match_all('/\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}/', (string) $this->body, $m);
-
-        return array_values(array_unique($m[1]));
-    }
-
     public function pdfContents(): string
     {
         return (string) Storage::disk('local')->get((string) $this->pdf_path);

@@ -34,9 +34,9 @@ Route::prefix('v1')->middleware(['api.key', 'throttle:120,1'])->group(function (
 
     // Modelos
     Route::get('templates', [TemplateController::class, 'index'])->middleware('feature:templates');
-    Route::post('templates', [TemplateController::class, 'store'])->middleware('feature:templates');
+    Route::post('templates', [TemplateController::class, 'unavailable'])->middleware('feature:templates');
     Route::get('templates/{id}', [TemplateController::class, 'show'])->middleware('feature:templates');
-    Route::put('templates/{id}', [TemplateController::class, 'update'])->middleware('feature:templates');
+    Route::put('templates/{id}', [TemplateController::class, 'unavailable'])->middleware('feature:templates');
     Route::delete('templates/{id}', [TemplateController::class, 'destroy'])->middleware('feature:templates');
     Route::post('templates/{id}/documents', [TemplateController::class, 'generate'])->middleware('feature:templates')->middleware('idempotent');
 
