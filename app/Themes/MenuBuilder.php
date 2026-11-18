@@ -46,6 +46,7 @@ final class MenuBuilder
             $item('Modelos', 'templates', route('templates.index'), $is('templates.*')),
             $item('Contatos', 'contacts', route('contacts.index'), $is('contacts.*')),
             $item('Calendário', 'calendar', route('calendar.index'), $is('calendar.*')),
+            $item('Contratos', 'templates', route('contracts.index'), $is('contracts.*')),
             $item('Relatórios', 'reports', route('reports.index'), $is('reports.*')),
             $item('Configurações', 'settings', '#', $is('profile.*', 'company.*', 'api-keys.*', 'webhooks.*', 'team.*', 'brand.*', 'plan-usage.*'), $cfg),
             $item('Verificar documento', 'verify', route('verify.index'), false, [], null, true),

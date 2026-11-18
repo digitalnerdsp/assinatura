@@ -141,6 +141,8 @@ Route::middleware(['auth', 'tenant.active'])->group(function () {
     Route::delete('/configuracoes/marca', [\App\Http\Controllers\Web\BrandController::class, 'reset'])->name('brand.reset');
 
     Route::get('/calendario', [\App\Http\Controllers\Web\CalendarController::class, 'index'])->name('calendar.index');
+    Route::get('/contratos', [\App\Http\Controllers\Web\ContractController::class, 'index'])->middleware('feature:reports')->name('contracts.index');
+    Route::get('/contratos/exportar', [\App\Http\Controllers\Web\ContractController::class, 'export'])->middleware(['feature:reports', 'throttle:20,1,contracts-export'])->name('contracts.export');
     Route::get('/relatorios', [\App\Http\Controllers\Web\ReportController::class, 'index'])->middleware('feature:reports')->name('reports.index');
     Route::get('/relatorios/exportar', [\App\Http\Controllers\Web\ReportController::class, 'export'])->middleware('throttle:20,1,reports-export')->middleware('feature:reports')->name('reports.export');
 
