@@ -39,7 +39,7 @@ final class ContractController extends Controller
         return view('contracts.index', [
             'filters' => $f,
             'counts' => $this->counts($base, $today),
-            'rows' => $this->band(clone $base, $f['faixa'], $today)->with(['tags', 'folder'])->orderBy('contract_expires_on')->orderByRaw('lower(title)')->paginate(25)->withQueryString(),
+            'rows' => $this->band(clone $base, $f['faixa'], $today)->with(['tags', 'folder'])->orderBy('contract_expires_on')->orderByRaw('lower(title)')->orderBy('id')->paginate(25)->withQueryString(),
             'chart' => $this->chart($base, $this->watch->today()),
             'watch' => $this->watch,
             'today' => $this->watch->today(),
@@ -54,7 +54,7 @@ final class ContractController extends Controller
         $tenant = $request->user()->tenant;
         $today = $this->watch->today();
         $paths = $this->folders->paths($tenant);
-        $query = $this->band($this->filtered($tenant, $f), $f['faixa'], $today->toDateString())->with(['tags'])->orderBy('contract_expires_on')->orderByRaw('lower(title)');
+        $query = $this->band($this->filtered($tenant, $f), $f['faixa'], $today->toDateString())->with(['tags'])->orderBy('contract_expires_on')->orderByRaw('lower(title)')->orderBy('id');
         $names = ['overdue' => 'Vencido', 'd30' => 'Até 30 dias', 'd60' => '31 a 60 dias', 'd90' => '61 a 90 dias', 'valid' => 'Vigente'];
 
         return response()->streamDownload(function () use ($query, $paths, $today, $names): void {

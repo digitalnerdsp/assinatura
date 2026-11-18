@@ -44,8 +44,11 @@ final class ContractWatch
     {
         $clean = $this->validateTerm($dueOn, $alertDays, $emails);
 
+        $dateChanged = $envelope->contract_expires_on?->toDateString() !== $dueOn;
         $envelope->forceFill(['contract_expires_on' => $dueOn, 'contract_alert_days' => $alertDays, 'contract_alert_emails' => $clean])->save();
-        $envelope->contractAlerts()->delete();
+        if ($dateChanged) {
+            $envelope->contractAlerts()->delete(); // data nova recomeça do zero; trocar só e-mails ou prazo não reenvia o que já saiu
+        }
     }
 
     /**

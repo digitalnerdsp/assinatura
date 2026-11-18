@@ -35,6 +35,7 @@ final class ContractAlerts
             ->whereRaw('contract_expires_on <= cast(? as date) + contract_alert_days', [$today->toDateString()])
             ->with(['tenant', 'contractAlerts'])
             ->orderBy('contract_expires_on')
+            ->orderBy('id')
             ->each(function (Envelope $envelope) use ($today, &$sent): void {
                 if ($envelope->tenant === null || $envelope->tenant->isSuspended()) {
                     return;
@@ -53,18 +54,28 @@ final class ContractAlerts
                     return;
                 }
 
-                try {
-                    foreach ($emails as $to) {
-                        Mail::to($to)->send(new ContractExpiryMail($envelope, $kind, $left));
-                    }
-                } catch (Throwable $e) {
-                    // Não marca como enviado: tenta de novo amanhã. Os outros contratos seguem.
-                    Log::warning('Aviso de vencimento de contrato não enviado', ['envelope' => $envelope->getKey(), 'erro' => $e->getMessage()]);
-
+                // Reserva o registro antes de enviar: duas execuções ao mesmo tempo não mandam o aviso em dobro.
+                $reserved = ContractAlert::query()->insertOrIgnore([['id' => (string) \Illuminate\Support\Str::uuid7(), 'envelope_id' => $envelope->getKey(), 'kind' => $kind, 'due_on' => $due, 'sent_to' => '', 'sent_at' => now(), 'created_at' => now(), 'updated_at' => now()]]);
+                if ($reserved === 0) {
                     return;
                 }
 
-                ContractAlert::create(['envelope_id' => $envelope->getKey(), 'kind' => $kind, 'due_on' => $due, 'sent_to' => implode(', ', $emails), 'sent_at' => now()]);
+                $delivered = [];
+                foreach ($emails as $to) {
+                    try {
+                        Mail::to($to)->send(new ContractExpiryMail($envelope, $kind, $left));
+                        $delivered[] = $to;
+                    } catch (Throwable $e) {
+                        Log::warning('Aviso de vencimento de contrato não enviado', ['envelope' => $envelope->getKey(), 'erro' => $e->getMessage()]);
+                    }
+                }
+
+                $record = ContractAlert::query()->where('envelope_id', $envelope->getKey())->where('kind', $kind)->where('due_on', $due);
+                if ($delivered === []) {
+                    $record->delete(); // ninguém recebeu: tenta de novo amanhã
+                    return;
+                }
+                $record->update(['sent_to' => implode(', ', $delivered)]);
                 $sent++;
             });
 

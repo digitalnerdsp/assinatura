@@ -144,3 +144,53 @@ it('o e-mail traz título, data, dias e link para o contrato', function () {
         ->and((new ContractExpiryMail($e, 'due', -3))->envelope()->subject)->toContain('venceu')
         ->and((new ContractExpiryMail($e, 'before', 12))->envelope()->subject)->toContain('12 dias');
 });
+
+it('falha em um dos e-mails registra só quem recebeu e não repete o envio no dia seguinte', function () {
+    $u = wzOwner();
+    $e = ctDue($u, 5, 'Parcial');
+    $e->update(['contract_alert_emails' => ['bom@wz.test', 'ruim@wz.test', 'outro@wz.test']]);
+    Mail::shouldReceive('to')->andReturnUsing(function ($to) {
+        $m = Mockery::mock();
+        $m->shouldReceive('send')->andReturnUsing(function () use ($to) {
+            if ($to === 'ruim@wz.test') {
+                throw new RuntimeException('rejeitado');
+            }
+        });
+
+        return $m;
+    });
+
+    expect(app(ContractAlerts::class)->send())->toBe(1)->and(ContractAlert::first()->sent_to)->toBe('bom@wz.test, outro@wz.test');
+    Carbon::setTestNow(Carbon::now()->addDay());
+    expect(app(ContractAlerts::class)->send())->toBe(0);
+});
+
+it('quando ninguém recebe, não deixa registro e tenta de novo', function () {
+    ctDue(wzOwner(), 5, 'Ninguém');
+    Mail::shouldReceive('to')->andThrow(new RuntimeException('smtp fora'));
+
+    expect(app(ContractAlerts::class)->send())->toBe(0)->and(ContractAlert::count())->toBe(0);
+});
+
+it('trocar só os e-mails ou o prazo não reenvia o aviso que já saiu; trocar a data libera', function () {
+    $u = wzOwner();
+    $e = ctDue($u, 5, 'Edição');
+    app(ContractAlerts::class)->send();
+    $watch = app(\App\Contracts\ContractWatch::class);
+    $due = $e->fresh()->contract_expires_on->toDateString();
+
+    $watch->setTerm($e->fresh(), $due, 60, ['novo@wz.test']);
+    expect(ContractAlert::count())->toBe(1);
+    expect(app(ContractAlerts::class)->send())->toBe(0);
+
+    $watch->setTerm($e->fresh(), Carbon::now('America/Sao_Paulo')->addDays(9)->toDateString(), 60, ['novo@wz.test']);
+    expect(ContractAlert::count())->toBe(0);
+});
+
+it('lista de e-mails malformada na vigência volta com erro em vez de 500', function () {
+    $u = wzOwner();
+    $e = ctDoc($u);
+
+    $this->actingAs($u)->put("/documentos/{$e->id}/vigencia", ['contract_date' => '2027-03-31', 'contract_alert_days' => 30, 'contract_emails' => [['x']]])->assertSessionHasErrors();
+    expect($e->fresh()->contract_expires_on)->toBeNull();
+});

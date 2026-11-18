@@ -29,7 +29,8 @@ final class ContractTermController extends Controller
         $data = $request->validate([
             'contract_date' => ['nullable', 'string', 'max:10'],
             'contract_alert_days' => ['nullable', 'integer'],
-            'contract_emails' => ['nullable'],
+            'contract_emails' => ['nullable', 'max:600'],
+            'contract_emails.*' => ['string', 'max:190'],
         ]);
 
         // Os e-mails chegam como lista ou como texto separado por vírgula, ponto e vírgula ou espaço.
