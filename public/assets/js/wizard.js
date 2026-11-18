@@ -26,72 +26,104 @@
     });
   }
 
-  /* Arquivo */
+  /* Arquivos: a lista acumula (cada escolha soma às anteriores) e cada arquivo tem o seu botão de remover. */
   var file = document.getElementById('wz-file');
   var drop = document.getElementById('wz-drop');
   var chosen = document.getElementById('wz-chosen');
   var next = document.getElementById('wz-next');
-  var fname = document.getElementById('wz-fname');
-  var more = document.getElementById('wz-more');
   var title = document.getElementById('wz-title');
-  var remove = document.getElementById('wz-remove');
   var hasSaved = form.dataset.hasFile === '1';
+  var MAX = parseInt(form.dataset.max || '10', 10);
+  var ROOM = parseInt(form.dataset.room || String(MAX), 10);
   var addInput = document.getElementById('wz-add');
-  var addNames = document.getElementById('wz-add-names');
+  var notify = function (m) { (window.wzNotify || window.alert)(m); };
+
+  function ext(f) { return /\.(pdf|docx)$/i.test(f.name); }
+  function sizeText(b) { return b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB'; }
+
+  /* Guarda os arquivos escolhidos e devolve a lista ao <input> (que é o que o formulário envia). */
+  function picker(input, limit, render) {
+    var list = [];
+    function push() {
+      try { var dt = new DataTransfer(); list.forEach(function (f) { dt.items.add(f); }); input.files = dt.files; } catch (e) { /* navegador antigo: fica só a última escolha */ }
+      render(list);
+    }
+    return {
+      list: function () { return list; },
+      add: function (files) {
+        var bad = false, full = false;
+        Array.prototype.slice.call(files).forEach(function (f) {
+          if (!ext(f)) { bad = true; return; }
+          if (list.some(function (x) { return x.name === f.name && x.size === f.size; })) { return; }
+          if (list.length >= limit()) { full = true; return; }
+          list.push(f);
+        });
+        push();
+        if (bad) { notify('Envie só arquivos PDF ou DOCX.'); }
+        if (full) { notify('Um envio aceita no máximo ' + limit() + ' arquivos.'); }
+      },
+      removeAt: function (i) { list.splice(i, 1); push(); },
+      clear: function () { list = []; push(); }
+    };
+  }
+
+  function row(n, f, onRemove) {
+    var r = document.createElement('div'); r.className = 'wz-frow';
+    var num = document.createElement('strong'); num.textContent = String(n);
+    var nm = document.createElement('span'); nm.className = 'wz-fname'; nm.textContent = f.name;
+    var sz = document.createElement('span'); sz.className = 'wz-muted wz-small'; sz.textContent = sizeText(f.size);
+    var x = document.createElement('button'); x.type = 'button'; x.className = 'wz-ib'; x.setAttribute('aria-label', 'Remover ' + f.name);
+    var i = document.createElement('i'); i.className = 'bx bx-x'; i.setAttribute('aria-hidden', 'true'); x.appendChild(i);
+    x.addEventListener('click', onRemove);
+    r.appendChild(num); r.appendChild(nm); r.appendChild(sz); r.appendChild(x);
+    return r;
+  }
 
   function sync() {
     var has = hasSaved || (file.files && file.files.length > 0);
     next.disabled = !has;
   }
+
+  if (!hasSaved) {
+    /* Novo documento: o próprio campo principal acumula os arquivos. */
+    var listEl = document.getElementById('wz-list');
+    var countEl = document.getElementById('wz-count');
+    var again = document.getElementById('wz-pick2');
+    var main = picker(file, function () { return MAX; }, function (files) {
+      listEl.textContent = '';
+      files.forEach(function (f, i) { listEl.appendChild(row(i + 1, f, function () { main.removeAt(i); })); });
+      if (files.length && !title.value) { title.value = files[0].name.replace(/\.(pdf|docx)$/i, ''); }
+      if (!files.length) { title.value = ''; }
+      drop.hidden = files.length > 0; chosen.hidden = files.length === 0;
+      countEl.textContent = files.length + ' de ' + MAX + ' arquivos';
+      again.hidden = files.length >= MAX;
+      sync();
+    });
+    file.addEventListener('change', function () { main.add(file.files || []); });
+    drop.addEventListener('drop', function (e) { e.preventDefault(); if (e.dataTransfer && e.dataTransfer.files) { main.add(e.dataTransfer.files); } });
+  } else {
+    /* Rascunho: o campo principal só troca o primeiro arquivo; os extras acumulam no campo "Adicionar". */
+    file.addEventListener('change', function () {
+      var f = file.files && file.files[0];
+      if (f && !ext(f)) { file.value = ''; notify('Envie só arquivos PDF ou DOCX.'); }
+      sync();
+    });
+    if (addInput) {
+      var addEl = document.getElementById('wz-add-names');
+      var extra = picker(addInput, function () { return ROOM; }, function (files) {
+        addEl.textContent = '';
+        files.forEach(function (f, i) { addEl.appendChild(row('+', f, function () { extra.removeAt(i); })); });
+      });
+      addInput.addEventListener('change', function () { extra.add(addInput.files || []); });
+      document.getElementById('wz-add-btn').addEventListener('click', function (e) { e.preventDefault(); addInput.click(); });
+    }
+  }
+
   function pick(e) { if (e) { e.preventDefault(); } file.click(); }
   document.getElementById('wz-pick').addEventListener('click', pick);
   document.getElementById('wz-pick2').addEventListener('click', pick);
-
-  function show(files) {
-    if (fname) { fname.textContent = files[0].name; }
-    if (more) {
-      more.textContent = '';
-      for (var i = 1; i < files.length; i++) {
-        var row = document.createElement('div'); row.className = 'wz-frow';
-        var n = document.createElement('strong'); n.textContent = String(i + 1);
-        var nm = document.createElement('span'); nm.className = 'wz-fname'; nm.textContent = files[i].name;
-        row.appendChild(n); row.appendChild(nm); more.appendChild(row);
-      }
-    }
-    if (!title.value) { title.value = files[0].name.replace(/\.(pdf|docx)$/i, ''); }
-    drop.hidden = true; chosen.hidden = false;
-    sync();
-  }
-  function valid(files) {
-    for (var i = 0; i < files.length; i++) { if (!/\.(pdf|docx)$/i.test(files[i].name)) { return false; } }
-    return true;
-  }
-  file.addEventListener('change', function () {
-    var files = file.files ? Array.prototype.slice.call(file.files) : [];
-    if (!files.length) { sync(); return; }
-    if (!valid(files)) { file.value = ''; window.wzNotify('Envie só arquivos PDF ou DOCX.'); sync(); return; }
-    if (hasSaved) { if (fname) { fname.textContent = files[0].name; } sync(); return; }
-    show(files);
-  });
-  if (remove) {
-    remove.addEventListener('click', function () {
-      file.value = ''; title.value = ''; if (more) { more.textContent = ''; } drop.hidden = false; chosen.hidden = true; sync();
-    });
-  }
-  if (addInput) {
-    document.getElementById('wz-add-btn').addEventListener('click', function (e) { e.preventDefault(); addInput.click(); });
-    addInput.addEventListener('change', function () {
-      var files = Array.prototype.slice.call(addInput.files || []);
-      if (!valid(files)) { addInput.value = ''; addNames.textContent = ''; window.wzNotify('Envie só arquivos PDF ou DOCX.'); return; }
-      addNames.textContent = files.length ? 'Serão acrescentados: ' + files.map(function (f) { return f.name; }).join(', ') : '';
-    });
-  }
   ['dragover', 'dragenter'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('is-over'); }); });
   ['dragleave', 'drop'].forEach(function (ev) { drop.addEventListener(ev, function () { drop.classList.remove('is-over'); }); });
-  drop.addEventListener('drop', function (e) {
-    e.preventDefault();
-    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) { file.files = e.dataTransfer.files; file.dispatchEvent(new Event('change')); }
-  });
   sync();
 
   /* Pasta: escolher uma existente ou criar uma nova sem sair do passo */

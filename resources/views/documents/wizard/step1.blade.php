@@ -5,7 +5,7 @@
     $folderId = old('folder_id', $envelope?->folder_id);
     $currentName = $folderId && isset($folderPaths[$folderId]) ? $folderPaths[$folderId] : 'Documentos';
 @endphp
-<form method="post" action="{{ $envelope ? route('envelopes.step.save', [$envelope, 1]) : route('envelopes.store') }}" enctype="multipart/form-data" id="wz-form" data-quick-folder="{{ route('documents.folders.quick') }}" data-has-file="{{ $envelope ? '1' : '0' }}">
+<form method="post" action="{{ $envelope ? route('envelopes.step.save', [$envelope, 1]) : route('envelopes.store') }}" enctype="multipart/form-data" id="wz-form" data-quick-folder="{{ route('documents.folders.quick') }}" data-has-file="{{ $envelope ? '1' : '0' }}" data-max="{{ $maxDocuments }}" data-room="{{ $envelope ? max(0, $maxDocuments - $files->count()) : $maxDocuments }}">
     @csrf
     @if ($envelope)@method('PUT')@endif
     <input type="hidden" name="folder_id" id="wz-folder-id" value="{{ $folderId }}">
@@ -28,7 +28,7 @@
         </div>
     </div>
     <div id="wz-chosen" @if (! $envelope) hidden @endif>
-        <button type="button" class="wz-again" id="wz-pick2"><i class="bx bx-upload" aria-hidden="true"></i> {{ $envelope ? 'Trocar o primeiro arquivo' : 'Escolher outros arquivos' }}</button>
+        <button type="button" class="wz-again" id="wz-pick2"><i class="bx bx-upload" aria-hidden="true"></i> {{ $envelope ? 'Trocar o primeiro arquivo' : 'Adicionar mais arquivos' }}</button>
         @if ($envelope)
             @foreach ($files as $f)
                 <div class="wz-frow">
@@ -41,14 +41,11 @@
             @if ($files->count() < $maxDocuments)
                 <input type="file" name="documents[]" id="wz-add" multiple accept="application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="wz-sr">
                 <button type="button" class="wz-again" id="wz-add-btn"><i class="bx bx-plus" aria-hidden="true"></i> Adicionar mais arquivos</button>
-                <div class="wz-small wz-muted" id="wz-add-names"></div>
+                <div id="wz-add-names" aria-live="polite"></div>
             @endif
         @else
-            <div class="wz-frow">
-                <strong>1</strong><span class="wz-fname" id="wz-fname"></span>
-                <button type="button" class="wz-ib" id="wz-remove" aria-label="Escolher outros arquivos"><i class="bx bx-x" aria-hidden="true"></i></button>
-            </div>
-            <div id="wz-more"></div>
+            <div id="wz-list" aria-live="polite"></div>
+            <p class="wz-muted wz-small" id="wz-count"></p>
         @endif
         <div class="wz-field">
             <label for="wz-title">Nome do documento</label>
