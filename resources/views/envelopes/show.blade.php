@@ -83,6 +83,10 @@
     </div>
 </div>
 
+@if ($envelope->status->value !== 'draft' && ! $envelope->isTrashed())
+@include('envelopes._contract_term')
+@endif
+
 <div class="card radius-10">
     <div class="card-header"><h6 class="mb-0"><i class="bx bx-group me-1"></i> Signatários</h6></div>
     <div class="table-responsive">

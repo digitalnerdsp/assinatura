@@ -91,6 +91,8 @@ Route::middleware(['auth', 'tenant.active'])->group(function () {
     Route::post('/documentos/{envelope}/signatarios/{signer}/novo-link', [EnvelopeController::class, 'regenerate'])->name('envelopes.regenerate');
     Route::post('/documentos/{envelope}/selar', [EnvelopeController::class, 'reseal'])->middleware('throttle:10,1,reseal')->name('envelopes.reseal');
     Route::post('/documentos/{envelope}/cancelar', [EnvelopeController::class, 'cancel'])->name('envelopes.cancel');
+    Route::put('/documentos/{envelope}/vigencia', [\App\Http\Controllers\Web\ContractTermController::class, 'save'])->name('envelopes.term.save');
+    Route::delete('/documentos/{envelope}/vigencia', [\App\Http\Controllers\Web\ContractTermController::class, 'clear'])->name('envelopes.term.clear');
     Route::get('/documentos/{envelope}/original', [EnvelopeController::class, 'original'])->name('envelopes.original');
     Route::get('/documentos/{envelope}/anexos/{attachment}', [EnvelopeController::class, 'attachment'])->name('envelopes.attachment');
     Route::get('/documentos/{envelope}/selado', [EnvelopeController::class, 'final'])->name('envelopes.final');
