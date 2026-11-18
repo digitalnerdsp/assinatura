@@ -241,6 +241,8 @@ def fill_fields(pdf: UploadFile = File(...), fields: str = Form(...)):
         return JSONResponse(status_code=422, content={"error": "does_not_fit", "field": exc.key})
     except fill.InvalidPdf:
         return JSONResponse(status_code=422, content={"error": "invalid_pdf"})
+    except fill.InvalidField:
+        return JSONResponse(status_code=422, content={"error": "invalid_fields"})
     return Response(content=out, media_type="application/pdf", headers={"X-Page-Count": str(pages)})
 
 

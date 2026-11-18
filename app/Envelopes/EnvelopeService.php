@@ -214,14 +214,14 @@ final class EnvelopeService
     }
 
     /** Passo 1: cria o rascunho só com o PDF (sem signatários). A recusa pelo signatário começa desligada no assistente. */
-    public function createDraft(Tenant $tenant, User $creator, string $pdfContents, string $filename, string $title, ?string $folderId = null): Envelope
+    public function createDraft(Tenant $tenant, User $creator, string $pdfContents, string $filename, string $title, ?string $folderId = null, ?string $templateId = null): Envelope
     {
         $this->assertPdf($tenant, $pdfContents);
         if ($folderId !== null && ! Folder::query()->where('tenant_id', $tenant->getKey())->whereKey($folderId)->exists()) {
             throw FlowException::because('invalid_folder', 'Pasta inválida.');
         }
 
-        return DB::transaction(function () use ($tenant, $creator, $pdfContents, $filename, $title, $folderId) {
+        return DB::transaction(function () use ($tenant, $creator, $pdfContents, $filename, $title, $folderId, $templateId) {
             $document = $this->storeDocument($tenant, $pdfContents, $filename);
 
             $envelope = Envelope::query()->create([
@@ -231,6 +231,7 @@ final class EnvelopeService
                 'title' => $title,
                 'status' => EnvelopeStatus::Draft,
                 'wizard_step' => 1,
+                'template_id' => $templateId,
                 'allow_refuse' => false,
                 'signing_order' => SigningOrder::Parallel,
                 'required_level' => 'simple',

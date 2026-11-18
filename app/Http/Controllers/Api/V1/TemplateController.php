@@ -64,6 +64,7 @@ final class TemplateController extends Controller
     {
         $template = $this->find($request, $id);
         $filler = app(TemplateFiller::class);
+        $request->merge(['variables' => TemplateFiller::normalize($request->input('variables'))]);
 
         $rules = [
             'title' => ['required', 'string', 'max:190'],

@@ -184,7 +184,7 @@
     window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     fetch(form.dataset.pdf, { credentials: 'same-origin' })
       .then(function (r) { if (!r.ok) { throw new Error('pdf'); } return r.arrayBuffer(); })
-      .then(function (buf) { return window.pdfjsLib.getDocument({ data: buf }).promise; })
+      .then(function (buf) { return window.pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise; })
       .then(buildPages)
       .catch(showError);
   }

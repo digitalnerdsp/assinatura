@@ -175,3 +175,55 @@ def test_mediabox_deslocada_soma_a_origem():
     base = _origin(fill.fill_pdf(make_pdf(), [field(text="OFF")]), "OFF")
     moved = _origin(fill.fill_pdf(make_pdf(mediabox_offset=(50, 70)), [field(text="OFF")]), "OFF")
     assert abs((moved[0] - base[0]) - 50) < 0.5 and abs((moved[1] - base[1]) - 70) < 0.5
+
+
+def test_cropbox_define_a_area_visivel_onde_a_fracao_vale():
+    # MediaBox 400x600; CropBox [100 100 300 500] (200x400). Lacuna em x=0, y=0 da área visível => canto superior esquerdo do CropBox.
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf, pagesize=(400, 600)); c.drawString(20, 580, "Contrato"); c.showPage(); c.save()
+    w = PdfWriter(clone_from=PdfReader(io.BytesIO(buf.getvalue())))
+    from pypdf.generic import RectangleObject
+    w.pages[0].cropbox = RectangleObject([100, 100, 300, 500])
+    out = io.BytesIO(); w.write(out)
+    x, y = _origin(fill.fill_pdf(out.getvalue(), [field(x=0.0, y=0.0, width=0.5, height=0.05, text="CROP")]), "CROP")
+    assert abs(x - (100 + fill.PAD)) < 1 and 470 < y < 500   # perto do topo-esquerdo do CropBox (x=100, topo=500)
+
+
+def test_cropbox_com_rotacao():
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf, pagesize=(400, 600)); c.showPage(); c.save()
+    w = PdfWriter(clone_from=PdfReader(io.BytesIO(buf.getvalue())))
+    from pypdf.generic import RectangleObject
+    w.pages[0].cropbox = RectangleObject([100, 100, 300, 500]); w.pages[0].rotate(90)
+    out = io.BytesIO(); w.write(out)
+    x, y = _origin(fill.fill_pdf(out.getvalue(), [field(x=0.0, y=0.0, width=0.5, height=0.05, text="CR90")]), "CR90")
+    assert 100 <= x <= 300 and 100 <= y <= 500   # dentro da área visível
+
+
+def test_quebra_de_linha_no_fim_nao_conta_linha_vazia():
+    out = fill.fill_pdf(make_pdf(), [field(key="e", text="uma linha\n\n", multiline=True, height=0.03, width=0.5)])
+    assert "uma linha" in page_text(out)
+
+
+def test_campo_malformado_e_recusado():
+    for bad in ({"page": 1}, {**field(), "x": "abc"}, {**field(), "width": float("nan")}, "texto"):
+        with pytest.raises(fill.InvalidField):
+            fill.fill_pdf(make_pdf(), [bad])
+
+
+def test_rota_campo_malformado_devolve_422(client):
+    r = client.post("/v1/fill", headers=H, files={"pdf": ("a.pdf", make_pdf(), "application/pdf")}, data={"fields": json.dumps([{"page": 1}])})
+    assert r.status_code == 422 and r.json()["error"] == "invalid_fields"
+
+
+def test_pdf_com_paginas_demais_e_recusado():
+    with pytest.raises(fill.InvalidPdf):
+        fill.fill_pdf(make_pdf(pages=fill.MAX_PAGES + 1), [])
+
+
+def test_pdf_so_com_senha_de_dono_e_aceito():
+    w = PdfWriter(clone_from=PdfReader(io.BytesIO(make_pdf())))
+    w.encrypt("", owner_password="dono")
+    buf = io.BytesIO(); w.write(buf)
+    out = fill.fill_pdf(buf.getvalue(), [field(text="LIVRE")])
+    assert "LIVRE" in page_text(out)

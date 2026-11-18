@@ -57,15 +57,18 @@ final class TemplateController extends Controller
         $this->owned($request, $template);
         $data = $request->validate(['name' => ['required', 'string', 'max:150'], 'fields' => ['nullable', 'string', 'max:100000']], $this->messages());
 
-        $fields = json_decode((string) ($data['fields'] ?? '[]'), true);
-        if (! is_array($fields) || ! array_is_list($fields)) {
-            return back()->withInput()->withErrors(['fields' => 'Não foi possível ler as lacunas. Recarregue a página e tente de novo.']);
-        }
+        // Sem o campo (script do editor não carregou), só o nome muda: as lacunas ficam como estão.
+        if (isset($data['fields'])) {
+            $fields = json_decode($data['fields'], true);
+            if (! is_array($fields) || ! array_is_list($fields)) {
+                return back()->withInput()->withErrors(['fields' => 'Não foi possível ler as lacunas. Recarregue a página e tente de novo.']);
+            }
 
-        try {
-            $this->templates()->syncFields($template, $fields);
-        } catch (FlowException $e) {
-            return back()->withInput()->withErrors(['fields' => $e->getMessage()]);
+            try {
+                $this->templates()->syncFields($template, $fields);
+            } catch (FlowException $e) {
+                return back()->withInput()->withErrors(['fields' => $e->getMessage()]);
+            }
         }
         $template->update(['name' => $data['name']]);
 
@@ -128,6 +131,7 @@ final class TemplateController extends Controller
     {
         $this->owned($request, $template);
         $template->load('fields');
+        $request->merge(['values' => TemplateFiller::normalize($request->input('values'))]);
         $data = $request->validate(['values' => ['nullable', 'array']] + $this->filler()->rules($template, enforceRequired: false), $this->valueMessages());
 
         try {
@@ -150,6 +154,7 @@ final class TemplateController extends Controller
             return back()->withErrors(['values' => 'Marque ao menos uma lacuna no modelo antes de usá-lo.']);
         }
 
+        $request->merge(['values' => TemplateFiller::normalize($request->input('values'))]);
         $data = $request->validate([
             'title' => ['required', 'string', 'max:190'],
             'folder_id' => ['nullable', 'uuid'],
@@ -159,7 +164,7 @@ final class TemplateController extends Controller
         try {
             $pdf = $this->filler()->render($template, $data['values'] ?? []);
             $envelope = app(EnvelopeService::class)->createDraft(
-                $request->user()->tenant, $request->user(), $pdf, Str::slug($template->name).'.pdf', $data['title'], $data['folder_id'] ?? null,
+                $request->user()->tenant, $request->user(), $pdf, Str::slug($template->name).'.pdf', $data['title'], $data['folder_id'] ?? null, $template->getKey(),
             );
         } catch (ValueDoesNotFit $e) {
             return back()->withInput()->withErrors(["values.{$e->fieldKey}" => $e->getMessage()]);
@@ -170,8 +175,6 @@ final class TemplateController extends Controller
 
             return back()->withInput()->withErrors(['title' => 'Não foi possível gerar o documento a partir deste modelo.']);
         }
-
-        $envelope->update(['template_id' => $template->getKey()]);
 
         return redirect()->route('envelopes.step', [$envelope, 2])->with('status', 'Documento preenchido. Agora escolha quem assina.');
     }

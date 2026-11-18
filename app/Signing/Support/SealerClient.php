@@ -97,7 +97,7 @@ final class SealerClient
                 ->withToken($this->token)
                 ->timeout($this->timeout)
                 ->attach('pdf', $pdf, 'document.pdf')
-                ->post($this->baseUrl.'/v1/fill', ['fields' => json_encode($fields, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)]);
+                ->post($this->baseUrl.'/v1/fill', ['fields' => json_encode($fields, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE)]);
         } catch (ConnectionException $e) {
             throw new SigningException('Serviço de selagem indisponível: '.$this->short($e->getMessage()), 0, $e);
         }

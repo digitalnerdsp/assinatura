@@ -162,3 +162,26 @@ it('plano sem o recurso de modelos recebe 403 e visitante vai ao login', functio
     auth()->logout();
     $this->get('/modelos')->assertRedirect('/entrar');
 });
+
+it('salvar sem o campo das lacunas (editor não carregou) só renomeia e preserva as lacunas', function () {
+    $u = wzOwner();
+    $tpl = tplCreate($u->tenant);
+    app(\App\Templates\TemplateService::class)->syncFields($tpl, [tplField(['label' => 'Fica'])]);
+
+    $this->actingAs($u)->put("/modelos/{$tpl->id}", ['name' => 'Só o nome', 'fields' => ''])->assertSessionHasNoErrors();
+    $this->actingAs($u)->put("/modelos/{$tpl->id}", ['name' => 'Só o nome 2'])->assertSessionHasNoErrors();
+
+    expect($tpl->fresh()->name)->toBe('Só o nome 2')->and($tpl->fields()->pluck('label')->all())->toBe(['Fica']);
+    $this->actingAs($u)->put("/modelos/{$tpl->id}", ['name' => 'Limpou', 'fields' => '[]'])->assertSessionHasNoErrors();
+    expect($tpl->fields()->count())->toBe(0);
+});
+
+it('criar modelo tem limite de requisições', function () {
+    $u = wzOwner();
+    tplSealer();
+    foreach (range(1, 10) as $i) {
+        $this->actingAs($u)->post('/modelos', ['name' => "M{$i}", 'pdf' => tplUpload()]);
+    }
+
+    $this->actingAs($u)->post('/modelos', ['name' => 'M11', 'pdf' => tplUpload()])->assertStatus(429);
+});

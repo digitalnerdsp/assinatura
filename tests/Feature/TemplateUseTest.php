@@ -185,3 +185,45 @@ it('usar o modelo soma o documento ao armazenamento e o relatório por modelo en
     $this->actingAs($u)->get('/relatorios?template='.$tpl->id)->assertOk();
     expect(Envelope::where('template_id', $tpl->id)->count())->toBe(1);
 });
+
+it('480 caracteres com 30 quebras de linha (que o navegador envia como \r\n) são aceitos', function () {
+    $u = wzOwner();
+    $tpl = useTemplate($u);
+    $text = implode("\r\n", array_fill(0, 31, str_repeat('a', 15)));  // 31*15 + 30 quebras = 495 com \n; 525 com \r\n
+    useSealer();
+
+    $this->actingAs($u)->post("/modelos/{$tpl->id}/usar", useBody(['values' => ['nome_do_contratante' => 'x', 'endereco' => $text]]))->assertSessionHasNoErrors();
+    expect(Envelope::count())->toBe(1);
+});
+
+
+it('texto com UTF-8 inválido não derruba a geração nem a prévia', function () {
+    $u = wzOwner();
+    $tpl = useTemplate($u);
+    useSealer();
+    $bad = "Jo\xE3o inv\xE1lido";
+
+    $this->actingAs($u)->post("/modelos/{$tpl->id}/usar", useBody(['values' => ['nome_do_contratante' => $bad, 'endereco' => 'x']]))->assertSessionHasNoErrors();
+    $this->actingAs($u)->post("/modelos/{$tpl->id}/previa", useBody(['values' => ['nome_do_contratante' => $bad]]))->assertOk();
+});
+
+it('o Enter nos campos aciona Continuar: o primeiro botão do formulário não é a prévia', function () {
+    $u = wzOwner();
+    $tpl = useTemplate($u);
+
+    $html = $this->actingAs($u)->get("/modelos/{$tpl->id}/usar")->getContent();
+    $firstSubmit = strpos($html, '<button type="submit"');
+    $preview = strpos($html, 'formtarget="_blank"');
+
+    expect($firstSubmit)->not->toBeFalse()->and($firstSubmit)->toBeLessThan($preview)->and(substr($html, $firstSubmit, 160))->not->toContain('formaction');
+});
+
+it('o rascunho já nasce com o modelo de origem (sem segundo passo que possa falhar)', function () {
+    $u = wzOwner();
+    $tpl = useTemplate($u);
+    useSealer();
+
+    $this->actingAs($u)->post("/modelos/{$tpl->id}/usar", useBody());
+
+    expect(Envelope::firstOrFail()->template_id)->toBe($tpl->id);
+});

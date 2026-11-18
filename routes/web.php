@@ -148,7 +148,7 @@ Route::middleware(['auth', 'tenant.active'])->group(function () {
 
     Route::get('/modelos', [\App\Http\Controllers\Web\TemplateController::class, 'index'])->middleware('feature:templates')->name('templates.index');
     Route::get('/modelos/novo', [\App\Http\Controllers\Web\TemplateController::class, 'create'])->middleware('feature:templates')->name('templates.create');
-    Route::post('/modelos', [\App\Http\Controllers\Web\TemplateController::class, 'store'])->middleware('feature:templates')->name('templates.store');
+    Route::post('/modelos', [\App\Http\Controllers\Web\TemplateController::class, 'store'])->middleware(['feature:templates', 'throttle:10,1,template-store'])->name('templates.store');
     Route::get('/modelos/{template}', [\App\Http\Controllers\Web\TemplateController::class, 'edit'])->middleware('feature:templates')->name('templates.edit');
     Route::put('/modelos/{template}', [\App\Http\Controllers\Web\TemplateController::class, 'update'])->middleware('feature:templates')->name('templates.update');
     Route::post('/modelos/{template}/pdf', [\App\Http\Controllers\Web\TemplateController::class, 'replacePdf'])->middleware(['feature:templates', 'throttle:20,1,template-pdf'])->name('templates.pdf.replace');

@@ -9,6 +9,7 @@ from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfgen import canvas
 
 FONT = "Helvetica"
+MAX_PAGES = 500    # PDFs maiores são recusados (evita ocupar o selador com arquivos gigantes)
 MAX_SIZE = 11.0
 MIN_SIZE = 6.0
 STEP = 0.5
@@ -18,6 +19,10 @@ LEADING = 1.2      # entrelinha (múltiplo do tamanho da letra)
 
 class InvalidPdf(Exception):
     """PDF ilegível, protegido por senha ou lacuna em página que não existe."""
+
+
+class InvalidField(Exception):
+    """Lacuna malformada na requisição."""
 
 
 class FitError(Exception):
@@ -30,7 +35,7 @@ class FitError(Exception):
 
 def _safe(text: str, multiline: bool) -> str:
     """Helvetica só desenha o alfabeto latino (WinAnsi): o resto vira "?" em vez de quebrar."""
-    text = text.replace("\r\n", "\n").replace("\r", "\n").replace("\t", " ")
+    text = text.replace("\r\n", "\n").replace("\r", "\n").replace("\t", " ").rstrip("\n")
     if not multiline:
         text = " ".join(text.split("\n"))
     return text.encode("cp1252", "replace").decode("cp1252")
@@ -75,6 +80,32 @@ def _layout(f: dict, w: float, h: float) -> tuple[float, list[str]]:
     raise FitError(str(f.get("key", "")))
 
 
+def _check_field(f: object) -> None:
+    """Campo malformado (chave ausente, número inválido) vira InvalidField em vez de erro 500."""
+    try:
+        for k in ("page", "x", "y", "width", "height"):
+            v = float(f[k])  # type: ignore[index]
+            if v != v or v in (float("inf"), float("-inf")):
+                raise ValueError(k)
+        if not isinstance(f.get("text", ""), str):  # type: ignore[union-attr]
+            raise ValueError("text")
+    except (KeyError, TypeError, ValueError, AttributeError) as exc:
+        raise InvalidField(str(exc)) from exc
+
+
+def _visible_box(page) -> tuple[float, float, float, float]:
+    """Área visível da página: CropBox limitada à MediaBox (é o que o visualizador mostra e onde o cliente marcou a lacuna)."""
+    media = page.mediabox
+    left, bottom, right, top = float(media.left), float(media.bottom), float(media.right), float(media.top)
+    if "/CropBox" in page:
+        crop = page.cropbox
+        l, b, r, t = float(crop.left), float(crop.bottom), float(crop.right), float(crop.top)
+        l, b, r, t = max(l, left), max(b, bottom), min(r, right), min(t, top)
+        if r > l and t > b:
+            left, bottom, right, top = l, b, r, t
+    return left, bottom, right - left, top - bottom
+
+
 def _to_user_space(rotate: int, wu: float, hu: float, llx: float, lly: float) -> Transformation:
     """Leva o desenho feito na página visível (origem embaixo à esquerda) para o espaço do PDF."""
     ctm = {0: (1, 0, 0, 1, 0, 0), 90: (0, 1, -1, 0, wu, 0), 180: (-1, 0, 0, -1, wu, hu), 270: (0, -1, 1, 0, 0, hu)}[rotate]
@@ -84,8 +115,10 @@ def _to_user_space(rotate: int, wu: float, hu: float, llx: float, lly: float) ->
 def fill_pdf(pdf: bytes, fields: list[dict]) -> bytes:
     try:
         reader = PdfReader(io.BytesIO(pdf))
-        if reader.is_encrypted:
+        if reader.is_encrypted and not reader.decrypt(""):
             raise InvalidPdf("pdf protegido por senha")
+        if len(reader.pages) > MAX_PAGES:
+            raise InvalidPdf("pdf com páginas demais")
         pages = list(reader.pages)
     except InvalidPdf:
         raise
@@ -94,7 +127,8 @@ def fill_pdf(pdf: bytes, fields: list[dict]) -> bytes:
 
     by_page: dict[int, list[dict]] = {}
     for f in fields:
-        n = int(f.get("page", 0))
+        _check_field(f)
+        n = int(f["page"])
         if n < 1 or n > len(pages):
             raise InvalidPdf(f"página {n} não existe")
         by_page.setdefault(n, []).append(f)
@@ -103,9 +137,7 @@ def fill_pdf(pdf: bytes, fields: list[dict]) -> bytes:
     for index, source in enumerate(pages, start=1):
         page = writer.add_page(source)  # anexar ao writer antes de alterar (exigência do pypdf 7)
         if index in by_page:
-            box = page.mediabox
-            llx, lly = float(box.left), float(box.bottom)
-            wu, hu = float(box.width), float(box.height)
+            llx, lly, wu, hu = _visible_box(page)
             rotate = int(page.get("/Rotate", 0) or 0) % 360
             if rotate not in (0, 90, 180, 270):
                 rotate = 0

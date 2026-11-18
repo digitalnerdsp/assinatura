@@ -2,7 +2,12 @@
 @section('title', $template->exists ? 'Editar modelo' : 'Novo modelo')
 @section('section', 'Modelos')
 @section('content')
-@if ($template->exists)<link rel="stylesheet" href="{{ asset('assets/css/template-editor.css') }}?v=1">@endif
+@if ($template->exists)
+@php
+    $fromOld = json_decode((string) old('fields'), true);
+    $editorFields = json_encode(is_array($fromOld) && array_is_list($fromOld) ? $fromOld : $fields->map(fn ($f) => ['key' => $f->key, 'label' => $f->label, 'page' => $f->page, 'x' => $f->x, 'y' => $f->y, 'width' => $f->width, 'height' => $f->height, 'multiline' => $f->multiline, 'required' => $f->required])->values(), JSON_UNESCAPED_UNICODE);
+@endphp
+<link rel="stylesheet" href="{{ asset('assets/css/template-editor.css') }}?v=1">@endif
 @if (! $template->exists)
     {{-- Passo único: nome e PDF. As lacunas se marcam na tela de edição, logo depois. --}}
     <form method="post" action="{{ route('templates.store') }}" enctype="multipart/form-data">
@@ -54,7 +59,7 @@
                 <h6 class="mb-1">Marque as lacunas</h6>
                 <p class="text-secondary small mb-3">Clique no documento, no lugar onde o dado deve aparecer, e dê um nome à lacuna (por exemplo “Nome do contratante”). Arraste para mover e puxe o canto para ajustar o tamanho.</p>
                 <div class="tpl" id="tpl-editor">
-                    <div id="tpl-viewer" class="tpl-viewer" data-pdf-url="{{ route('templates.pdf', $template) }}" data-pages="{{ $template->page_count }}" data-fields="{{ json_encode($fields->map(fn ($f) => ['label' => $f->label, 'page' => $f->page, 'x' => $f->x, 'y' => $f->y, 'width' => $f->width, 'height' => $f->height, 'multiline' => $f->multiline, 'required' => $f->required])->values(), JSON_UNESCAPED_UNICODE) }}"></div>
+                    <div id="tpl-viewer" class="tpl-viewer" data-pdf-url="{{ route('templates.pdf', $template) }}" data-pages="{{ $template->page_count }}" data-fields="{{ $editorFields }}"></div>
                     <aside class="tpl-side" id="tpl-side" aria-label="Lacunas do modelo">
                         <h6 class="mb-2">Lacunas <span class="badge bg-secondary" id="tpl-count">{{ $fields->count() }}</span></h6>
                         <ol class="tpl-list" id="tpl-list">
@@ -96,6 +101,6 @@
 @if ($template->exists)
 @push('scripts')
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script src="{{ asset('assets/js/template-editor.js') }}?v=1"></script>
+<script src="{{ asset('assets/js/template-editor.js') }}?v=2"></script>
 @endpush
 @endif

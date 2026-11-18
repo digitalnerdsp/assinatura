@@ -15,7 +15,7 @@
   var fields = [];
   try {
     fields = JSON.parse(viewer.dataset.fields || '[]').map(function (f) {
-      return { id: ++uid, label: String(f.label), page: +f.page, x: +f.x, y: +f.y, w: +f.width, h: +f.height, multiline: !!f.multiline, required: f.required !== false };
+      return { id: ++uid, key: f.key || null, label: String(f.label), page: +f.page, x: +f.x, y: +f.y, w: +f.width, h: +f.height, multiline: !!f.multiline, required: f.required !== false };
     });
   } catch (e) { fields = []; }
   var selected = null, dirty = false, submitting = false;
@@ -85,7 +85,7 @@
   function remove(f) { fields = fields.filter(function (x) { return x !== f; }); selected = null; touch(); paintAll(); }
   function duplicate(f) {
     if (fields.length >= MAX_FIELDS) { toast('No máximo ' + MAX_FIELDS + ' lacunas.'); return; }
-    var c = { id: ++uid, label: f.label, page: f.page, w: f.w, h: f.h, multiline: f.multiline, required: f.required, x: Math.min(1 - f.w, f.x + 0.03), y: Math.min(1 - f.h, f.y + 0.03) };
+    var c = { id: ++uid, key: null, label: f.label, page: f.page, w: f.w, h: f.h, multiline: f.multiline, required: f.required, x: Math.min(1 - f.w, f.x + 0.03), y: Math.min(1 - f.h, f.y + 0.03) };
     fields.push(c); selected = c.id; touch(); paintAll();
   }
   function down(e, f, d, page) {
@@ -219,7 +219,7 @@
     window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     fetch(viewer.dataset.pdfUrl, { credentials: 'same-origin' })
       .then(function (r) { if (!r.ok) { throw new Error('pdf'); } return r.arrayBuffer(); })
-      .then(function (buf) { return window.pdfjsLib.getDocument({ data: buf }).promise; })
+      .then(function (buf) { return window.pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise; })
       .then(buildPages)
       .catch(showError);
   }
@@ -227,7 +227,7 @@
   /* ---------- salvar ---------- */
   form.addEventListener('submit', function () {
     input.value = JSON.stringify(fields.map(function (f) {
-      return { label: f.label, page: f.page, x: +f.x.toFixed(5), y: +f.y.toFixed(5), width: +f.w.toFixed(5), height: +f.h.toFixed(5), multiline: f.multiline, required: f.required };
+      return { key: f.key || undefined, label: f.label, page: f.page, x: +f.x.toFixed(5), y: +f.y.toFixed(5), width: +f.w.toFixed(5), height: +f.h.toFixed(5), multiline: f.multiline, required: f.required };
     }));
     submitting = true;
   });

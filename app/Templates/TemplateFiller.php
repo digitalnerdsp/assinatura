@@ -18,6 +18,26 @@ final class TemplateFiller
     {
     }
 
+    /**
+     * Limpa os valores recebidos: UTF-8 inválido vira "?" e quebras de linha do navegador (\r\n) viram \n,
+     * para que o limite de 500 caracteres conte como o navegador (que conta a quebra como 1).
+     *
+     * @param  mixed  $values
+     * @return array<string,mixed>
+     */
+    public static function normalize(mixed $values): array
+    {
+        if (! is_array($values)) {
+            return [];
+        }
+        $out = [];
+        foreach ($values as $k => $v) {
+            $out[$k] = is_string($v) ? str_replace(["\r\n", "\r"], "\n", mb_convert_encoding($v, 'UTF-8', 'UTF-8')) : $v;
+        }
+
+        return $out;
+    }
+
     /** Regras de validação (Laravel) de cada lacuna, sob o prefixo dado: obrigatória ou opcional, texto de até 500 caracteres. @return array<string,list<string>> */
     public function rules(DocumentTemplate $template, string $prefix = 'values', bool $enforceRequired = true): array
     {

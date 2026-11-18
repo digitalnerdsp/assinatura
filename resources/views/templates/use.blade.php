@@ -10,6 +10,8 @@
 @else
 <form method="post" action="{{ route('templates.generate', $template) }}" id="tpl-use">
     @csrf
+    {{-- Primeiro botão do formulário: o Enter nos campos aciona "Continuar", não a prévia --}}
+    <button type="submit" class="visually-hidden" tabindex="-1" aria-hidden="true">Continuar</button>
     <div class="row">
         <div class="col-12 col-xl-7">
             <div class="card radius-10">
@@ -63,6 +65,7 @@
 // Evita enviar duas vezes ao clicar rápido em "Continuar" (a prévia abre em outra aba e não conta).
 (function () {
     var f = document.getElementById('tpl-use'); if (!f) { return; }
+    window.addEventListener('pageshow', function () { delete f.dataset.sent; });
     f.addEventListener('submit', function (e) {
         var s = e.submitter; if (s && s.getAttribute('formtarget') === '_blank') { return; }
         if (f.dataset.sent) { e.preventDefault(); return; } f.dataset.sent = '1';

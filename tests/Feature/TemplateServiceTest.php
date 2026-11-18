@@ -186,3 +186,70 @@ it('a migração deixa modelos em PDF com as colunas novas e o corpo HTML opcion
     $tpl = tplCreate();
     expect($tpl->body)->toBeNull();
 });
+
+it('renomear uma lacuna mantém a chave (a API e os modelos já usados continuam valendo)', function () {
+    $tpl = tplCreate();
+    $svc = app(TemplateService::class);
+    $svc->syncFields($tpl, [tplField(['label' => 'Valor']), tplField(['label' => 'Data', 'y' => 0.3])]);
+    $keys = $tpl->fields()->pluck('key', 'label')->all();
+
+    $svc->syncFields($tpl, [tplField(['label' => 'Valor total', 'key' => $keys['Valor']]), tplField(['label' => 'Data', 'y' => 0.3, 'key' => $keys['Data']])]);
+
+    expect($tpl->fields()->pluck('label', 'key')->all())->toBe(['valor' => 'Valor total', 'data' => 'Data']);
+});
+
+it('apagar uma de duas lacunas com o mesmo nome não troca a chave da que ficou', function () {
+    $tpl = tplCreate();
+    $svc = app(TemplateService::class);
+    $svc->syncFields($tpl, [tplField(['label' => 'Data', 'y' => 0.1]), tplField(['label' => 'Data', 'y' => 0.3])]);
+    $second = $tpl->fields()->where('y', 0.3)->first();
+
+    $svc->syncFields($tpl, [tplField(['label' => 'Data', 'y' => 0.3, 'key' => $second->key])]);
+
+    expect($tpl->fields()->first()->key)->toBe($second->key);
+});
+
+it('chave desconhecida ou repetida recebida do navegador gera chave nova sem repetir', function () {
+    $tpl = tplCreate();
+    $svc = app(TemplateService::class);
+    $svc->syncFields($tpl, [tplField(['label' => 'Valor', 'key' => 'inventada']), tplField(['label' => 'Valor', 'y' => 0.3, 'key' => 'inventada'])]);
+
+    expect($tpl->fields()->pluck('key')->sort()->values()->all())->toBe(['valor', 'valor_2']);
+});
+
+it('entrada hostil nas lacunas vira erro em português, nunca erro 500', function () {
+    $tpl = tplCreate();
+    $svc = app(TemplateService::class);
+    foreach ([['label' => ['x']], ['page' => 'abc'], ['x' => null], ['width' => 'NaN'], ['height' => 1e999]] as $bad) {
+        expect(fn () => $svc->syncFields($tpl, [tplField($bad)]))->toThrow(FlowException::class);
+    }
+    expect(fn () => $svc->syncFields($tpl, ['texto solto']))->toThrow(FlowException::class);
+});
+
+it('remover duas vezes o mesmo modelo devolve o espaço uma vez só', function () {
+    $t = wzOwner()->tenant;
+    $a = tplCreate($t);
+    $b = tplCreate($t);
+    $stale = DocumentTemplate::find($a->id);
+    $before = (int) $t->fresh()->storage_bytes;
+
+    app(TemplateService::class)->delete($a);
+    app(TemplateService::class)->delete($stale);
+
+    expect((int) $t->fresh()->storage_bytes)->toBe($before - strlen(tplPdf()));
+    Storage::disk('local')->assertExists($b->pdf_path);
+});
+
+it('trocar o PDF por um do mesmo tamanho com a cota cheia é aceito', function () {
+    $t = Tenant::create(['name' => 'Cota justa']);
+    $plan = Plan::create(['name' => 'P', 'slug' => 'p-justa', 'active' => true, 'features' => array_fill_keys(Plan::FEATURES, true), 'limits' => ['storage_mb' => 1]]);
+    app(PlanService::class)->assign($t, $plan);
+    tplSealer();
+    $size = 1024 * 1024 - 100;
+    $tpl = app(TemplateService::class)->create($t, 'Grande', tplPdf($size - strlen(tplPdf())), 'a.pdf');
+    tplSealer();
+
+    app(TemplateService::class)->replacePdf($tpl, '%PDF-1.4 outro'.str_repeat('y', $size - strlen('%PDF-1.4 outro')), 'b.pdf');
+
+    expect($tpl->fresh()->pdf_size)->toBe($size)->and((int) $t->fresh()->storage_bytes)->toBe($size);
+});
