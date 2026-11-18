@@ -111,7 +111,8 @@ it('signatário assina pelo link com verificação por código (nível avançado
     $this->post($ana.'/assinar', ['type' => 'typed', 'typed' => 'Ana', 'terms' => 1])->assertOk()->assertSee('Documento assinado');
 
     // não pode assinar de novo
-    $this->get($ana)->assertOk()->assertSee('Link indisponível');
+    $this->get($ana)->assertRedirect($ana.'/assinado');
+    $this->get($ana.'/assinado')->assertOk()->assertSee('Aguardando');
 });
 
 it('exige aceite dos termos e permite recusar', function () {

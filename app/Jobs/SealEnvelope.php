@@ -32,6 +32,36 @@ final class SealEnvelope implements ShouldQueue
         }
     }
 
+    /** Quem assinou e o remetente também ficam com uma via. Falha de e-mail nunca desfaz a conclusão. */
+    private function sendSignedCopies(Envelope $envelope, EvidenceLogger $evidence): void
+    {
+        $sent = [];
+        foreach ($envelope->signers()->whereIn('role', Envelope::PARTICIPANT_ROLES)->get() as $signer) {
+            $this->sendCopy($envelope, $evidence, $signer->email, $signer->name, $signer->signUrl(), $signer, $sent);
+        }
+
+        $sender = $envelope->created_by !== null ? \App\Models\User::query()->find($envelope->created_by) : null;
+        if ($sender !== null) {
+            $this->sendCopy($envelope, $evidence, $sender->email, $sender->name, route('envelopes.show', $envelope), null, $sent);
+        }
+    }
+
+    /** @param list<string> $sent */
+    private function sendCopy(Envelope $envelope, EvidenceLogger $evidence, ?string $email, string $name, ?string $link, ?\App\Models\Signer $signer, array &$sent): void
+    {
+        if ($email === null || $email === '' || in_array(strtolower($email), $sent, true)) {
+            return;
+        }
+        $sent[] = strtolower($email);
+
+        try {
+            \Illuminate\Support\Facades\Mail::to($email)->send(new \App\Mail\SignedCopyMail($envelope, $name, $link));
+            $evidence->record($envelope, 'signed_copy_sent', ['to' => $name], $signer);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
     use Queueable;
 
     public int $tries = 5;
@@ -101,6 +131,7 @@ final class SealEnvelope implements ShouldQueue
             'final_sha256' => $sealed->sha256,
         ]);
 
+        $this->sendSignedCopies($envelope->fresh(), $evidence);
         $this->sendObserverCopies($envelope->fresh(), $evidence);
 
         $webhooks->dispatch($envelope->fresh(), 'document.completed');

@@ -216,3 +216,63 @@ it('o passo 3 não oferece observadores para receber campos', function () {
 
     expect($html)->toContain('Ana')->and($html)->not->toContain('Obs Um');
 });
+
+// ------------------------------------------------------------------ cópia assinada para quem assinou e para o remetente
+
+function wzCompleted(): array
+{
+    [$u, $e] = wzWithObservers();
+    app(EnvelopeService::class)->send($e->refresh());
+    $ana = $e->signers()->where('role', 'signer')->first();
+    $url = $ana->signUrl();
+    app(SigningService::class)->sign($ana, 'typed', 'Ana', true);
+    wzSealNow($e);
+
+    return [$u, $e->fresh(), $ana, $url];
+}
+
+it('ao concluir, o signatário e o remetente também recebem o PDF selado por e-mail', function () {
+    [$u, $e] = wzCompleted();
+
+    Mail::assertSent(\App\Mail\SignedCopyMail::class, 2);
+    Mail::assertSent(\App\Mail\SignedCopyMail::class, fn ($m) => $m->hasTo('ana@x.com') && count($m->attachments()) === 1);
+    Mail::assertSent(\App\Mail\SignedCopyMail::class, fn ($m) => $m->hasTo($u->email) && count($m->attachments()) === 1);
+    expect($e->evidenceEvents()->where('type', 'signed_copy_sent')->count())->toBe(2);
+});
+
+it('o signatário que já assinou vê a tela de conclusão com o botão de baixar quando o documento é selado', function () {
+    [, $e, , $url] = wzCompleted();
+
+    $this->followingRedirects()->get($url)->assertOk()->assertSee('Baixar documento assinado')->assertSee('Ver documento');
+});
+
+it('o link de download entrega o PDF selado e registra na trilha', function () {
+    [, $e, , $url] = wzCompleted();
+
+    $r = $this->get($url.'/assinado/baixar');
+    $r->assertOk();
+    expect($r->headers->get('content-type'))->toContain('application/pdf')
+        ->and($r->headers->get('content-disposition'))->toContain('attachment')
+        ->and($e->evidenceEvents()->where('type', 'signed_copy_downloaded')->count())->toBe(1);
+
+    $this->get($url.'/assinado/baixar?ver=1')->assertOk();
+});
+
+it('antes do selamento não há o que baixar e a tela avisa que falta os demais', function () {
+    [$u, $e] = wzWithObservers();
+    app(EnvelopeService::class)->send($e->refresh());
+    $ana = $e->signers()->where('role', 'signer')->first();
+    $url = $ana->signUrl();
+    app(SigningService::class)->sign($ana, 'typed', 'Ana', true);
+
+    $this->followingRedirects()->get($url)->assertOk()->assertDontSee('Baixar documento assinado');
+    $this->get($url.'/assinado/baixar')->assertNotFound();
+});
+
+it('quem não assinou não baixa o documento por esse caminho', function () {
+    [$u, $e] = wzWithObservers();
+    app(EnvelopeService::class)->send($e->refresh());
+    $url = $e->signers()->where('role', 'signer')->first()->signUrl();
+
+    $this->get($url.'/assinado/baixar')->assertNotFound();
+});

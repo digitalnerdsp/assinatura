@@ -185,6 +185,8 @@ Route::middleware(['auth', 'tenant.active'])->group(function () {
 Route::prefix('assinar/{token}')->middleware('throttle:60,1,sign')->group(function () {
     Route::get('/', [SigningController::class, 'show'])->name('sign.show');
     Route::get('/pdf', [SigningController::class, 'pdf'])->name('sign.pdf');
+    Route::get('/assinado', [SigningController::class, 'copy'])->name('sign.copy');
+    Route::get('/assinado/baixar', [SigningController::class, 'copyDownload'])->name('sign.copy.download');
     Route::post('/codigo', [SigningController::class, 'requestOtp'])->middleware('throttle:5,1,sign-otp')->name('sign.otp');
     Route::post('/codigo/confirmar', [SigningController::class, 'verifyOtp'])->middleware('throttle:10,1,sign-otp-verify')->name('sign.otp.verify');
     Route::post('/selfie', [SigningController::class, 'selfie'])->middleware('throttle:8,1,sign-selfie')->name('sign.selfie');

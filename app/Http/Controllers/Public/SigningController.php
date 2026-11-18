@@ -25,8 +25,46 @@ final class SigningController extends Controller
     ) {
     }
 
-    public function show(Request $request, string $token): View
+    /** Quem já assinou volta para a tela de conclusão (com a cópia, quando o documento já foi selado). */
+    private function signedSigner(string $token): ?Signer
     {
+        return Signer::query()->where('token_hash', hash('sha256', $token))
+            ->where('status', \App\Enums\SignerStatus::Signed->value)->first();
+    }
+
+    public function copy(string $token): View
+    {
+        $signer = $this->signedSigner($token);
+        abort_if($signer === null, 404);
+        \App\Branding\BrandService::useTenant(request(), $signer->envelope->tenant);
+
+        return view('sign.done', ['signer' => $signer, 'refused' => false, 'envelope' => $signer->envelope, 'token' => $token]);
+    }
+
+    /** Baixa (ou, com ?ver=1, abre) o PDF selado. Só existe depois que todos assinaram e o selo foi aplicado. */
+    public function copyDownload(Request $request, string $token): Response
+    {
+        $signer = $this->signedSigner($token);
+        $envelope = $signer?->envelope;
+        abort_if($envelope === null || $envelope->final_path === null || ! Storage::disk('local')->exists($envelope->final_path), 404);
+
+        $inline = $request->boolean('ver');
+        app(\App\Evidence\EvidenceLogger::class)->record($envelope, 'signed_copy_downloaded', ['mode' => $inline ? 'view' : 'download'], $signer, RequestContext::fromRequest($request));
+
+        return response(Storage::disk('local')->get($envelope->final_path), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => ($inline ? 'inline' : 'attachment').'; filename="assinado-'.addcslashes(preg_replace('/[^\w.\- ]/u', '_', $envelope->document->name), '"\\').'"',
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'private, no-store',
+        ]);
+    }
+
+    public function show(Request $request, string $token): View|RedirectResponse
+    {
+        if ($this->signedSigner($token) !== null) {
+            return redirect()->route('sign.copy', $token);
+        }
+
         $signer = $this->signer($token);
         if ($signer instanceof View) {
             return $signer;
@@ -176,7 +214,7 @@ final class SigningController extends Controller
             'texts.*.max' => 'Cada texto pode ter no máximo 200 caracteres.',
         ]);
 
-        return $this->guard($token, function (Signer $signer) use ($request, $data) {
+        return $this->guard($token, function (Signer $signer) use ($request, $data, $token) {
             $this->signing->sign(
                 $signer,
                 $data['type'],
@@ -189,7 +227,7 @@ final class SigningController extends Controller
 
             \App\Branding\BrandService::useTenant(request(), $signer->envelope->tenant);
 
-            return view('sign.done', ['signer' => $signer, 'refused' => false]);
+            return view('sign.done', ['signer' => $signer, 'refused' => false, 'envelope' => $signer->envelope->fresh(), 'token' => $token]);
         });
     }
 
