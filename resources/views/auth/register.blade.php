@@ -20,7 +20,7 @@
         <input type="email" class="form-control @error('email') is-invalid @enderror" id="email" name="email" value="{{ old('email') }}" required autocomplete="username">
     </div>
     <div class="col-12">
-        <label for="password" class="form-label">Senha <span class="text-secondary">(mín. 10 caracteres)</span></label>
+        <label for="password" class="form-label">Senha <span class="text-secondary">(mín. 8 caracteres)</span></label>
         <div class="input-group js-password">
             <input type="password" class="form-control border-end-0" id="password" name="password" required minlength="10" autocomplete="new-password">
             <a href="javascript:;" class="input-group-text bg-transparent"><i class="bx bx-hide"></i></a>

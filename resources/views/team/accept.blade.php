@@ -9,7 +9,7 @@
         <input type="email" class="form-control" id="i-email" value="{{ $invitee->email }}" readonly autocomplete="username">
     </div>
     <div class="col-12">
-        <label class="form-label" for="password">Senha (mínimo 10 caracteres)</label>
+        <label class="form-label" for="password">Senha (mínimo 8 caracteres)</label>
         <input type="password" class="form-control @error('password') is-invalid @enderror" id="password" name="password" minlength="10" required autocomplete="new-password" autofocus>
         @error('password')<div class="invalid-feedback">{{ $message }}</div>@enderror
     </div>

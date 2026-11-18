@@ -30,7 +30,7 @@ final class InviteController extends Controller
     public function accept(Request $request, string $token): RedirectResponse
     {
         abort_if($this->team->findInvite($token) === null, 404, 'Este convite não vale mais. Peça um novo ao responsável da empresa.');
-        $data = $request->validate(['password' => ['required', 'string', 'min:10', 'max:200', 'confirmed']]);
+        $data = $request->validate(['password' => ['required', 'string', 'min:8', 'max:200', 'confirmed']]);
 
         try {
             $user = $this->team->accept($token, $data['password']);

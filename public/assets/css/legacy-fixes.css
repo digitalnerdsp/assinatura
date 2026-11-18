@@ -1,21 +1,27 @@
 /*
  * Correções para as telas internas (Bootstrap em .legacy-scope) dentro dos temas.
  * Os temas trazem CSS próprio (Tailwind) com as mesmas classes do Bootstrap — .modal-dialog, .modal-content,
- * .collapse — e isso deixava as janelas (modais) invisíveis: "Convidar", "Promover", etc. não abriam.
+ * .dropdown-menu, .collapse — e isso deixava janelas e menus invisíveis ("Convidar" e os três pontinhos não abriam).
  * Este arquivo vem depois do legacy-scope.css e devolve o comportamento do Bootstrap.
  */
 
-/* Janela: o tema põe opacity:0, translate e z-index próprios no .modal-dialog */
-.legacy-scope .modal-dialog { opacity: 1; translate: none; z-index: auto; inset: auto; display: block; margin-block: var(--bs-modal-margin); }
-.legacy-scope .modal-dialog.modal-dialog-centered { display: flex; margin-block: var(--bs-modal-margin); }
-.legacy-scope .modal-dialog.modal-fullscreen-sm-down { margin: var(--bs-modal-margin); }
-@media (max-width: 575.98px) { .legacy-scope .modal-dialog.modal-fullscreen-sm-down { margin: 0; } }
+/* Janela: o tema põe opacity:0, translate e z-index próprios no .modal-dialog (margens laterais ficam automáticas = centralizada) */
+.legacy-scope .modal-dialog { opacity: 1; translate: none; z-index: auto; inset: auto; display: block; margin-top: var(--bs-modal-margin); margin-bottom: var(--bs-modal-margin); }
+.legacy-scope .modal-dialog.modal-dialog-centered { display: flex; }
+@media (max-width: 575.98px) { .legacy-scope .modal-dialog.modal-fullscreen-sm-down { margin-top: 0; margin-bottom: 0; } }
 .legacy-scope .modal-content { margin: 0; width: 100%; }
 
 /* Fundo escuro: o Bootstrap o cria direto no <body>, fora do .legacy-scope, então precisa de regra sem escopo */
 body > .modal-backdrop { position: fixed; top: 0; left: 0; z-index: 1050; width: 100vw; height: 100vh; background-color: #000; }
 body > .modal-backdrop.fade { opacity: 0; }
 body > .modal-backdrop.show { opacity: .5; }
+
+/* Menus de ações (três pontinhos): o tema esconde o menu com scale:0, opacity:0 e z-index negativo até uma classe própria dele */
+.legacy-scope .dropdown .dropdown-menu,
+.legacy-scope .btn-group .dropdown-menu,
+.legacy-scope .dropup .dropdown-menu,
+.legacy-scope .dropdown-center .dropdown-menu { scale: none; opacity: 1; z-index: var(--bs-dropdown-zindex, 1000); transform-origin: initial; min-width: var(--bs-dropdown-min-width, 10rem); padding: var(--bs-dropdown-padding-y, .5rem) var(--bs-dropdown-padding-x, 0); background-color: var(--bs-dropdown-bg, #fff); color: var(--bs-dropdown-color, inherit); }
+.legacy-scope .dropdown .dropdown-menu .dropdown-item { display: flex; align-items: center; gap: .5rem; width: 100%; border-radius: 0; padding: var(--bs-dropdown-item-padding-y, .25rem) var(--bs-dropdown-item-padding-x, 1rem); }
 
 /* Blocos que abrem e fecham: o tema usa .collapse como "visibility: collapse" */
 .legacy-scope .collapse { visibility: visible; }

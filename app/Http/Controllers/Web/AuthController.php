@@ -32,7 +32,7 @@ final class AuthController extends Controller
             'company' => ['required', 'string', 'max:150'],
             'name' => ['required', 'string', 'max:150'],
             'email' => ['required', 'email', 'max:190', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:10', 'confirmed'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
         ]);
 
         $user = DB::transaction(function () use ($data) {
