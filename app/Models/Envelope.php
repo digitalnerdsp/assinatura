@@ -30,6 +30,8 @@ class Envelope extends Model
             'signing_order' => SigningOrder::class,
             'sent_at' => 'datetime',
             'deadline_at' => 'datetime',
+            'contract_expires_on' => 'date',
+            'contract_alert_emails' => 'array',
             'expires_at' => 'datetime',
             'completed_at' => 'datetime',
             'sealed_at' => 'datetime',
@@ -92,6 +94,11 @@ class Envelope extends Model
     public function tags(): BelongsToMany
     {
         return $this->belongsToMany(Tag::class);
+    }
+
+    public function contractAlerts(): HasMany
+    {
+        return $this->hasMany(ContractAlert::class);
     }
 
     public function signatureFields(): HasMany
