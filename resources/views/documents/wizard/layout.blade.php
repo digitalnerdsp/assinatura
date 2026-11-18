@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('section', 'Documentos')
 @section('content')
-<link rel="stylesheet" href="{{ asset('assets/css/wizard.css') }}?v=7">
+<link rel="stylesheet" href="{{ asset('assets/css/wizard.css') }}?v={{ filemtime(public_path('assets/css/wizard.css')) }}">
 <div class="wz" id="wz">
     <div class="wz-card" id="wz-card">
         @include('documents.wizard._stepper')
@@ -13,5 +13,5 @@
 </div>
 @endsection
 @push('scripts')
-<script src="{{ asset('assets/js/wizard.js') }}?v=1"></script>
+<script src="{{ asset('assets/js/wizard.js') }}?v={{ filemtime(public_path('assets/js/wizard.js')) }}"></script>
 @endpush

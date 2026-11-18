@@ -533,3 +533,10 @@ it('o link do observador não serve para quem não é observador nem para envio 
     $this->get(\App\Mail\ObserverCopyMail::zipUrl($obs))->assertNotFound();
     $this->get(\Illuminate\Support\Facades\URL::temporarySignedRoute('observer.copy.zip', now()->addDay(), ['signer' => $ana->id]))->assertNotFound();
 });
+
+it('os scripts do assistente levam a data do arquivo como versão, para o navegador não usar cópia velha', function () {
+    $u = wzOwner();
+    $v = filemtime(public_path('assets/js/wizard.js'));
+
+    $this->actingAs($u)->get('/documentos/novo')->assertOk()->assertSee("assets/js/wizard.js?v={$v}", false);
+});
