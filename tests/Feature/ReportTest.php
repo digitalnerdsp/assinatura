@@ -130,8 +130,7 @@ it('gerar documento por modelo grava o modelo no envelope', function () {
     Storage::fake('local');
     $user = reportUser();
     TenantSigningSetting::updateOrCreate(['tenant_id' => $user->tenant_id], ['sender_policy' => 'never']);
-    $this->post('/modelos', ['name' => 'Contrato', 'body' => '<p>Olá {{nome}}</p>'])->assertRedirect();
-    $tpl = DocumentTemplate::firstOrFail();
+    $tpl = DocumentTemplate::create(['tenant_id' => $user->tenant_id, 'name' => 'Contrato', 'body' => '<p>Olá {{nome}}</p>']); // legado HTML até a Tarefa 5
 
     $this->post("/modelos/{$tpl->id}/usar", [
         'title' => 'Gerado', 'signing_order' => 'parallel', 'vars' => ['nome' => 'Ana'],

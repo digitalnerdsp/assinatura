@@ -151,6 +151,8 @@ Route::middleware(['auth', 'tenant.active'])->group(function () {
     Route::post('/modelos', [\App\Http\Controllers\Web\TemplateController::class, 'store'])->middleware('feature:templates')->name('templates.store');
     Route::get('/modelos/{template}', [\App\Http\Controllers\Web\TemplateController::class, 'edit'])->middleware('feature:templates')->name('templates.edit');
     Route::put('/modelos/{template}', [\App\Http\Controllers\Web\TemplateController::class, 'update'])->middleware('feature:templates')->name('templates.update');
+    Route::post('/modelos/{template}/pdf', [\App\Http\Controllers\Web\TemplateController::class, 'replacePdf'])->middleware(['feature:templates', 'throttle:20,1,template-pdf'])->name('templates.pdf.replace');
+    Route::get('/modelos/{template}/pdf', [\App\Http\Controllers\Web\TemplateController::class, 'pdf'])->middleware(['feature:templates', 'throttle:60,1,template-pdf-view'])->name('templates.pdf');
     Route::delete('/modelos/{template}', [\App\Http\Controllers\Web\TemplateController::class, 'destroy'])->middleware('feature:templates')->name('templates.destroy');
     Route::get('/modelos/{template}/previa', [\App\Http\Controllers\Web\TemplateController::class, 'preview'])->middleware('throttle:20,1,template-preview')->middleware('feature:templates')->name('templates.preview');
     Route::get('/modelos/{template}/usar', [\App\Http\Controllers\Web\TemplateController::class, 'use'])->middleware('feature:templates')->name('templates.use');

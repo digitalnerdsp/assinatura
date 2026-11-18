@@ -406,8 +406,8 @@ it('cria um modelo e gera um envelope a partir dele pelo painel', function () {
     Storage::fake('local');
     growthRegister('t@t.com', 'T');
 
-    $this->post('/modelos', ['name' => 'Contrato simples', 'body' => '<h2>Contrato</h2><p>Contratante: {{contratante}} - R$ {{valor}}</p>'])->assertRedirect();
-    $template = DocumentTemplate::firstOrFail();
+    // Fluxo legado em HTML (substituído na Tarefa 5): o modelo é criado direto, já que a tela agora recebe PDF.
+    $template = DocumentTemplate::create(['tenant_id' => auth()->user()->tenant_id, 'name' => 'Contrato simples', 'body' => '<h2>Contrato</h2><p>Contratante: {{contratante}} - R$ {{valor}}</p>']);
     expect($template->variables())->toBe(['contratante', 'valor']);
 
     $this->get("/modelos/{$template->id}/usar")->assertOk()->assertSee('contratante');
