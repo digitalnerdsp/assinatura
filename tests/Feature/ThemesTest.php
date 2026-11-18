@@ -194,7 +194,7 @@ it('o layout do tema recebe menu por perfil, marca, usuário e avisos', function
 
     $this->actingAs($super)->withSession(['status' => 'Salvo com sucesso'])->get('/painel')
         ->assertOk()->assertSee('Painel')->assertSee('Documentos criados')->assertSee('Usuários da plataforma')->assertSee('Temas')
-        ->assertSee('P s@x.com')->assertSee('Salvo com sucesso')->assertSee('legacy-scope.css', false)->assertSee('bootstrap.bundle.min.js', false)
+        ->assertSee('P s@x.com')->assertSee('Salvo com sucesso')->assertSee('legacy-scope.css', false)->assertSee('legacy-fixes.css', false)->assertSee('bootstrap.bundle.min.js', false)
         ->assertSee('Total 0');
 
     $comum = thUser('c@x.com');
