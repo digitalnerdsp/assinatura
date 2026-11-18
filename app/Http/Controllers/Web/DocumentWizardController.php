@@ -39,32 +39,75 @@ final class DocumentWizardController extends Controller
         return view('documents.wizard.step1', $this->data($request, null, 1));
     }
 
-    /** Passo 1: envia o PDF e cria o rascunho. */
+    /** Passo 1: envia o(s) arquivo(s) e cria o rascunho. O primeiro é o principal; os demais são acrescentados na ordem. */
     public function upload(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'document' => ['required', 'file', 'extensions:pdf,docx', 'max:'.((int) config('signing.max_pdf_mb') * 1024)],
+            'document' => ['nullable', 'file', 'extensions:pdf,docx', 'max:'.((int) config('signing.max_pdf_mb') * 1024)],
+            'documents' => ['nullable', 'array', 'max:'.(int) config('signing.max_documents')],
+            'documents.*' => ['file', 'extensions:pdf,docx', 'max:'.((int) config('signing.max_pdf_mb') * 1024)],
             'title' => ['nullable', 'string', 'max:190'],
             'folder_id' => ['nullable', 'uuid'],
         ], $this->documentMessages());
 
-        $file = $request->file('document');
+        $files = $this->uploadedFiles($request);
+        if ($files === []) {
+            return back()->withInput()->withErrors(['document' => $this->documentMessages()['document.required']]);
+        }
+
+        $intake = app(\App\Documents\DocumentIntake::class);
         try {
-            $source = app(\App\Documents\DocumentIntake::class)->fromUpload($file);
+            foreach ($files as $file) {
+                $intake->assertAcceptable($file);
+            }
+            $first = $intake->fromUpload($files[0]);
             $envelope = $this->envelopes->createDraft(
                 $request->user()->tenant,
                 $request->user(),
-                $source['pdf'],
-                $source['name'],
-                $this->titleFor($data['title'] ?? null, $source['name']),
+                $first['pdf'],
+                $first['name'],
+                $this->titleFor($data['title'] ?? null, $first['name']),
                 ($data['folder_id'] ?? null) ?: null,
             );
-            $this->recordConversion($envelope, $source);
+            $this->recordConversion($envelope, $first);
         } catch (FlowException $e) {
             return back()->withInput()->withErrors([$e->reason === 'invalid_folder' ? 'folder_id' : 'document' => $e->getMessage()]);
         }
 
+        // Os demais: se um falhar, o rascunho fica com o que já entrou e o passo 1 mostra o motivo.
+        if ($error = $this->addFiles($envelope, array_slice($files, 1))) {
+            return redirect()->route('envelopes.step', [$envelope, 1])->withErrors(['document' => $error]);
+        }
+
         return redirect()->route('envelopes.step', [$envelope, 2]);
+    }
+
+    /** @return list<\Illuminate\Http\UploadedFile> arquivos do formulário, na ordem (o campo antigo de um arquivo só também vale) */
+    private function uploadedFiles(Request $request): array
+    {
+        $files = array_values(array_filter((array) $request->file('documents')));
+        if ($files === [] && $request->file('document')) {
+            $files = [$request->file('document')];
+        }
+
+        return $files;
+    }
+
+    /** @param list<\Illuminate\Http\UploadedFile> $files @return ?string mensagem do primeiro erro, ou nulo se tudo entrou */
+    private function addFiles(Envelope $envelope, array $files): ?string
+    {
+        $intake = app(\App\Documents\DocumentIntake::class);
+        foreach ($files as $file) {
+            try {
+                $source = $intake->fromUpload($file);
+                $this->envelopes->addDocument($envelope, $source['pdf'], $source['name']);
+                $this->recordConversion($envelope, $source);
+            } catch (FlowException $e) {
+                return $e->getMessage();
+            }
+        }
+
+        return null;
     }
 
     /** @return array<string,string> */
@@ -72,6 +115,9 @@ final class DocumentWizardController extends Controller
     {
         return [
             'document.required' => 'Escolha o arquivo que será assinado (PDF ou DOCX).',
+            'documents.max' => 'Um envio aceita no máximo '.(int) config('signing.max_documents').' arquivos.',
+            'documents.*.extensions' => 'Cada arquivo precisa ser um PDF ou um DOCX (Word).',
+            'documents.*.max' => 'Cada arquivo pode ter no máximo '.config('signing.max_pdf_mb').' MB.',
             'document.extensions' => 'O arquivo precisa ser um PDF ou um DOCX (Word).',
             'document.max' => 'O arquivo passa do tamanho máximo ('.config('signing.max_pdf_mb').' MB).',
         ];
@@ -138,6 +184,10 @@ final class DocumentWizardController extends Controller
     {
         $data = $request->validate([
             'document' => ['nullable', 'file', 'extensions:pdf,docx', 'max:'.((int) config('signing.max_pdf_mb') * 1024)],
+            'documents' => ['nullable', 'array', 'max:'.(int) config('signing.max_documents')],
+            'documents.*' => ['file', 'extensions:pdf,docx', 'max:'.((int) config('signing.max_pdf_mb') * 1024)],
+            'remove' => ['nullable', 'array', 'max:'.(int) config('signing.max_documents')],
+            'remove.*' => ['string', 'max:40'],
             'title' => ['nullable', 'string', 'max:190'],
             'folder_id' => ['nullable', 'uuid'],
         ], $this->documentMessages());
@@ -153,8 +203,16 @@ final class DocumentWizardController extends Controller
                 $this->envelopes->replaceDocument($envelope, $source['pdf'], $source['name']);
                 $this->recordConversion($envelope, $source);
             }
+            foreach ((array) ($data['remove'] ?? []) as $extraId) {
+                $this->envelopes->removeDocument($envelope, (string) $extraId);
+            }
         } catch (FlowException $e) {
             return back()->withInput()->withErrors(['document' => $e->getMessage()]);
+        }
+
+        $added = array_values(array_filter((array) $request->file('documents')));
+        if ($added !== [] && ($error = $this->addFiles($envelope->fresh(), $added))) {
+            return back()->withInput()->withErrors(['document' => $error]);
         }
 
         $envelope->update([
@@ -240,6 +298,7 @@ final class DocumentWizardController extends Controller
             'fields' => ['nullable', 'array', 'max:60'],
             'fields.*.signer_id' => ['required', 'string', 'max:40'],
             'fields.*.type' => ['required', 'string', 'max:16'],
+            'fields.*.document_id' => ['nullable', 'string', 'max:40'],
             'fields.*.page' => ['required', 'integer', 'min:1', 'max:2000'],
             'fields.*.x' => ['required', 'numeric'],
             'fields.*.y' => ['required', 'numeric'],
@@ -495,9 +554,12 @@ final class DocumentWizardController extends Controller
             // Passo 3: quem pode receber campo e os campos já salvos (frações da página, origem no canto superior esquerdo).
             'placePeople' => $signers->reject(fn ($s) => $s->isObserver())->sortBy('position')->map(fn ($s) => ['id' => (string) $s->getKey(), 'name' => $s->isSender() ? 'Você (remetente)' : $s->name, 'sender' => $s->isSender()])->values(),
             'placeFields' => $envelope ? $envelope->signatureFields()->get()->map(fn ($f) => [
-                'signer_id' => (string) $f->signer_id, 'type' => $f->type, 'page' => (int) $f->page,
+                'signer_id' => (string) $f->signer_id, 'type' => $f->type, 'page' => (int) $f->page, 'document_id' => $f->envelope_document_id,
                 'x' => (float) $f->x, 'y' => (float) $f->y, 'width' => (float) $f->width, 'height' => (float) $f->height,
             ])->values() : collect(),
+            'placeDocs' => $envelope ? $envelope->files()->map(fn ($d) => ['n' => $d->n, 'id' => $d->extraId, 'name' => $d->name, 'url' => route('envelopes.original', ['envelope' => $envelope, 'n' => $d->n])])->values() : collect(),
+            'files' => $envelope ? $envelope->files() : collect(),
+            'maxDocuments' => (int) config('signing.max_documents'),
             'fieldTypes' => \App\Models\SignatureField::TYPES,
             // Passo 4: opções de envio já salvas (ou o padrão).
             'sendAuto' => $envelope ? ($envelope->notify_channels ?? ['email']) !== ['manual'] : true,

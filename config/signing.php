@@ -23,6 +23,9 @@ return [
     'max_witnesses' => (int) env('SIGNING_MAX_WITNESSES', 10),
     'max_observers' => (int) env('SIGNING_MAX_OBSERVERS', 10),
 
+    // Máximo de arquivos por envio (principal + acrescentados).
+    'max_documents' => (int) env('SIGNING_MAX_DOCUMENTS', 10),
+
     'max_pdf_mb' => (int) env('SIGNING_MAX_PDF_MB', 20),
 
     // Validade padrão do documento e intervalo padrão de lembretes (dias).

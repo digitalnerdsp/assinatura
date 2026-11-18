@@ -54,6 +54,11 @@ final class StorageUsage
             $total += (int) $e->final_size;
         });
 
+        $total += (int) DB::table('envelope_documents')
+            ->join('envelopes', 'envelopes.id', '=', 'envelope_documents.envelope_id')
+            ->where('envelopes.tenant_id', $id)
+            ->sum('envelope_documents.final_size'); // selados dos arquivos acrescentados (os originais já estão em documents)
+
         DB::table('tenants')->where('id', $id)->update(['storage_bytes' => $total]);
 
         return $total;

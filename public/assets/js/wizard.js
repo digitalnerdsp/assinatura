@@ -1,5 +1,6 @@
 /* Assistente de criação de documento: posição do painel no celular e passo 1 (arquivo e pasta). */
 (function () {
+  window.wzNotify = window.wzNotify || function (m) { window.alert(m); };
   'use strict';
   var panel = document.getElementById('wz-panel');
   var card = document.getElementById('wz-card');
@@ -31,10 +32,12 @@
   var chosen = document.getElementById('wz-chosen');
   var next = document.getElementById('wz-next');
   var fname = document.getElementById('wz-fname');
+  var more = document.getElementById('wz-more');
   var title = document.getElementById('wz-title');
   var remove = document.getElementById('wz-remove');
   var hasSaved = form.dataset.hasFile === '1';
-  var maxBytes = 0;
+  var addInput = document.getElementById('wz-add');
+  var addNames = document.getElementById('wz-add-names');
 
   function sync() {
     var has = hasSaved || (file.files && file.files.length > 0);
@@ -44,22 +47,43 @@
   document.getElementById('wz-pick').addEventListener('click', pick);
   document.getElementById('wz-pick2').addEventListener('click', pick);
 
-  function show(f) {
-    fname.textContent = f.name;
-    if (!title.value) { title.value = f.name.replace(/\.(pdf|docx)$/i, ''); }
+  function show(files) {
+    if (fname) { fname.textContent = files[0].name; }
+    if (more) {
+      more.textContent = '';
+      for (var i = 1; i < files.length; i++) {
+        var row = document.createElement('div'); row.className = 'wz-frow';
+        var n = document.createElement('strong'); n.textContent = String(i + 1);
+        var nm = document.createElement('span'); nm.className = 'wz-fname'; nm.textContent = files[i].name;
+        row.appendChild(n); row.appendChild(nm); more.appendChild(row);
+      }
+    }
+    if (!title.value) { title.value = files[0].name.replace(/\.(pdf|docx)$/i, ''); }
     drop.hidden = true; chosen.hidden = false;
-    if (remove) { remove.hidden = hasSaved; }
     sync();
   }
+  function valid(files) {
+    for (var i = 0; i < files.length; i++) { if (!/\.(pdf|docx)$/i.test(files[i].name)) { return false; } }
+    return true;
+  }
   file.addEventListener('change', function () {
-    var f = file.files && file.files[0];
-    if (!f) { sync(); return; }
-    if (!/\.(pdf|docx)$/i.test(f.name)) { file.value = ''; alert('Envie um arquivo PDF ou DOCX.'); sync(); return; }
-    show(f);
+    var files = file.files ? Array.prototype.slice.call(file.files) : [];
+    if (!files.length) { sync(); return; }
+    if (!valid(files)) { file.value = ''; window.wzNotify('Envie só arquivos PDF ou DOCX.'); sync(); return; }
+    if (hasSaved) { if (fname) { fname.textContent = files[0].name; } sync(); return; }
+    show(files);
   });
   if (remove) {
     remove.addEventListener('click', function () {
-      file.value = ''; title.value = ''; drop.hidden = false; chosen.hidden = true; sync();
+      file.value = ''; title.value = ''; if (more) { more.textContent = ''; } drop.hidden = false; chosen.hidden = true; sync();
+    });
+  }
+  if (addInput) {
+    document.getElementById('wz-add-btn').addEventListener('click', function (e) { e.preventDefault(); addInput.click(); });
+    addInput.addEventListener('change', function () {
+      var files = Array.prototype.slice.call(addInput.files || []);
+      if (!valid(files)) { addInput.value = ''; addNames.textContent = ''; window.wzNotify('Envie só arquivos PDF ou DOCX.'); return; }
+      addNames.textContent = files.length ? 'Serão acrescentados: ' + files.map(function (f) { return f.name; }).join(', ') : '';
     });
   }
   ['dragover', 'dragenter'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('is-over'); }); });
@@ -69,7 +93,6 @@
     if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) { file.files = e.dataTransfer.files; file.dispatchEvent(new Event('change')); }
   });
   sync();
-  void maxBytes;
 
   /* Pasta: escolher uma existente ou criar uma nova sem sair do passo */
   var modal = document.getElementById('wz-folder-modal');

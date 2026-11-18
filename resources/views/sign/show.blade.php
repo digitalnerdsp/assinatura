@@ -17,10 +17,18 @@
 @if ($envelope->message)<div class="alert alert-secondary border-0">{{ $envelope->message }}</div>@endif
 
 <div class="card radius-10">
-    <div class="card-header"><h6 class="mb-0"><i class="bx bx-file me-1"></i> Documento</h6></div>
+    <div class="card-header"><h6 class="mb-0"><i class="bx bx-file me-1"></i> {{ $files->count() > 1 ? 'Documentos ('.$files->count().')' : 'Documento' }}</h6></div>
     <div class="card-body">
-        <iframe class="pdf" src="{{ route('sign.pdf', $token) }}" title="Documento"></iframe>
-        <p class="text-secondary small mt-2 mb-0">Não consegue ver? <a href="{{ route('sign.pdf', $token) }}" target="_blank" rel="noopener">Abrir em nova aba</a></p>
+        @if ($files->count() > 1)
+            <p class="text-secondary small">Você assina uma vez e a assinatura vale para todos os documentos abaixo. Leia cada um.</p>
+            <div class="d-flex flex-wrap gap-2 mb-2" role="tablist" aria-label="Documentos">
+                @foreach ($files as $f)
+                    <button type="button" class="btn btn-sm {{ $loop->first ? 'btn-primary' : 'btn-outline-primary' }} doc-tab" data-src="{{ route('sign.pdf', ['token' => $token, 'n' => $f->n]) }}" role="tab">{{ $f->n }}. {{ $f->name }}</button>
+                @endforeach
+            </div>
+        @endif
+        <iframe class="pdf" id="doc-frame" src="{{ route('sign.pdf', $token) }}" title="Documento"></iframe>
+        <p class="text-secondary small mt-2 mb-0">Não consegue ver? <a href="{{ route('sign.pdf', $token) }}" id="doc-open" target="_blank" rel="noopener">Abrir em nova aba</a></p>
     </div>
 </div>
 
@@ -301,3 +309,16 @@ document.getElementById('geobtn').addEventListener('click', function () {
 @endpush
 @endif
 @endsection
+@if ($files->count() > 1)
+@push('scripts')
+<script>
+document.querySelectorAll('.doc-tab').forEach(function (b) {
+    b.addEventListener('click', function () {
+        document.getElementById('doc-frame').src = b.dataset.src;
+        document.getElementById('doc-open').href = b.dataset.src;
+        document.querySelectorAll('.doc-tab').forEach(function (x) { x.classList.toggle('btn-primary', x === b); x.classList.toggle('btn-outline-primary', x !== b); });
+    });
+});
+</script>
+@endpush
+@endif

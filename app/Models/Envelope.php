@@ -143,6 +143,34 @@ class Envelope extends Model
         return $this->belongsTo(Document::class);
     }
 
+    public function extraDocuments(): HasMany
+    {
+        return $this->hasMany(EnvelopeDocument::class)->orderBy('position');
+    }
+
+    /**
+     * Todos os arquivos do envio na ordem de exibição: o principal e depois os acrescentados.
+     *
+     * @return \Illuminate\Support\Collection<int,\App\Envelopes\DocumentFile>
+     */
+    public function files(): \Illuminate\Support\Collection
+    {
+        $main = $this->document;
+        $files = collect([new \App\Envelopes\DocumentFile(
+            1, null, $main->name, $main->storage_path, $main->sha256, (int) $main->size,
+            $this->final_path, $this->final_sha256, $this->final_size !== null ? (int) $this->final_size : null,
+        )]);
+
+        foreach ($this->extraDocuments()->with('document')->get() as $i => $extra) {
+            $files->push(new \App\Envelopes\DocumentFile(
+                $i + 2, $extra->getKey(), $extra->document->name, $extra->document->storage_path, $extra->document->sha256, (int) $extra->document->size,
+                $extra->final_path, $extra->final_sha256, $extra->final_size,
+            ));
+        }
+
+        return $files->values();
+    }
+
     public function signers(): HasMany
     {
         return $this->hasMany(Signer::class)->orderBy('position');

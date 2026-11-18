@@ -12,6 +12,17 @@ use Illuminate\Http\UploadedFile;
 /** Recebe o arquivo enviado (PDF ou DOCX) e devolve sempre um PDF; o DOCX é convertido no selador. */
 final class DocumentIntake
 {
+    /** Confere só o começo do arquivo (sem converter): serve para recusar um lote inteiro antes de gravar qualquer coisa. */
+    public function assertAcceptable(UploadedFile $file): void
+    {
+        $head = (string) file_get_contents($file->getRealPath(), false, null, 0, 4);
+        $isPdf = str_starts_with($head, '%PDF');
+        $isDocx = str_starts_with($head, 'PK') && strtolower($file->getClientOriginalExtension()) === 'docx';
+        if (! $isPdf && ! $isDocx) {
+            throw FlowException::because('invalid_document', 'Envie um arquivo PDF ou DOCX ('.$file->getClientOriginalName().').');
+        }
+    }
+
     /**
      * @return array{pdf:string,name:string,source_sha256:?string,source_name:?string}
      *

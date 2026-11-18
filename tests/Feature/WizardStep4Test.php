@@ -188,5 +188,5 @@ it('Criar documento leva ao assistente', function () {
     $u = wzOwner();
     $this->actingAs($u)->get('/documentos')->assertOk()->assertSee(route('envelopes.create'), false);
     expect(route('envelopes.create', [], false))->toBe('/documentos/novo');
-    $this->actingAs($u)->get('/documentos/novo')->assertOk()->assertSee('Qual documento será assinado?');
+    $this->actingAs($u)->get('/documentos/novo')->assertOk()->assertSee('Quais documentos serão assinados?');
 });

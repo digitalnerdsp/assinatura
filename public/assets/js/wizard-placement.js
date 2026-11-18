@@ -11,9 +11,13 @@
 
   var people = JSON.parse(form.dataset.people || '[]');
   var types = JSON.parse(form.dataset.types || '[]');
+  var docs = JSON.parse(form.dataset.docs || '[]');
+  if (!docs.length) { docs = [{ n: 1, id: null, name: '', url: form.dataset.pdf }]; }
+  var curDoc = 0;
+  function curId() { return docs[curDoc].id || null; }
   var uid = 0;
   var fields = JSON.parse(form.dataset.fields || '[]').map(function (f) {
-    return { id: ++uid, signer: f.signer_id, type: f.type, page: f.page, x: f.x, y: f.y, w: f.width, h: f.height };
+    return { id: ++uid, signer: f.signer_id, type: f.type, page: f.page, x: f.x, y: f.y, w: f.width, h: f.height, doc: f.document_id || null };
   });
   var selected = null, dirty = false, submitting = false;
   var viewer = document.getElementById('wz-viewer');
@@ -34,7 +38,7 @@
   /* ---------- campos ---------- */
   function paintPage(page) {
     var lay = page.querySelector('.wz-lay'); lay.textContent = '';
-    fields.filter(function (f) { return f.page === +page.dataset.p; }).forEach(function (f) { lay.appendChild(fieldEl(f, page)); });
+    fields.filter(function (f) { return f.page === +page.dataset.p && (f.doc || null) === curId(); }).forEach(function (f) { lay.appendChild(fieldEl(f, page)); });
   }
   function paintAll() { viewer.querySelectorAll('.wz-page').forEach(paintPage); }
   function box(d, f) { d.style.left = f.x * 100 + '%'; d.style.top = f.y * 100 + '%'; d.style.width = f.w * 100 + '%'; d.style.height = f.h * 100 + '%'; }
@@ -62,7 +66,7 @@
   function remove(f) { fields = fields.filter(function (x) { return x !== f; }); selected = null; touch(); paintAll(); }
   function duplicate(f) {
     if (fields.length >= MAX_FIELDS) { toast('No máximo ' + MAX_FIELDS + ' campos.'); return; }
-    var c = { id: ++uid, signer: f.signer, type: f.type, page: f.page, w: f.w, h: f.h, x: Math.min(1 - f.w, f.x + 0.03), y: Math.min(1 - f.h, f.y + 0.03) };
+    var c = { id: ++uid, signer: f.signer, type: f.type, page: f.page, doc: f.doc || null, w: f.w, h: f.h, x: Math.min(1 - f.w, f.x + 0.03), y: Math.min(1 - f.h, f.y + 0.03) };
     fields.push(c); selected = c.id; touch(); paintAll();
   }
   function down(e, f, d, page) {
@@ -116,7 +120,7 @@
       if (t === 'text') { b.title = 'Utilize para escrever sobre o documento. É aceito qualquer tipo de texto. O documento será editado.'; }
       b.addEventListener('click', function () {
         var sz = SIZE[t] || SIZE.signature;
-        var f = { id: ++uid, signer: sel.value, type: t, page: +page.dataset.p, w: sz[0], h: sz[1],
+        var f = { id: ++uid, signer: sel.value, type: t, page: +page.dataset.p, doc: curId(), w: sz[0], h: sz[1],
           x: Math.max(0, Math.min(1 - sz[0], fx - sz[0] / 2)), y: Math.max(0, Math.min(1 - sz[1], fy - sz[1] / 2)) };
         fields.push(f); selected = f.id; touch(); closePop(); paintAll();
         toast('Posicione o item selecionado no(s) seu(s) documento(s)');
@@ -181,8 +185,9 @@
   }
   function loadPdf() {
     if (!window.pdfjsLib) { showError(); return; }
+    document.getElementById('wz-loaderr').hidden = true;
     window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-    fetch(form.dataset.pdf, { credentials: 'same-origin' })
+    fetch(docs[curDoc].url, { credentials: 'same-origin' })
       .then(function (r) { if (!r.ok) { throw new Error('pdf'); } return r.arrayBuffer(); })
       .then(function (buf) { return window.pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise; })
       .then(buildPages)
@@ -194,7 +199,7 @@
     var box = document.getElementById('wz-fields-inputs'); box.textContent = '';
     if (!skipped) {
       fields.forEach(function (f, i) {
-        [['signer_id', f.signer], ['type', f.type], ['page', f.page], ['x', f.x.toFixed(5)], ['y', f.y.toFixed(5)], ['width', f.w.toFixed(5)], ['height', f.h.toFixed(5)]].forEach(function (kv) {
+        [['signer_id', f.signer], ['document_id', f.doc || ''], ['type', f.type], ['page', f.page], ['x', f.x.toFixed(5)], ['y', f.y.toFixed(5)], ['width', f.w.toFixed(5)], ['height', f.h.toFixed(5)]].forEach(function (kv) {
           var inp = document.createElement('input'); inp.type = 'hidden'; inp.name = 'fields[' + i + '][' + kv[0] + ']'; inp.value = kv[1]; box.appendChild(inp);
         });
       });
@@ -218,6 +223,30 @@
   var help = document.getElementById('wz-help');
   if (help) { help.addEventListener('click', function (e) { e.preventDefault(); var t = document.getElementById('wz-helptext'); t.hidden = !t.hidden; }); }
 
+  /* ---------- abas: um arquivo por vez ---------- */
+  var tabs = document.getElementById('wz-tabs');
+  function countIn(i) { return fields.filter(function (f) { return (f.doc || null) === (docs[i].id || null); }).length; }
+  function paintTabs() {
+    if (!tabs || docs.length < 2) { return; }
+    tabs.textContent = '';
+    docs.forEach(function (d, i) {
+      var b = el('button', 'wz-tab' + (i === curDoc ? ' is-cur' : ''), (i + 1) + '. ' + d.name + ' (' + countIn(i) + ')');
+      b.type = 'button'; b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', i === curDoc ? 'true' : 'false');
+      b.addEventListener('click', function () { switchTo(i); });
+      tabs.appendChild(b);
+    });
+  }
+  function switchTo(i) {
+    if (i === curDoc) { return; }
+    curDoc = i; selected = null; closePop();
+    viewer.textContent = ''; viewer.setAttribute('aria-busy', 'true');
+    viewer.appendChild(el('p', 'wz-muted wz-pad', 'Carregando o documento…')).id = 'wz-loading';
+    paintTabs(); loadPdf();
+  }
+  var baseTouch = touch;
+  touch = function () { baseTouch(); paintTabs(); };
+
   refreshButtons();
+  paintTabs();
   loadPdf();
 })();

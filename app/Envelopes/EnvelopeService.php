@@ -250,6 +250,76 @@ final class EnvelopeService
         });
     }
 
+    /** Acrescenta mais um arquivo ao rascunho (depois do principal). Cada arquivo é selado e entregue separadamente. */
+    public function addDocument(Envelope $envelope, string $pdfContents, string $filename): \App\Models\EnvelopeDocument
+    {
+        $this->assertDraft($envelope);
+        $tenant = $envelope->tenant;
+        $this->assertPdf($tenant, $pdfContents);
+
+        $newPath = null;
+        try {
+            return DB::transaction(function () use ($envelope, $tenant, $pdfContents, $filename, &$newPath) {
+                $locked = Envelope::query()->whereKey($envelope->getKey())->lockForUpdate()->firstOrFail();
+                $this->assertDraft($locked);
+
+                $max = (int) config('signing.max_documents');
+                if (1 + $locked->extraDocuments()->count() >= $max) {
+                    throw FlowException::because('too_many_documents', "Um envio aceita no máximo {$max} arquivos.");
+                }
+
+                $document = $this->storeDocument($tenant, $pdfContents, $filename);
+                $newPath = $document->storage_path;
+
+                $extra = \App\Models\EnvelopeDocument::query()->create([
+                    'envelope_id' => $locked->getKey(),
+                    'document_id' => $document->getKey(),
+                    'position' => (int) $locked->extraDocuments()->max('position') + 1,
+                ]);
+                $locked->touch();
+                $this->evidence->record($locked, 'document_added', ['name' => $filename, 'document_sha256' => $document->sha256]);
+
+                return $extra->setRelation('document', $document);
+            });
+        } catch (\Throwable $e) {
+            if ($newPath !== null) {
+                Storage::disk('local')->delete($newPath);
+            }
+
+            throw $e;
+        }
+    }
+
+    /** Tira um arquivo acrescentado do rascunho, com os campos de assinatura que estavam nele. O principal só se troca. */
+    public function removeDocument(Envelope $envelope, string $extraId): void
+    {
+        $this->assertDraft($envelope);
+        $oldPath = null;
+
+        DB::transaction(function () use ($envelope, $extraId, &$oldPath) {
+            $locked = Envelope::query()->whereKey($envelope->getKey())->lockForUpdate()->firstOrFail();
+            $this->assertDraft($locked);
+
+            $extra = Str::isUuid($extraId) ? $locked->extraDocuments()->with('document')->whereKey($extraId)->first() : null;
+            if ($extra === null) {
+                throw FlowException::because('document_not_found', 'Arquivo não encontrado neste documento.');
+            }
+
+            $document = $extra->document;
+            $locked->signatureFields()->where('envelope_document_id', $extra->getKey())->delete();
+            $extra->delete();
+            app(\App\Plans\StorageUsage::class)->remove($locked->tenant, (int) $document->size);
+            $oldPath = $document->storage_path;
+            $this->evidence->record($locked, 'document_removed', ['name' => $document->name, 'document_sha256' => $document->sha256]);
+            $document->delete();
+            $locked->touch();
+        });
+
+        if ($oldPath !== null) {
+            Storage::disk('local')->delete($oldPath);
+        }
+    }
+
     /** Passo 1 de novo: troca o PDF. Os campos posicionados são apagados (o número de páginas pode mudar). */
     public function replaceDocument(Envelope $envelope, string $pdfContents, string $filename): void
     {
@@ -380,12 +450,17 @@ final class EnvelopeService
         }
 
         $mine = $envelope->signers()->pluck('id')->map(fn ($id) => (string) $id)->all();
+        $extraIds = $envelope->extraDocuments()->pluck('id')->map(fn ($id) => (string) $id)->all();
         $senderId = (string) ($envelope->signers()->where('is_sender', true)->value('id') ?? '');
         $observers = $envelope->signers()->where('role', 'observer')->pluck('id')->map(fn ($id) => (string) $id)->all();
         $rows = [];
         foreach ($fields as $f) {
             if (! in_array((string) ($f['signer_id'] ?? ''), $mine, true)) {
                 throw FlowException::because('invalid_field_signer', 'Há um campo de um signatário que não está neste documento.');
+            }
+            $doc = ($f['document_id'] ?? null) ?: null;
+            if ($doc !== null && ! in_array((string) $doc, $extraIds, true)) {
+                throw FlowException::because('invalid_field_document', 'Há um campo em um arquivo que não faz parte deste documento.');
             }
             if (! in_array($f['type'] ?? '', \App\Models\SignatureField::TYPES, true)) {
                 throw FlowException::because('invalid_field_type', 'O tipo de campo não é válido.');
@@ -406,7 +481,7 @@ final class EnvelopeService
             if ($x < 0 || $y < 0 || $w <= 0 || $h <= 0 || $x + $w > 1.0001 || $y + $h > 1.0001) {
                 throw FlowException::because('invalid_field_position', 'A posição do campo está fora da página.');
             }
-            $rows[] = ['signer_id' => $f['signer_id'], 'type' => $f['type'], 'page' => (int) $f['page'], 'x' => $x, 'y' => $y, 'width' => $w, 'height' => $h];
+            $rows[] = ['envelope_document_id' => $doc, 'signer_id' => $f['signer_id'], 'type' => $f['type'], 'page' => (int) $f['page'], 'x' => $x, 'y' => $y, 'width' => $w, 'height' => $h];
         }
 
         DB::transaction(function () use ($envelope, $rows) {

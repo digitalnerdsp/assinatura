@@ -4,6 +4,7 @@
 @php($saved = (int) $envelope->wizard_step >= 3)
 <form method="post" action="{{ route('envelopes.step.save', [$envelope, 3]) }}" id="wz-form3"
       data-pdf="{{ route('envelopes.original', $envelope) }}"
+      data-docs="{{ $placeDocs->toJson() }}"
       data-people="{{ $placePeople->toJson() }}"
       data-fields="{{ $placeFields->toJson() }}"
       data-types="{{ json_encode($fieldTypes) }}">
@@ -24,6 +25,7 @@
 
     <div class="wz-howto">Como funciona:<br><strong>1. Clique ou toque</strong> no ponto do documento onde a assinatura deve ficar.<br><strong>2. Escolha o signatário</strong> e o tipo de campo; depois arraste ou redimensione.</div>
 
+    <div class="wz-tabs" id="wz-tabs" role="tablist" aria-label="Arquivos do documento" @if ($placeDocs->count() < 2) hidden @endif></div>
     <div class="wz-viewer" id="wz-viewer" aria-label="Documento" aria-busy="true"><p class="wz-muted wz-pad" id="wz-loading">Carregando o documento…</p></div>
     <p class="wz-err" id="wz-loaderr" role="alert" hidden>Não foi possível mostrar o documento aqui. Você ainda pode continuar sem posicionar as assinaturas.</p>
 
@@ -40,5 +42,5 @@
 @endsection
 @push('scripts')
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script src="{{ asset('assets/js/wizard-placement.js') }}?v=3"></script>
+<script src="{{ asset('assets/js/wizard-placement.js') }}?v=4"></script>
 @endpush

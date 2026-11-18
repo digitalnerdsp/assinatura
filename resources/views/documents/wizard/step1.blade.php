@@ -16,25 +16,40 @@
     <div class="wz-folder"><i class="bx bxs-folder" aria-hidden="true"></i> <strong id="wz-folder-name">{{ $currentName }}</strong> <button type="button" class="wz-link" id="wz-change-folder">Alterar pasta</button></div>
     @error('folder_id')<div class="wz-err" role="alert">{{ $message }}</div>@enderror
 
-    <h2 class="wz-h2">Qual documento será assinado?</h2>
+    <h2 class="wz-h2">Quais documentos serão assinados?</h2>
     @error('document')<div class="wz-err" role="alert">{{ $message }}</div>@enderror
 
-    <input type="file" name="document" id="wz-file" accept="application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="wz-sr">
+    <input type="file" name="{{ $envelope ? 'document' : 'documents[]' }}" id="wz-file" @if (! $envelope) multiple @endif accept="application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="wz-sr">
     <div class="wz-drop" id="wz-drop" @if ($envelope) hidden @endif>
         <div>
             <span class="wz-up" aria-hidden="true"><i class="bx bx-up-arrow-alt"></i></span>
-            <div>Arraste e solte ou <button type="button" class="wz-link" id="wz-pick">busque pelo arquivo</button></div>
-            <div class="wz-small"><strong>PDF ou DOCX</strong> até {{ config('signing.max_pdf_mb') }} MB</div>
+            <div>Arraste e solte ou <button type="button" class="wz-link" id="wz-pick">busque pelos arquivos</button></div>
+            <div class="wz-small"><strong>PDF ou DOCX</strong>, até {{ config('signing.max_pdf_mb') }} MB cada. Você pode escolher vários: todos são assinados de uma vez.</div>
         </div>
     </div>
     <div id="wz-chosen" @if (! $envelope) hidden @endif>
-        <button type="button" class="wz-again" id="wz-pick2"><i class="bx bx-upload" aria-hidden="true"></i> Subir outro arquivo</button>
-        <div class="wz-frow">
-            <strong>1</strong><span class="wz-fname" id="wz-fname">{{ $envelope?->document->name }}</span>
-            @if ($envelope)<a class="wz-ib" href="{{ route('envelopes.original', $envelope) }}" target="_blank" rel="noopener" aria-label="Abrir o PDF em outra aba"><i class="bx bx-link-external" aria-hidden="true"></i></a>@endif
-            <button type="button" class="wz-ib" id="wz-remove" aria-label="Escolher outro arquivo" @if ($envelope) hidden @endif><i class="bx bx-x" aria-hidden="true"></i></button>
-        </div>
-        @if ($envelope)<p class="wz-muted wz-small">Se subir outro arquivo, as assinaturas já posicionadas serão apagadas.</p>@endif
+        <button type="button" class="wz-again" id="wz-pick2"><i class="bx bx-upload" aria-hidden="true"></i> {{ $envelope ? 'Trocar o primeiro arquivo' : 'Escolher outros arquivos' }}</button>
+        @if ($envelope)
+            @foreach ($files as $f)
+                <div class="wz-frow">
+                    <strong>{{ $f->n }}</strong><span class="wz-fname">{{ $f->name }}</span>
+                    <a class="wz-ib" href="{{ route('envelopes.original', ['envelope' => $envelope, 'n' => $f->n]) }}" target="_blank" rel="noopener" aria-label="Abrir {{ $f->name }} em outra aba"><i class="bx bx-link-external" aria-hidden="true"></i></a>
+                    @if ($f->extraId)<label class="wz-small wz-rmfile"><input type="checkbox" name="remove[]" value="{{ $f->extraId }}"> Remover</label>@endif
+                </div>
+            @endforeach
+            <p class="wz-muted wz-small">Se trocar o primeiro arquivo, as assinaturas já posicionadas serão apagadas.</p>
+            @if ($files->count() < $maxDocuments)
+                <input type="file" name="documents[]" id="wz-add" multiple accept="application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="wz-sr">
+                <button type="button" class="wz-again" id="wz-add-btn"><i class="bx bx-plus" aria-hidden="true"></i> Adicionar mais arquivos</button>
+                <div class="wz-small wz-muted" id="wz-add-names"></div>
+            @endif
+        @else
+            <div class="wz-frow">
+                <strong>1</strong><span class="wz-fname" id="wz-fname"></span>
+                <button type="button" class="wz-ib" id="wz-remove" aria-label="Escolher outros arquivos"><i class="bx bx-x" aria-hidden="true"></i></button>
+            </div>
+            <div id="wz-more"></div>
+        @endif
         <div class="wz-field">
             <label for="wz-title">Nome do documento</label>
             <input type="text" id="wz-title" name="title" maxlength="190" value="{{ old('title', $envelope?->title) }}">

@@ -373,19 +373,24 @@ final class EnvelopeController extends Controller
         return back()->with('status', 'Documento cancelado.');
     }
 
+    /** Original do arquivo `n` (1 = principal). */
     public function original(Request $request, Envelope $envelope): StreamedResponse
     {
         $this->owned($request, $envelope);
+        $file = $envelope->files()->firstWhere('n', max(1, (int) $request->query('n', 1)));
+        abort_if($file === null, 404);
 
-        return Storage::disk('local')->download($envelope->document->storage_path, $envelope->document->name);
+        return Storage::disk('local')->download($file->storagePath, $file->name);
     }
 
+    /** PDF selado do arquivo `n` (1 = principal). */
     public function final(Request $request, Envelope $envelope): StreamedResponse
     {
         $this->owned($request, $envelope);
-        abort_if($envelope->final_path === null, 404);
+        $file = $envelope->files()->firstWhere('n', max(1, (int) $request->query('n', 1)));
+        abort_if($file === null || $file->finalPath === null, 404);
 
-        return Storage::disk('local')->download($envelope->final_path, 'assinado-'.$envelope->document->name);
+        return Storage::disk('local')->download($file->finalPath, 'assinado-'.$file->name);
     }
 
     public function attachment(Request $request, Envelope $envelope, \App\Models\SignerAttachment $attachment): \Illuminate\Http\Response

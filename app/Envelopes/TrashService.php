@@ -80,10 +80,11 @@ final class TrashService
         $document = $envelope->document;
         $tenantId = $envelope->tenant_id;
         $signers = $envelope->signers;
-        $freed = (int) $document?->size + (int) $signers->flatMap->attachments->sum('size');
+        $extras = $envelope->extraDocuments()->with('document')->get()->pluck('document')->filter();
+        $freed = (int) $document?->size + (int) $extras->sum('size') + (int) $signers->flatMap->attachments->sum('size');
         $tenant = $envelope->tenant;
 
-        DB::transaction(function () use ($envelope, $document): void {
+        DB::transaction(function () use ($envelope, $document, $extras): void {
             // A trilha de evidências é append-only; só esta limpeza pode apagá-la (ver a migration do gatilho).
             $pgsql = DB::getDriverName() === 'pgsql';
             if ($pgsql) {
@@ -93,6 +94,7 @@ final class TrashService
             try {
                 $envelope->delete(); // signatários, anexos e evidências caem por cascata
                 $document?->delete(); // documents é restrito a partir do envelope: apaga depois
+                $extras->each->delete(); // arquivos acrescentados (a linha de envelope_documents caiu por cascata)
             } finally {
                 if ($pgsql) {
                     DB::statement("SET LOCAL app.evidence_purge = 'off'");
@@ -109,6 +111,11 @@ final class TrashService
                 if ($disk->exists($attachment->path)) {
                     $this->warnIfFailed($disk->delete($attachment->path), $attachment->path);
                 }
+            }
+        }
+        foreach ($extras as $extra) {
+            if ($disk->exists($extra->storage_path)) {
+                $this->warnIfFailed($disk->delete($extra->storage_path), $extra->storage_path);
             }
         }
         if ($document && $disk->exists($document->storage_path)) {

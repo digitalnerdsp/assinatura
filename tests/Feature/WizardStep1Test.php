@@ -27,7 +27,7 @@ function wzUpload(User $u, array $extra = [], ?UploadedFile $file = null)
 it('o passo 1 mostra o título, a pasta e a zona de envio', function () {
     $u = wzOwner();
     $this->actingAs($u)->get('/documentos/novo')->assertOk()
-        ->assertSee('Novo documento')->assertSee('Alterar pasta')->assertSee('Qual documento será assinado?')->assertSee('Selecionar documento')->assertSee('Enviar documento');
+        ->assertSee('Novo documento')->assertSee('Alterar pasta')->assertSee('Quais documentos serão assinados?')->assertSee('Selecionar documento')->assertSee('Enviar documento');
 });
 
 it('exige entrar na conta', function () {
@@ -99,7 +99,7 @@ it('ao voltar ao passo 1 mostra o arquivo e permite trocar título, pasta e arqu
     $e = wzDraft($u, 'Contrato');
     $f = Folder::create(['tenant_id' => $u->tenant_id, 'name' => 'RH']);
 
-    $this->actingAs($u)->get("/documentos/{$e->id}/passo/1")->assertOk()->assertSee('contrato.pdf')->assertSee('Subir outro arquivo');
+    $this->actingAs($u)->get("/documentos/{$e->id}/passo/1")->assertOk()->assertSee('contrato.pdf')->assertSee('Trocar o primeiro arquivo');
 
     $this->actingAs($u)->put("/documentos/{$e->id}/passo/1", ['title' => 'Novo título', 'folder_id' => $f->id])->assertRedirect("/documentos/{$e->id}/passo/2");
     $e->refresh();

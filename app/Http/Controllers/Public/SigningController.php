@@ -99,6 +99,7 @@ final class SigningController extends Controller
             'steps' => $steps,
             'current' => $pending[0] ?? 'sign',
             'waiting' => ! $this->signing->isMyTurn($signer),
+            'files' => $envelope->files(),
         ]);
     }
 
@@ -158,14 +159,18 @@ final class SigningController extends Controller
         });
     }
 
-    public function pdf(string $token): Response
+    /** PDF do arquivo `n` do envio (1 = principal), para o signatário ler antes de assinar. */
+    public function pdf(Request $request, string $token): Response
     {
         $signer = Signer::query()->where('token_hash', hash('sha256', $token))->firstOrFail();
         abort_unless($signer->envelope->status->isOpenForSigning() || $signer->envelope->status->value === 'completed', 404);
 
-        return response(Storage::disk('local')->get($signer->envelope->document->storage_path), 200, [
+        $file = $signer->envelope->files()->firstWhere('n', max(1, (int) $request->query('n', 1)));
+        abort_if($file === null, 404);
+
+        return response(Storage::disk('local')->get($file->storagePath), 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="documento.pdf"',
+            'Content-Disposition' => 'inline; filename="documento-'.$file->n.'.pdf"',
             'X-Content-Type-Options' => 'nosniff',
             'Cache-Control' => 'private, no-store',
         ]);

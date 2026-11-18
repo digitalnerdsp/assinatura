@@ -195,3 +195,8 @@ html.dark-theme .wz-pop .wz-types button:hover, html.dark-theme .wz-pop .wz-type
 .wz .wz-watch[hidden], .wz .wz-watch #wz-watch-box[hidden] { display: none; }
 .wz .wz-watch #wz-c-emails input { display: block; width: 100%; max-width: 460px; background: var(--wz-field); color: var(--wz-ink); border: 0; border-bottom: 1px solid var(--wz-muted); padding: 10px 12px; margin-bottom: 8px; font: inherit; border-radius: 4px 4px 0 0; }
 .wz .wz-watch #wz-c-emails input:focus-visible { outline: 2px solid var(--wz-brand); }
+
+.wz .wz-rmfile { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.wz .wz-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0; }
+.wz .wz-tab { border: 1px solid var(--wz-line, #e2e8f0); background: transparent; border-radius: 8px; padding: 7px 12px; cursor: pointer; font: inherit; }
+.wz .wz-tab.is-cur { background: var(--wz-drop); font-weight: 600; }
