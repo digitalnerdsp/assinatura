@@ -59,7 +59,7 @@ O sealer nunca devolve a senha em respostas nem em log. Para trocar de certifica
 |---|---|
 | `app` | site e API (porta 8080; é o único com domínio) |
 | `worker` | fila: envio de e-mail/WhatsApp, selagem do PDF, entrega de webhooks |
-| `scheduler` | **novo:** `schedule:work` — expira documentos vencidos (a cada 15 min) e envia lembretes (de hora em hora) e confere o armazenamento de cada empresa (`storage:reconcile`, 03:30) |
+| `scheduler` | **novo:** `schedule:work` — expira documentos vencidos (a cada 15 min) e envia lembretes (de hora em hora) e confere o armazenamento de cada empresa (`storage:reconcile`, 03:30) e envia os avisos de vencimento de contratos (`contracts:send-alerts`, todo dia às 11:00 UTC = 08:00 em Brasília; precisa do SMTP configurado) |
 | `sealer` | selagem PAdES + carimbo na página + relatório |
 | `backup` | **novo:** a cada 24 h grava `db-AAAAMMDD-HHMMSS.sql.gz` e `documents-….tar.gz` no volume `backups` e apaga o que passar de `BACKUP_RETENTION_DAYS` (padrão 14) |
 | `db` | PostgreSQL 17 |
