@@ -2,6 +2,7 @@
 @section('title', $template->exists ? 'Editar modelo' : 'Novo modelo')
 @section('section', 'Modelos')
 @section('content')
+@if ($template->exists)<link rel="stylesheet" href="{{ asset('assets/css/template-editor.css') }}?v=1">@endif
 @if (! $template->exists)
     {{-- Passo único: nome e PDF. As lacunas se marcam na tela de edição, logo depois. --}}
     <form method="post" action="{{ route('templates.store') }}" enctype="multipart/form-data">
@@ -91,3 +92,10 @@
     </form>
 @endif
 @endsection
+
+@if ($template->exists)
+@push('scripts')
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="{{ asset('assets/js/template-editor.js') }}?v=1"></script>
+@endpush
+@endif
