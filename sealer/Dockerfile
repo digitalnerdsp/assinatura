@@ -6,7 +6,7 @@ WORKDIR /srv
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app.py report.py ./
+COPY app.py report.py fill.py ./
 
 RUN useradd --system --no-create-home sealer
 USER sealer
