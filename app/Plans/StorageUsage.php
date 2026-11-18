@@ -39,6 +39,8 @@ final class StorageUsage
         $id = $tenant->getKey();
         $total = (int) Document::query()->where('tenant_id', $id)->sum('size');
 
+        $total += (int) \App\Models\DocumentTemplate::query()->where('tenant_id', $id)->sum('pdf_size'); // PDFs dos modelos
+
         $total += (int) SignerAttachment::query()
             ->join('signers', 'signers.id', '=', 'signer_attachments.signer_id')
             ->join('envelopes', 'envelopes.id', '=', 'signers.envelope_id')
