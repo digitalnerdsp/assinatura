@@ -4,31 +4,22 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Web;
 
-use App\Enums\SigningOrder;
 use App\Envelopes\EnvelopeService;
 use App\Envelopes\Exceptions\FlowException;
 use App\Http\Controllers\Controller;
 use App\Models\DocumentTemplate;
-use App\Models\Folder;
-use App\Models\Tag;
-use App\Templates\TemplateRenderer;
+use App\Templates\TemplateFiller;
+use App\Templates\ValueDoesNotFit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Throwable;
 
-/** Modelos de documento com {{variáveis}}: o cliente escreve uma vez e gera vários documentos. */
+/** Modelos em PDF com lacunas: o cliente sobe o PDF uma vez, marca as lacunas e a cada uso só preenche os valores. */
 final class TemplateController extends Controller
 {
-    public function __construct(
-        private readonly EnvelopeService $envelopes,
-        private readonly TemplateRenderer $renderer,
-    ) {
-    }
-
     public function index(Request $request): View
     {
         return view('templates.index', [
@@ -120,94 +111,79 @@ final class TemplateController extends Controller
 
         return redirect()->route('templates.index')->with('status', 'Modelo removido.');
     }
-    /** Pré-visualização do PDF com os valores de exemplo (nome da variável entre colchetes). */
-    public function preview(Request $request, DocumentTemplate $template)
-    {
-        $this->owned($request, $template);
-        $values = collect($template->variables())->mapWithKeys(fn ($v) => [$v => '['.$v.']'])->all();
-
-        return response($this->renderer->render($template, $values), 200, [
-            'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="previa.pdf"',
-            'X-Content-Type-Options' => 'nosniff',
-        ]);
-    }
-
+    /** Formulário de uso: um campo para cada lacuna, na ordem de leitura. */
     public function use(Request $request, DocumentTemplate $template): View
     {
         $this->owned($request, $template);
-        $tenantId = $request->user()->tenant_id;
 
         return view('templates.use', [
             'template' => $template,
+            'fields' => $template->fields()->get(),
             'folderPaths' => app(\App\Folders\FolderService::class)->paths($request->user()->tenant),
-            'tags' => Tag::query()->where('tenant_id', $tenantId)->orderBy('name')->get(),
         ]);
     }
 
+    /** Prévia do PDF preenchido (aceita lacunas em branco). Não cria nada. */
+    public function preview(Request $request, DocumentTemplate $template): Response
+    {
+        $this->owned($request, $template);
+        $template->load('fields');
+        $data = $request->validate(['values' => ['nullable', 'array']] + $this->filler()->rules($template, enforceRequired: false), $this->valueMessages());
+
+        try {
+            $pdf = $this->filler()->render($template, $data['values'] ?? []);
+        } catch (ValueDoesNotFit $e) {
+            abort(422, $e->getMessage());
+        } catch (FlowException $e) {
+            abort(422, $e->getMessage());
+        }
+
+        return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'inline; filename="previa.pdf"', 'X-Content-Type-Options' => 'nosniff', 'Cache-Control' => 'private, no-store']);
+    }
+
+    /** Escreve os valores no PDF, cria o rascunho (passo 1 concluído, com o modelo de origem) e leva ao passo 2 do assistente. */
     public function generate(Request $request, DocumentTemplate $template): RedirectResponse
     {
         $this->owned($request, $template);
-
-        $rules = [
-            'title' => ['required', 'string', 'max:190'],
-            'message' => ['nullable', 'string', 'max:2000'],
-            'signing_order' => ['required', Rule::enum(SigningOrder::class)],
-            'validity_days' => ['nullable', 'integer', 'between:1,365'],
-            'reminder_every_days' => ['nullable', 'string', 'in:off,1,2,3,5,7,10,14'],
-            'channels' => ['nullable', 'array'],
-            'channels.*' => ['in:email,whatsapp,sms'],
-            'folder_id' => ['nullable', 'uuid'],
-            'tags' => ['nullable', 'array', 'max:10'],
-            'tags.*' => ['uuid'],
-            'signers' => ['required', 'array', 'min:1', 'max:20'],
-            'signers.*.name' => ['required', 'string', 'max:150'],
-            'signers.*.email' => ['required', 'email', 'max:190'],
-            'signers.*.phone' => ['nullable', 'string', 'max:30'],
-            'signers.*.cpf' => ['nullable', 'string', 'max:14'],
-            'vars' => ['nullable', 'array'],
-        ];
-        foreach ($template->variables() as $var) {
-            $rules["vars.$var"] = ['required', 'string', 'max:500'];
+        $template->load('fields');
+        if ($template->fields->isEmpty()) {
+            return back()->withErrors(['values' => 'Marque ao menos uma lacuna no modelo antes de usá-lo.']);
         }
-        $data = $request->validate($rules);
+
+        $data = $request->validate([
+            'title' => ['required', 'string', 'max:190'],
+            'folder_id' => ['nullable', 'uuid'],
+            'values' => ['nullable', 'array'],
+        ] + $this->filler()->rules($template), $this->valueMessages());
 
         try {
-            $pdf = $this->renderer->render($template, $data['vars'] ?? []);
-            $envelope = $this->envelopes->create(
-                $request->user()->tenant,
-                $request->user(),
-                $pdf,
-                Str::slug($template->name).'.pdf',
-                $data['title'],
-                array_values($data['signers']),
-                SigningOrder::from($data['signing_order']),
-                'simple',
-                $data['message'] ?? null,
-                [
-                    'otp' => $request->boolean('require_otp'),
-                    'selfie' => $request->boolean('require_selfie'),
-                    'document' => $request->boolean('require_document'),
-                    'geolocation' => $request->boolean('require_geolocation'),
-                ],
-                [
-                    'validity_days' => $data['validity_days'] ?? null,
-                    'reminder_every_days' => ($data['reminder_every_days'] ?? '3') === 'off' ? null : (int) ($data['reminder_every_days'] ?? 3),
-                    'channels' => $data['channels'] ?? ['email'],
-                    'folder_id' => $data['folder_id'] ?? null,
-                    'tags' => $data['tags'] ?? [],
-                    'template_id' => $template->getKey(),
-                ],
+            $pdf = $this->filler()->render($template, $data['values'] ?? []);
+            $envelope = app(EnvelopeService::class)->createDraft(
+                $request->user()->tenant, $request->user(), $pdf, Str::slug($template->name).'.pdf', $data['title'], $data['folder_id'] ?? null,
             );
+        } catch (ValueDoesNotFit $e) {
+            return back()->withInput()->withErrors(["values.{$e->fieldKey}" => $e->getMessage()]);
         } catch (FlowException $e) {
             return back()->withInput()->withErrors(['title' => $e->getMessage()]);
         } catch (Throwable $e) {
             report($e);
 
-            return back()->withInput()->withErrors(['title' => 'Não foi possível gerar o PDF deste modelo.']);
+            return back()->withInput()->withErrors(['title' => 'Não foi possível gerar o documento a partir deste modelo.']);
         }
 
-        return redirect()->route('envelopes.show', $envelope)->with('status', 'Documento gerado a partir do modelo. Revise e envie para assinatura.');
+        $envelope->update(['template_id' => $template->getKey()]);
+
+        return redirect()->route('envelopes.step', [$envelope, 2])->with('status', 'Documento preenchido. Agora escolha quem assina.');
+    }
+    private function filler(): TemplateFiller
+    {
+        return app(TemplateFiller::class);
+    }
+
+    /** @return array<string,string> */
+    private function valueMessages(): array
+    {
+        return ['values.*.required' => 'Preencha este campo.', 'values.*.max' => 'Use no máximo '.TemplateFiller::MAX_VALUE.' caracteres.', 'title.required' => 'Dê um título ao documento.'];
     }
 
     /** Resolvido a cada uso (e não no construtor): o serviço depende do cliente do selador. */

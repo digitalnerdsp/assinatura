@@ -130,12 +130,11 @@ it('gerar documento por modelo grava o modelo no envelope', function () {
     Storage::fake('local');
     $user = reportUser();
     TenantSigningSetting::updateOrCreate(['tenant_id' => $user->tenant_id], ['sender_policy' => 'never']);
-    $tpl = DocumentTemplate::create(['tenant_id' => $user->tenant_id, 'name' => 'Contrato', 'body' => '<p>Olá {{nome}}</p>']); // legado HTML até a Tarefa 5
+    $tpl = tplCreate($user->tenant);
+    app(\App\Templates\TemplateService::class)->syncFields($tpl, [tplField(['label' => 'Nome'])]);
+    useSealer();
 
-    $this->post("/modelos/{$tpl->id}/usar", [
-        'title' => 'Gerado', 'signing_order' => 'parallel', 'vars' => ['nome' => 'Ana'],
-        'signers' => [['name' => 'Ana', 'email' => 'ana@ex.com']],
-    ])->assertRedirect();
+    $this->post("/modelos/{$tpl->id}/usar", ['title' => 'Gerado', 'values' => ['nome' => 'Ana']])->assertRedirect();
 
     expect(Envelope::where('title', 'Gerado')->firstOrFail()->template_id)->toBe($tpl->id);
 });

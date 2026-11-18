@@ -402,39 +402,7 @@ it('gera PDF do modelo escapando os valores e removendo HTML perigoso', function
     expect(str_starts_with($pdf, '%PDF-'))->toBeTrue()->and(strlen($pdf))->toBeGreaterThan(1000);
 });
 
-it('cria um modelo e gera um envelope a partir dele pelo painel', function () {
-    Storage::fake('local');
-    growthRegister('t@t.com', 'T');
-
-    // Fluxo legado em HTML (substituído na Tarefa 5): o modelo é criado direto, já que a tela agora recebe PDF.
-    $template = DocumentTemplate::create(['tenant_id' => auth()->user()->tenant_id, 'name' => 'Contrato simples', 'body' => '<h2>Contrato</h2><p>Contratante: {{contratante}} - R$ {{valor}}</p>']);
-    expect($template->variables())->toBe(['contratante', 'valor']);
-
-    $this->get("/modelos/{$template->id}/usar")->assertOk()->assertSee('contratante');
-    $this->get("/modelos/{$template->id}/previa")->assertOk()->assertHeader('Content-Type', 'application/pdf');
-
-    $this->post("/modelos/{$template->id}/usar", ['title' => 'Contrato Zé', 'signing_order' => 'parallel', 'vars' => ['contratante' => 'Zé'], 'signers' => [['name' => 'Zé', 'email' => 'ze@ex.com']]])
-        ->assertSessionHasErrors('vars.valor'); // variável obrigatória
-
-    $this->post("/modelos/{$template->id}/usar", ['title' => 'Contrato Zé', 'signing_order' => 'parallel', 'vars' => ['contratante' => 'Zé', 'valor' => '1.500,00'], 'signers' => [['name' => 'Zé', 'email' => 'ze@ex.com']]])
-        ->assertSessionHasNoErrors();
-
-    $envelope = Envelope::firstOrFail();
-    expect($envelope->title)->toBe('Contrato Zé')->and($envelope->status)->toBe(EnvelopeStatus::Draft);
-    expect(str_starts_with(Storage::disk('local')->get($envelope->document->storage_path), '%PDF-'))->toBeTrue();
-});
-
-it('um tenant não vê nem usa modelo de outro', function () {
-    $other = Tenant::create(['name' => 'Outra']);
-    $template = DocumentTemplate::create(['tenant_id' => $other->id, 'name' => 'Alheio', 'body' => '<p>x</p>']);
-
-    growthRegister('n@n.com', 'N');
-    $this->get("/modelos/{$template->id}")->assertNotFound();
-    $this->get("/modelos/{$template->id}/usar")->assertNotFound();
-    $this->get("/modelos/{$template->id}/previa")->assertNotFound();
-    $this->delete("/modelos/{$template->id}")->assertNotFound();
-});
-
+// Criar, editar, usar e isolar modelos em PDF: TemplateServiceTest, TemplateWebTest, TemplateUseTest.
 // ---------------------------------------------------------------- limite de PDF
 
 it('recusa PDF acima do limite configurado', function () {
