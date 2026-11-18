@@ -31,3 +31,9 @@ Artisan::command('api:prune-idempotency', function () {
     $this->info("{$n} chave(s) de idempotência removida(s).");
 })->purpose('Remove chaves de idempotência com mais de 24 h');
 Schedule::command('api:prune-idempotency')->daily();
+
+// Avisos de vencimento de contratos: 11:00 UTC = 08:00 em Brasília.
+Artisan::command('contracts:send-alerts', function (\App\Contracts\ContractAlerts $alerts) {
+    $this->info($alerts->send().' aviso(s) de vencimento enviado(s).');
+})->purpose('Envia por e-mail os avisos de vencimento de contratos');
+Schedule::command('contracts:send-alerts')->dailyAt('11:00')->timezone('UTC')->withoutOverlapping();
