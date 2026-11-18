@@ -34,7 +34,7 @@ Um tema é **código confiável, equivalente a um deploy**: o Blade pode executa
 | `$isAdmin`, `$isSuper` | pertence à equipe da plataforma / é super admin |
 | `$menu` | lista de itens (abaixo) |
 | `$flash` | avisos (sucesso/erro) e faixa de limite do plano, HTML pronto: `{{ $flash }}` |
-| `$legacyCss` | `[icons.css, legacy-scope.css]` — incluir quando houver telas internas |
+| `$legacyCss` | lista de folhas de estilo (`icons.css`, `legacy-scope.css`, `legacy-fixes.css`, `fonts.css`) — incluir **todas**, na ordem, quando houver telas internas; o `legacy-fixes.css` devolve às janelas (modais) o comportamento do Bootstrap |
 | `$legacyScripts` | scripts das telas internas + `@stack('scripts')`, HTML pronto: `{{ $legacyScripts }}` antes de `</body>` |
 
 Seções (`@yield`): `title`, `section`, `actions`, `content`. Telas internas ainda são Bootstrap:

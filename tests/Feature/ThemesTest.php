@@ -188,7 +188,7 @@ it('upload recusado mostra o motivo', function () {
 it('o layout do tema recebe menu por perfil, marca, usuário e avisos', function () {
     $super = thUser('s@x.com', 'super_admin');
     $layout = "<html><body><nav>@foreach (\$menu as \$m)<a class=\"mi\" href=\"{{ \$m['url'] }}\">{{ \$m['label'] }}</a>@foreach (\$m['children'] as \$c)<i class=\"ch\">{{ \$c['label'] }}</i>@endforeach @endforeach</nav>"
-        ."<b>{{ \$brand['name'] }}</b><u>{{ \$user->name }}</u><div id=\"flash\">{{ \$flash }}</div><div id=\"legacy\">{{ \$legacyCss[1] }}</div><main>@yield('content')</main>{{ \$legacyScripts }}</body></html>";
+        ."<b>{{ \$brand['name'] }}</b><u>{{ \$user->name }}</u><div id=\"flash\">{{ \$flash }}</div><div id=\"legacy\">@foreach (\$legacyCss as \$css){{ \$css }} @endforeach</div><main>@yield('content')</main>{{ \$legacyScripts }}</body></html>";
     $theme = app(ThemeInstaller::class)->install($super, thZip(['layouts/app.blade.php' => $layout]));
     app(ThemeManager::class)->activate($theme);
 
