@@ -80,6 +80,39 @@ final class SealerClient
         );
     }
 
+    /**
+     * Escreve textos nas lacunas de um PDF (POST /v1/fill). Cada campo: key, page (1..n), x, y, width, height (frações,
+     * origem no topo à esquerda), text, multiline. Lista vazia só devolve o PDF e o total de páginas.
+     *
+     * @param  list<array<string,mixed>>  $fields
+     * @return array{pdf:string,pages:int}
+     *
+     * @throws \App\Templates\FillException texto que não cabe ou PDF inválido (422)
+     * @throws SigningException serviço indisponível ou com erro
+     */
+    public function fill(string $pdf, array $fields): array
+    {
+        try {
+            $response = $this->http
+                ->withToken($this->token)
+                ->timeout($this->timeout)
+                ->attach('pdf', $pdf, 'document.pdf')
+                ->post($this->baseUrl.'/v1/fill', ['fields' => json_encode($fields, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)]);
+        } catch (ConnectionException $e) {
+            throw new SigningException('Serviço de selagem indisponível: '.$this->short($e->getMessage()), 0, $e);
+        }
+
+        if ($response->status() === 422) {
+            throw new \App\Templates\FillException((string) $response->json('error', 'invalid_pdf'), $response->json('field'));
+        }
+
+        if ($response->failed()) {
+            throw new SigningException('Falha ao preencher o PDF (HTTP '.$response->status().'): '.$this->detail($response));
+        }
+
+        return ['pdf' => $response->body(), 'pages' => (int) $response->header('X-Page-Count')];
+    }
+
     /** @param array<string,mixed> $credential */
     public function certificate(array $credential): CertificateInfo
     {

@@ -36,6 +36,9 @@ from pyhanko.sign.signers.pdf_signer import PdfSignatureMetadata, PdfSigner
 from pydantic import BaseModel
 
 from report import SEAL_BOX, decorate
+import fill
+from fastapi.responses import Response
+from pypdf import PdfReader as _PdfReader
 
 TOKEN = os.environ.get("SEALER_TOKEN", "")
 TSA_URL = os.environ.get("SEALER_TSA_URL", "")  # ACT ICP-Brasil / RFC 3161
@@ -220,6 +223,25 @@ def health() -> dict:
 @app.post("/v1/certificate", dependencies=[Depends(auth)])
 def certificate(req: CertRequest) -> dict:
     return cert_info(load_signer(req.credential))
+
+
+@app.post("/v1/fill", dependencies=[Depends(auth)])
+def fill_fields(pdf: UploadFile = File(...), fields: str = Form(...)):
+    """Escreve os textos nas lacunas de um modelo. 422: does_not_fit (com o campo) ou invalid_pdf."""
+    try:
+        items = json.loads(fields)
+        if not isinstance(items, list):
+            raise ValueError("fields deve ser uma lista")
+    except ValueError:
+        return JSONResponse(status_code=422, content={"error": "invalid_fields"})
+    try:
+        out = fill.fill_pdf(pdf.file.read(), items)
+        pages = len(_PdfReader(io.BytesIO(out)).pages)
+    except fill.FitError as exc:
+        return JSONResponse(status_code=422, content={"error": "does_not_fit", "field": exc.key})
+    except fill.InvalidPdf:
+        return JSONResponse(status_code=422, content={"error": "invalid_pdf"})
+    return Response(content=out, media_type="application/pdf", headers={"X-Page-Count": str(pages)})
 
 
 @app.post("/v1/seal", dependencies=[Depends(auth)])
