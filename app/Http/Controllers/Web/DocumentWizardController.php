@@ -337,6 +337,11 @@ final class DocumentWizardController extends Controller
             'allow_refuse' => ['nullable', 'boolean'],
             'tags' => ['nullable', 'array', 'max:10'],
             'tags.*' => ['uuid'],
+            'watch' => ['nullable', 'boolean'],
+            'contract_date' => ['nullable', 'string', 'max:10'],
+            'contract_alert_days' => ['nullable', 'integer'],
+            'contract_emails' => ['nullable', 'array', 'max:10'],
+            'contract_emails.*' => ['nullable', 'string', 'max:190'],
         ], [
             'message.max' => 'A mensagem pode ter no máximo 500 caracteres.',
             'limit_date.after' => 'A data limite precisa ser depois de hoje.',
@@ -345,6 +350,22 @@ final class DocumentWizardController extends Controller
         ]);
 
         $auto = $request->boolean('auto');
+
+        // Vigência do contrato: confere antes de gravar qualquer outra opção (no "Voltar" um valor inválido é só ignorado).
+        $watch = $request->boolean('watch');
+        $term = null;
+        if ($watch) {
+            try {
+                $term = [(string) ($data['contract_date'] ?? ''), (int) ($data['contract_alert_days'] ?? 0), (array) ($data['contract_emails'] ?? [])];
+                app(\App\Contracts\ContractWatch::class)->validateTerm(...$term);
+            } catch (FlowException $e) {
+                if ($strict) {
+                    return back()->withInput()->withErrors(['contract' => $e->getMessage()]);
+                }
+                $term = null;
+            }
+        }
+
         $signers = $envelope->signers()->where('is_sender', false)->get();
         $emails = (array) ($data['emails'] ?? []);
 
@@ -394,6 +415,12 @@ final class DocumentWizardController extends Controller
                 'validity_days' => $validity,
                 'deadline_at' => $deadline,
             ]);
+
+            if ($term !== null) {
+                app(\App\Contracts\ContractWatch::class)->setTerm($envelope, ...$term);
+            } elseif (! $watch) {
+                app(\App\Contracts\ContractWatch::class)->clearTerm($envelope);
+            }
         } catch (FlowException $e) {
             if ($e->reason === 'not_draft') {
                 return redirect()->route('envelopes.show', $envelope);
@@ -457,6 +484,8 @@ final class DocumentWizardController extends Controller
             'remindDays' => $envelope?->reminder_every_days ?? (int) config('signing.default_reminder_days'),
             'limitOn' => $envelope && $envelope->deadline_at !== null,
             'limitDate' => $envelope?->deadline_at ? $envelope->deadline_at->copy()->timezone('America/Sao_Paulo')->toDateString() : now('America/Sao_Paulo')->addDays((int) config('signing.default_validity_days'))->toDateString(),
+            // Vigência do contrato (bloco do passo 4)
+            'creatorEmail' => $request->user()->email,
             'allTags' => \App\Models\Tag::query()->where('tenant_id', $request->user()->tenant_id)->orderBy('name')->get(),
             'selectedTags' => $envelope ? $envelope->tags()->pluck('tags.id')->all() : [],
             'envelope' => $envelope,

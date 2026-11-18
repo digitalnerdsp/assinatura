@@ -189,3 +189,9 @@ html.dark-theme .wz-pop .wz-types button:hover, html.dark-theme .wz-pop .wz-type
 /* Passo 2: verificações de cada signatário */
 .wz .wz-vchecks { grid-column: 1 / -1; border: 1px solid var(--wz-line); border-radius: 8px; padding: 10px 14px; margin: 6px 0 2px; }
 .wz .wz-vchecks legend { float: none; width: auto; padding: 0 6px; margin: 0; font-size: 13px; color: var(--wz-muted); }
+
+/* Passo 4: vigência do contrato */
+.wz .wz-watch { border: 1px solid var(--wz-line); border-radius: 10px; padding: 12px 16px; margin: 20px 0; }
+.wz .wz-watch[hidden], .wz .wz-watch #wz-watch-box[hidden] { display: none; }
+.wz .wz-watch #wz-c-emails input { display: block; width: 100%; max-width: 460px; background: var(--wz-field); color: var(--wz-ink); border: 0; border-bottom: 1px solid var(--wz-muted); padding: 10px 12px; margin-bottom: 8px; font: inherit; border-radius: 4px 4px 0 0; }
+.wz .wz-watch #wz-c-emails input:focus-visible { outline: 2px solid var(--wz-brand); }

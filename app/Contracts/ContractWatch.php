@@ -42,6 +42,20 @@ final class ContractWatch
      */
     public function setTerm(Envelope $envelope, string $dueOn, int $alertDays, array $emails): void
     {
+        $clean = $this->validateTerm($dueOn, $alertDays, $emails);
+
+        $envelope->forceFill(['contract_expires_on' => $dueOn, 'contract_alert_days' => $alertDays, 'contract_alert_emails' => $clean])->save();
+        $envelope->contractAlerts()->delete();
+    }
+
+    /**
+     * Confere os dados da vigência sem gravar nada e devolve os e-mails já limpos.
+     *
+     * @param  list<string>  $emails
+     * @return list<string>
+     */
+    public function validateTerm(string $dueOn, int $alertDays, array $emails): array
+    {
         $today = $this->today();
         if (preg_match('/\A\d{4}-\d{2}-\d{2}\z/', $dueOn) !== 1 || ! checkdate((int) substr($dueOn, 5, 2), (int) substr($dueOn, 8, 2), (int) substr($dueOn, 0, 4))) {
             throw FlowException::because('invalid_term', 'Informe a data de vencimento em um formato válido.');
@@ -76,8 +90,7 @@ final class ContractWatch
             throw FlowException::because('invalid_term', 'Use no máximo '.self::MAX_EMAILS.' e-mails para o aviso.');
         }
 
-        $envelope->forceFill(['contract_expires_on' => $dueOn, 'contract_alert_days' => $alertDays, 'contract_alert_emails' => $clean])->save();
-        $envelope->contractAlerts()->delete();
+        return $clean;
     }
 
     public function clearTerm(Envelope $envelope): void

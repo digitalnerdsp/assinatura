@@ -70,6 +70,32 @@
     <input type="hidden" name="allow_refuse" value="0">
     <div class="wz-chk"><input type="checkbox" name="allow_refuse" value="1" id="wz-refuse" @checked($refuse)><label for="wz-refuse">Permitir recusar o documento</label></div>
 
+    @php
+        $watchOn = (bool) old('watch', $envelope->contract_expires_on !== null);
+        $cDate = old('contract_date', $envelope->contract_expires_on?->toDateString());
+        $cDays = (int) old('contract_alert_days', $envelope->contract_alert_days ?? 30);
+        $cEmails = array_values(array_filter((array) old('contract_emails', $envelope->contract_alert_emails ?: [$creatorEmail]), fn ($m) => trim((string) $m) !== ''));
+        if (! $cEmails) { $cEmails = [$creatorEmail]; }
+    @endphp
+    <input type="hidden" name="watch" value="0">
+    <fieldset class="wz-watch" id="wz-watch">
+        <legend class="wz-sr">Vencimento do contrato</legend>
+        <div class="wz-chk"><input type="checkbox" name="watch" value="1" id="wz-watch-on" @checked($watchOn)><label for="wz-watch-on"><strong>Lembrar do vencimento deste contrato?</strong></label></div>
+        <p class="wz-muted wz-small">O aviso só vale depois que todos assinarem. Você acompanha tudo na tela Contratos do menu.</p>
+        <div id="wz-watch-box" @if (! $watchOn) hidden @endif>
+            <div class="wz-field"><label for="wz-c-date">Data de vencimento</label>
+                <input type="date" name="contract_date" id="wz-c-date" value="{{ $cDate }}" min="{{ now('America/Sao_Paulo')->addDay()->toDateString() }}" max="{{ now('America/Sao_Paulo')->addYears(20)->toDateString() }}"></div>
+            <div class="wz-field"><label for="wz-c-days">Avisar quantos dias antes</label>
+                <select name="contract_alert_days" id="wz-c-days">@foreach (\App\Contracts\ContractWatch::ALERT_DAYS as $d)<option value="{{ $d }}" @selected($cDays === $d)>{{ $d }} dias</option>@endforeach</select></div>
+            <div class="wz-field wz-wide"><label for="wz-c-mail-0">Avisar nestes e-mails <span class="wz-muted">(até {{ \App\Contracts\ContractWatch::MAX_EMAILS }})</span></label>
+                <div id="wz-c-emails" data-max="{{ \App\Contracts\ContractWatch::MAX_EMAILS }}">
+                    @foreach ($cEmails as $i => $m)<input type="email" name="contract_emails[]" id="wz-c-mail-{{ $i }}" value="{{ $m }}" maxlength="190" autocomplete="off">@endforeach
+                </div>
+                <button type="button" class="wz-link" id="wz-c-add">+ outro e-mail</button></div>
+            @error('contract')<div class="wz-err" role="alert">{{ $message }}</div>@enderror
+        </div>
+    </fieldset>
+
     @if ($allTags->isNotEmpty())
         <div class="wz-tags"><span class="wz-muted wz-small">Etiquetas</span>
             @foreach ($allTags as $t)<label class="wz-chk wz-tag"><input type="checkbox" name="tags[]" value="{{ $t->id }}" @checked(in_array($t->id, (array) $tagsOn))> <span class="badge bg-{{ $t->color }}">{{ $t->name }}</span></label>@endforeach
@@ -84,5 +110,5 @@
 </form>
 @endsection
 @push('scripts')
-<script src="{{ asset('assets/js/wizard-send.js') }}?v=1"></script>
+<script src="{{ asset('assets/js/wizard-send.js') }}?v=2"></script>
 @endpush

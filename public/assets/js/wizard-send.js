@@ -29,6 +29,29 @@
   msg.addEventListener('input', function () { cnt.textContent = msg.value.length + ' / 500'; });
   sync();
 
+  /* Vigência do contrato: mostra os campos e adiciona e-mails (até o limite) */
+  var watchOn = document.getElementById('wz-watch-on');
+  var watchBox = document.getElementById('wz-watch-box');
+  var mails = document.getElementById('wz-c-emails');
+  var addMail = document.getElementById('wz-c-add');
+  if (watchOn && watchBox) {
+    watchOn.addEventListener('change', function () {
+      watchBox.hidden = !watchOn.checked;
+      if (watchOn.checked) { var d = document.getElementById('wz-c-date'); if (d && !d.value) { d.focus(); } }
+    });
+  }
+  function syncAdd() { if (addMail) { addMail.hidden = mails.querySelectorAll('input').length >= parseInt(mails.dataset.max, 10); } }
+  if (addMail && mails) {
+    addMail.addEventListener('click', function () {
+      var n = mails.querySelectorAll('input').length;
+      if (n >= parseInt(mails.dataset.max, 10)) { return; }
+      var i = document.createElement('input');
+      i.type = 'email'; i.name = 'contract_emails[]'; i.id = 'wz-c-mail-' + n; i.maxLength = 190; i.autocomplete = 'off';
+      i.setAttribute('aria-label', 'E-mail de aviso ' + (n + 1));
+      mails.appendChild(i); i.focus(); syncAdd();
+    });
+    syncAdd();
+  }
   var help = document.getElementById('wz-help');
   if (help) { help.addEventListener('click', function (e) { e.preventDefault(); var t = document.getElementById('wz-helptext'); t.hidden = !t.hidden; }); }
 
