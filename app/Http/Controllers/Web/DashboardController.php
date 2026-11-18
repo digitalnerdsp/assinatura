@@ -53,6 +53,8 @@ final class DashboardController extends Controller
             'pending' => $pending,
             'recent' => (clone $base)->withCount(['signers' => fn ($q) => $q->whereIn('role', Envelope::PARTICIPANT_ROLES)])->latest()->limit(8)->get(),
             'usedThisMonth' => $usedThisMonth,
+            'contracts' => app(\App\Contracts\ContractWatch::class)->dashboard($tenant),
+            'contractsToday' => app(\App\Contracts\ContractWatch::class)->today(),
         ]);
     }
 }

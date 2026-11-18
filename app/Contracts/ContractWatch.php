@@ -136,6 +136,24 @@ final class ContractWatch
         return $left !== null && $left <= $this->windowDays($envelope);
     }
 
+    /**
+     * Resumo do painel: quantos estão a vencer (janela de cada contrato), quantos pedem atenção
+     * (vencidos ou vencendo em até 7 dias) e os 5 mais próximos.
+     *
+     * @return array{soon:int,attention:int,items:\Illuminate\Support\Collection<int,Envelope>}
+     */
+    public function dashboard(Tenant $tenant): array
+    {
+        $today = $this->today()->toDateString();
+        $soon = $this->monitored($tenant)->whereRaw('contract_expires_on <= cast(? as date) + GREATEST(30, COALESCE(contract_alert_days, 30))', [$today]);
+
+        return [
+            'soon' => (clone $soon)->count(),
+            'attention' => (clone $soon)->whereRaw('contract_expires_on <= cast(? as date) + 7', [$today])->count(),
+            'items' => (clone $soon)->orderBy('contract_expires_on')->orderByRaw('lower(title)')->limit(5)->get(),
+        ];
+    }
+
     /** Documentos monitorados da empresa: concluídos, fora da lixeira (arquivados contam) e com vencimento. @return Builder<Envelope> */
     public function monitored(Tenant $tenant): Builder
     {

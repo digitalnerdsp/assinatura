@@ -3,6 +3,14 @@
 @section('section', 'Assinaturas')
 @section('actions')<a href="{{ route('envelopes.create') }}" class="btn btn-primary"><i class="bx bx-plus"></i> Criar documento</a>@endsection
 @section('content')
+@php($canContracts = \App\Plans\Entitlements::for(auth()->user()->tenant)->feature('reports'))
+@if ($contracts['attention'] > 0)
+    <div class="alert alert-warning border-0 d-flex flex-wrap align-items-center gap-2" role="alert">
+        <i class="bx bx-error fs-5"></i>
+        <span>{{ $contracts['attention'] }} {{ $contracts['attention'] === 1 ? 'contrato precisa' : 'contratos precisam' }} de atenção: vencido ou vencendo em até 7 dias.</span>
+        @if ($canContracts)<a class="ms-auto fw-semibold" href="{{ route('contracts.index') }}">Ver contratos</a>@endif
+    </div>
+@endif
 <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4">
     @include('partials.kpi', ['label' => 'Documentos no mês', 'value' => $kpi['month'], 'icon' => 'bxs-file', 'tone' => 'info', 'grad' => 'blues', 'delta' => $kpi['monthDelta'], 'hint' => $kpi['total'].' no total'])
     @include('partials.kpi', ['label' => 'Aguardando assinatura', 'value' => $kpi['pending'], 'icon' => 'bxs-time-five', 'tone' => 'warning', 'grad' => 'orange', 'hint' => 'em andamento agora'])
@@ -65,6 +73,24 @@
                     </div>
                 @empty
                     <p class="text-secondary mb-0">Nenhum documento aguardando assinatura.</p>
+                @endforelse
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-xl-6 d-flex">
+        <div class="card radius-10 w-100">
+            <div class="card-header d-flex align-items-center"><h6 class="mb-0">Contratos a vencer</h6>@if ($canContracts)<a class="ms-auto small" href="{{ route('contracts.index') }}">ver todos ({{ $contracts['soon'] }})</a>@endif</div>
+            <div class="card-body">
+                @forelse ($contracts['items'] as $c)
+                    @php($left = app(\App\Contracts\ContractWatch::class)->daysLeft($c, $contractsToday))
+                    @php($tone = $left < 0 ? 'danger' : ($left <= 30 ? 'warning text-dark' : 'info text-dark'))
+                    @php($label = $left < 0 ? 'Vencido há '.abs($left).' '.(abs($left) === 1 ? 'dia' : 'dias') : ($left === 0 ? 'Vence hoje' : $left.' '.($left === 1 ? 'dia' : 'dias')))
+                    <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                        <a href="{{ route('envelopes.show', $c) }}#vigencia" class="fw-semibold text-truncate">{{ $c->title }}</a>
+                        <span class="badge bg-{{ $tone }} text-nowrap">{{ $label }}</span>
+                    </div>
+                @empty
+                    <p class="text-secondary mb-0">Nenhum contrato a vencer. Para acompanhar um contrato, informe o vencimento no último passo ao criar o documento.</p>
                 @endforelse
             </div>
         </div>
