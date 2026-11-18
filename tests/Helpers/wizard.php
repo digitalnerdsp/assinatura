@@ -68,3 +68,31 @@ function wzWeb(array $o = []): Envelope
 
     return $e->fresh();
 }
+
+/** Roda o job de selagem com um provedor falso. $onSeal recebe (SealRequest, número da chamada) e pode lançar SigningException. */
+function wzSealNow(\App\Models\Envelope $e, ?\Closure $onSeal = null): void
+{
+    $state = new \stdClass();
+    $state->calls = 0;
+    $provider = new class($onSeal, $state) implements \App\Signing\Contracts\SigningProvider {
+        public function __construct(private ?\Closure $onSeal, private \stdClass $state) {}
+        public function name(): string { return 'fake'; }
+        public function certificate(): \App\Signing\Data\CertificateInfo
+        {
+            return new \App\Signing\Data\CertificateInfo('SERIAL-1', 'AC Teste', 'CN=ACME', new \DateTimeImmutable('-1 day'), new \DateTimeImmutable('+1 year'), false);
+        }
+        public function isAvailable(): bool { return true; }
+        public function seal(\App\Signing\Data\SealRequest $request): \App\Signing\Data\SealedDocument
+        {
+            $this->state->calls++;
+            if ($this->onSeal) {
+                ($this->onSeal)($request, $this->state->calls);
+            }
+            $pdf = $request->pdf."\n%sealed";
+
+            return new \App\Signing\Data\SealedDocument($pdf, hash('sha256', $pdf), 'fake', $this->certificate(), new \DateTimeImmutable(), true);
+        }
+    };
+    $manager = new \App\Signing\SigningManager(new \App\Signing\Support\SealerClient(new \Illuminate\Http\Client\Factory(), 'http://sealer', 't'), new \Psr\Log\NullLogger(), ['platform_provider' => 'fake', 'allow_local_test' => false], fn () => $provider);
+    (new \App\Jobs\SealEnvelope($e->id))->handle($manager, app(\App\Evidence\EvidenceLogger::class));
+}

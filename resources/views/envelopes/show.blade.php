@@ -22,8 +22,11 @@
             <h5 class="mb-0">{{ $envelope->title }}</h5>
             @include('partials.status-badge', ['status' => $envelope->status->value])
             <div class="ms-auto d-flex flex-wrap gap-2">
-                <a class="btn btn-sm btn-outline-secondary" href="{{ route('envelopes.original', $envelope) }}"><i class="bx bx-download"></i> Original</a>
-                @if ($envelope->final_path)<a class="btn btn-sm btn-success" href="{{ route('envelopes.final', $envelope) }}"><i class="bx bx-download"></i> PDF selado</a>@endif
+                @foreach ($envelope->files() as $f)
+                    @php($many = $envelope->files()->count() > 1)
+                    <a class="btn btn-sm btn-outline-secondary" href="{{ route('envelopes.original', ['envelope' => $envelope, 'n' => $f->n]) }}"><i class="bx bx-download"></i> {{ $many ? $f->n.'. '.$f->name.' (original)' : 'Original' }}</a>
+                    @if ($f->finalPath)<a class="btn btn-sm btn-success" href="{{ route('envelopes.final', ['envelope' => $envelope, 'n' => $f->n]) }}"><i class="bx bx-download"></i> {{ $many ? $f->n.'. '.$f->name.' (selado)' : 'PDF selado' }}</a>@endif
+                @endforeach
                 @if (in_array($envelope->status->value, ['draft', 'sent', 'in_progress']))
                     <form method="post" action="{{ route('envelopes.cancel', $envelope) }}" onsubmit="return confirm('Cancelar este documento?')">@csrf<button class="btn btn-sm btn-outline-danger"><i class="bx bx-x"></i> Cancelar</button></form>
                 @endif

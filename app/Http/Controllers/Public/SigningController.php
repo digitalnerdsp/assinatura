@@ -41,19 +41,51 @@ final class SigningController extends Controller
         return view('sign.done', ['signer' => $signer, 'refused' => false, 'envelope' => $signer->envelope, 'token' => $token]);
     }
 
-    /** Baixa (ou, com ?ver=1, abre) o PDF selado. Só existe depois que todos assinaram e o selo foi aplicado. */
+    /** Baixa (ou, com ?ver=1, abre) o PDF selado do arquivo `n` (1 = principal). Só existe depois que todos assinaram e o selo foi aplicado. */
     public function copyDownload(Request $request, string $token): Response
     {
         $signer = $this->signedSigner($token);
         $envelope = $signer?->envelope;
-        abort_if($envelope === null || $envelope->final_path === null || ! Storage::disk('local')->exists($envelope->final_path), 404);
+        $file = $envelope?->files()->firstWhere('n', max(1, (int) $request->query('n', 1)));
+        abort_if($file === null || $file->finalPath === null || ! Storage::disk('local')->exists($file->finalPath), 404);
 
         $inline = $request->boolean('ver');
-        app(\App\Evidence\EvidenceLogger::class)->record($envelope, 'signed_copy_downloaded', ['mode' => $inline ? 'view' : 'download'], $signer, RequestContext::fromRequest($request));
+        app(\App\Evidence\EvidenceLogger::class)->record($envelope, 'signed_copy_downloaded', ['mode' => $inline ? 'view' : 'download', 'document_n' => $file->n], $signer, RequestContext::fromRequest($request));
 
-        return response(Storage::disk('local')->get($envelope->final_path), 200, [
+        return response(Storage::disk('local')->get($file->finalPath), 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => ($inline ? 'inline' : 'attachment').'; filename="assinado-'.addcslashes(preg_replace('/[^\w.\- ]/u', '_', $envelope->document->name), '"\\').'"',
+            'Content-Disposition' => ($inline ? 'inline' : 'attachment').'; filename="assinado-'.addcslashes(preg_replace('/[^\w.\- ]/u', '_', $file->name), '"\\').'"',
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'private, no-store',
+        ]);
+    }
+
+    /** Todos os PDFs selados do envio num zip. */
+    public function copyZip(Request $request, string $token): Response
+    {
+        $signer = $this->signedSigner($token);
+        $envelope = $signer?->envelope;
+        $files = $envelope?->files()->filter(fn ($f) => $f->finalPath !== null && Storage::disk('local')->exists($f->finalPath))->values();
+        abort_if($files === null || $files->isEmpty() || $files->count() < $envelope->files()->count(), 404);
+
+        $tmp = tempnam(sys_get_temp_dir(), 'zip');
+        $zip = new \ZipArchive();
+        $zip->open($tmp, \ZipArchive::OVERWRITE);
+        $used = [];
+        foreach ($files as $f) {
+            $name = 'assinado-'.preg_replace('/[^\w.\- ]/u', '_', $f->name);
+            $used[$name] = ($used[$name] ?? 0) + 1;
+            $zip->addFromString($used[$name] > 1 ? $f->n.'-'.$name : $name, Storage::disk('local')->get($f->finalPath));
+        }
+        $zip->close();
+        $bytes = (string) file_get_contents($tmp);
+        @unlink($tmp);
+
+        app(\App\Evidence\EvidenceLogger::class)->record($envelope, 'signed_copy_downloaded', ['mode' => 'zip', 'files' => $files->count()], $signer, RequestContext::fromRequest($request));
+
+        return response($bytes, 200, [
+            'Content-Type' => 'application/zip',
+            'Content-Disposition' => 'attachment; filename="documentos-assinados.zip"',
             'X-Content-Type-Options' => 'nosniff',
             'Cache-Control' => 'private, no-store',
         ]);

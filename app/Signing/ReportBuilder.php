@@ -32,7 +32,7 @@ final class ReportBuilder
     ];
 
     /** @return array<string,mixed> */
-    public function build(Envelope $envelope): array
+    public function build(Envelope $envelope, ?\App\Envelopes\DocumentFile $file = null): array
     {
         $envelope->loadMissing(['tenant', 'document', 'signers.signature', 'signers.attachments']);
         $events = $envelope->evidenceEvents()->get();
@@ -42,8 +42,8 @@ final class ReportBuilder
             'url' => route('verify.show', $envelope->verification_code),
             'tenant' => $envelope->tenant->name,
             'title' => $envelope->title,
-            'document_name' => $envelope->document->name,
-            'document_sha256' => $envelope->document->sha256,
+            'document_name' => $file?->name ?? $envelope->document->name,
+            'document_sha256' => $file?->sha256 ?? $envelope->document->sha256,
             'chain_hash' => $events->last()?->hash,
             'generated_at' => $this->at(now()).' (BRT)',
             // remetente, signatários e testemunhas (nessa ordem; dentro de cada grupo, por posição)
@@ -52,7 +52,7 @@ final class ReportBuilder
                 ->sortBy(fn (Signer $s) => [$s->isSender() ? 0 : ($s->isWitness() ? 2 : 1), $s->position, $s->getKey()])
                 ->map(fn (Signer $s) => $this->signer($s, $events))->values()->all(),
             'events' => $this->events($envelope, $events),
-            'placements' => $this->placements($envelope),
+            'placements' => $this->placements($envelope, $file?->extraId),
             'brand' => $this->brand($envelope),
         ];
     }
@@ -84,13 +84,16 @@ final class ReportBuilder
      *
      * @return list<array<string,mixed>>
      */
-    private function placements(Envelope $envelope): array
+    private function placements(Envelope $envelope, ?string $extraId = null): array
     {
         $envelope->loadMissing(['signatureFields', 'signers.signature']);
         $signers = $envelope->signers->keyBy(fn (Signer $s) => $s->getKey());
         $out = [];
 
         foreach ($envelope->signatureFields as $field) {
+            if (($field->envelope_document_id ?: null) !== $extraId) {
+                continue; // campo de outro arquivo do envio
+            }
             $signer = $signers->get($field->signer_id);
             $sig = $signer?->signature;
             if ($signer === null || $sig === null || $signer->signed_at === null) {

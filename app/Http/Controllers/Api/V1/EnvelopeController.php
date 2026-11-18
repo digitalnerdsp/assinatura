@@ -226,22 +226,33 @@ final class EnvelopeController extends Controller
         ]);
     }
 
+    /** PDF selado do arquivo `n` (1 = principal). */
     public function download(Request $request, string $id): StreamedResponse|JsonResponse
     {
         $envelope = $this->find($request, $id);
+        $file = $envelope->files()->firstWhere('n', max(1, (int) $request->query('n', 1)));
 
-        if ($envelope->final_path === null) {
+        if ($file === null) {
+            return $this->error('not_found', 'Arquivo não encontrado neste documento.', 404);
+        }
+        if ($file->finalPath === null) {
             return $this->error('not_ready', 'O documento selado ainda não está disponível.', 409);
         }
 
-        return Storage::disk('local')->download($envelope->final_path, 'assinado-'.$envelope->document->name);
+        return Storage::disk('local')->download($file->finalPath, 'assinado-'.$file->name);
     }
 
-    public function original(Request $request, string $id): StreamedResponse
+    /** Original do arquivo `n` (1 = principal). */
+    public function original(Request $request, string $id): StreamedResponse|JsonResponse
     {
         $envelope = $this->find($request, $id);
+        $file = $envelope->files()->firstWhere('n', max(1, (int) $request->query('n', 1)));
 
-        return Storage::disk('local')->download($envelope->document->storage_path, $envelope->document->name);
+        if ($file === null) {
+            return $this->error('not_found', 'Arquivo não encontrado neste documento.', 404);
+        }
+
+        return Storage::disk('local')->download($file->storagePath, $file->name);
     }
 
     /** Reenvia o aviso (e-mail/WhatsApp/SMS) a um signatário que está na vez de assinar. */

@@ -53,26 +53,6 @@ function wzWithObservers(): array
     return [$u, $e->refresh()];
 }
 
-function wzSealNow(Envelope $e): void
-{
-    $provider = new class implements SigningProvider {
-        public function name(): string { return 'fake'; }
-        public function certificate(): CertificateInfo
-        {
-            return new CertificateInfo('SERIAL-1', 'AC Teste', 'CN=ACME', new DateTimeImmutable('-1 day'), new DateTimeImmutable('+1 year'), false);
-        }
-        public function isAvailable(): bool { return true; }
-        public function seal(SealRequest $request): SealedDocument
-        {
-            $pdf = $request->pdf."\n%sealed";
-
-            return new SealedDocument($pdf, hash('sha256', $pdf), 'fake', $this->certificate(), new DateTimeImmutable(), true);
-        }
-    };
-    $manager = new SigningManager(new SealerClient(new Http(), 'http://sealer', 't'), new NullLogger(), ['platform_provider' => 'fake', 'allow_local_test' => false], fn () => $provider);
-    (new SealEnvelope($e->id))->handle($manager, app(EvidenceLogger::class));
-}
-
 // ------------------------------------------------------------------ regras do serviço
 
 it('guarda observadores com o papel observer, depois dos demais, e limita a quantidade', function () {

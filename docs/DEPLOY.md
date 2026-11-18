@@ -60,7 +60,7 @@ O sealer nunca devolve a senha em respostas nem em log. Para trocar de certifica
 | `app` | site e API (porta 8080; é o único com domínio) |
 | `worker` | fila: envio de e-mail/WhatsApp, selagem do PDF, entrega de webhooks |
 | `scheduler` | **novo:** `schedule:work` — expira documentos vencidos (a cada 15 min) e envia lembretes (de hora em hora) e confere o armazenamento de cada empresa (`storage:reconcile`, 03:30) e envia os avisos de vencimento de contratos (`contracts:send-alerts`, todo dia às 11:00 UTC = 08:00 em Brasília; precisa do SMTP configurado) |
-| `sealer` | selagem PAdES + carimbo na página + relatório |
+| `sealer` | selagem PAdES + carimbo na página + relatório + conversão de DOCX em PDF (LibreOffice). A imagem tem cerca de 500 MB e o contêiner precisa de pelo menos 1 GB de memória; o primeiro build demora mais |
 | `backup` | **novo:** a cada 24 h grava `db-AAAAMMDD-HHMMSS.sql.gz` e `documents-….tar.gz` no volume `backups` e apaga o que passar de `BACKUP_RETENTION_DAYS` (padrão 14) |
 | `db` | PostgreSQL 17 |
 
@@ -108,3 +108,8 @@ Se inverter a ordem, o próximo deploy falha por falta de acesso ao repositório
 ### Teste de carga
 
 Veja `loadtest/README.md` (k6). O limite de PDF é conferido no app (`SIGNING_MAX_PDF_MB`) e no PHP/nginx (`PHP_UPLOAD_MAX_FILESIZE`).
+
+## Vários arquivos e DOCX
+- `SIGNING_MAX_DOCUMENTS` (padrão 10): arquivos por envio. `SIGNING_MAX_PDF_MB` vale para cada arquivo.
+- Arquivos DOCX são convertidos pelo selador (`/v1/convert`, até 60 s por arquivo, no máximo 2 conversões ao mesmo tempo: `SEALER_CONVERT_SLOTS`). Se o selador estiver fora do ar, o envio de DOCX mostra um aviso e PDF continua funcionando.
+- Cada arquivo é selado separadamente; se um falhar, o envio fica em "selando" e a nova tentativa sela só o que falta.

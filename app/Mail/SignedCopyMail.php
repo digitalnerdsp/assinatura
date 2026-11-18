@@ -34,14 +34,16 @@ final class SignedCopyMail extends Mailable
         ]);
     }
 
-    /** @return list<Attachment> */
+    /** @return list<Attachment> um PDF selado por arquivo do envio */
     public function attachments(): array
     {
-        $path = $this->document->final_path;
-        if ($path === null || ! Storage::disk('local')->exists($path)) {
-            return [];
+        $out = [];
+        foreach ($this->document->files() as $file) {
+            if ($file->finalPath !== null && Storage::disk('local')->exists($file->finalPath)) {
+                $out[] = Attachment::fromStorageDisk('local', $file->finalPath)->as('assinado-'.$file->name)->withMime('application/pdf');
+            }
         }
 
-        return [Attachment::fromStorageDisk('local', $path)->as('assinado-'.$this->document->document->name)->withMime('application/pdf')];
+        return $out;
     }
 }

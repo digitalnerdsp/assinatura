@@ -248,3 +248,166 @@ it('uma assinatura vale para todos os arquivos', function () {
 
     expect($e->fresh()->status)->toBe(\App\Enums\EnvelopeStatus::Sealing);
 });
+
+// ------------------------------------------------------------------ selagem em lote
+
+use App\Enums\EnvelopeStatus;
+use App\Signing\Exceptions\SigningException;
+
+/** Envio com 2 arquivos, a Ana já assinou (status "sealing"). Campos: um no principal, dois no segundo. */
+function edReadyToSeal(): array
+{
+    [$u, $e, $url] = edSent();
+    $ana = $e->signers()->where('role', 'signer')->first();
+    $extra = $e->extraDocuments()->first();
+    foreach ([[null, .1], [$extra->id, .2], [$extra->id, .3]] as [$doc, $y]) {
+        SignatureField::query()->create(['envelope_id' => $e->id, 'signer_id' => $ana->id, 'page' => 1, 'x' => .1, 'y' => $y, 'width' => .2, 'height' => .05, 'type' => 'signature', 'envelope_document_id' => $doc]);
+    }
+    app(SigningService::class)->sign($ana, 'typed', 'Ana', true);
+
+    return [$u, $e->fresh()];
+}
+
+it('sela cada arquivo separadamente, cada um com o seu relatório e só os seus campos', function () {
+    [, $e] = edReadyToSeal();
+    $seen = [];
+
+    wzSealNow($e, function ($request) use (&$seen) {
+        $seen[] = [$request->report['document_name'], count($request->report['placements']), str_contains($request->pdf, 'segundo')];
+    });
+
+    expect($seen)->toBe([['contrato.pdf', 1, false], ['segundo.pdf', 2, true]]);
+    $e = $e->fresh();
+    $files = $e->files();
+    expect($e->status)->toBe(EnvelopeStatus::Completed)->and($files->every(fn ($f) => $f->finalPath !== null && Storage::disk('local')->exists($f->finalPath)))->toBeTrue()
+        ->and($files[0]->finalPath)->not->toBe($files[1]->finalPath)
+        ->and($e->evidenceEvents()->where('type', 'document_sealed')->count())->toBe(2);
+});
+
+it('se um arquivo falha, o envio continua em selagem e a nova tentativa sela só o que falta', function () {
+    [, $e] = edReadyToSeal();
+
+    expect(fn () => wzSealNow($e, function ($r, $call) {
+        if ($call === 2) {
+            throw new SigningException('selador fora do ar');
+        }
+    }))->toThrow(SigningException::class);
+
+    $e = $e->fresh();
+    expect($e->status)->toBe(EnvelopeStatus::Sealing)->and($e->files()[0]->finalPath)->not->toBeNull()->and($e->files()[1]->finalPath)->toBeNull();
+
+    $calls = 0;
+    wzSealNow($e, function () use (&$calls) { $calls++; });
+
+    expect($calls)->toBe(1)->and($e->fresh()->status)->toBe(EnvelopeStatus::Completed)->and($e->fresh()->files()[1]->finalPath)->not->toBeNull();
+});
+
+it('o armazenamento soma o PDF selado de cada arquivo e o envio conta uma vez no plano', function () {
+    [$u, $e] = edReadyToSeal();
+    $before = (int) $u->tenant->fresh()->storage_bytes;
+
+    wzSealNow($e);
+
+    $sizes = $e->fresh()->files()->sum('finalSize');
+    expect((int) $u->tenant->fresh()->storage_bytes)->toBe($before + $sizes);
+});
+
+it('o relatório de cada arquivo traz o nome e o hash daquele arquivo', function () {
+    [, $e] = edReadyToSeal();
+    $names = [];
+
+    wzSealNow($e, function ($request) use (&$names) { $names[$request->report['document_name']] = $request->report['document_sha256']; });
+
+    $files = $e->fresh()->files();
+    expect($names)->toBe([$files[0]->name => $files[0]->sha256, $files[1]->name => $files[1]->sha256]);
+});
+
+// ------------------------------------------------------------------ entrega: e-mail, download, verificação, API
+
+function edCompleted(): array
+{
+    [$u, $e] = edReadyToSeal();
+    wzSealNow($e);
+    $e = $e->fresh();
+
+    return [$u, $e, $e->signers()->where('role', 'signer')->first()->signUrl()];
+}
+
+it('os e-mails de cópia levam todos os PDFs selados em anexo', function () {
+    [$u, $e] = edCompleted();
+
+    Mail::assertSent(\App\Mail\SignedCopyMail::class, fn ($m) => $m->hasTo('ana@x.com') && count($m->attachments()) === 2);
+    Mail::assertSent(\App\Mail\SignedCopyMail::class, fn ($m) => $m->hasTo($u->email) && count($m->attachments()) === 2);
+});
+
+it('a tela final lista cada arquivo com baixar e ver, e um botão para baixar todos', function () {
+    [, , $url] = edCompleted();
+
+    $this->followingRedirects()->get($url)->assertOk()->assertSee('contrato.pdf')->assertSee('segundo.pdf')->assertSee('Baixar todos')
+        ->assertSee($url.'/assinado/baixar?n=2', false)->assertSee($url.'/assinado/baixar-todos', false);
+});
+
+it('cada arquivo baixa o seu PDF selado e o número inválido dá 404', function () {
+    [, $e, $url] = edCompleted();
+
+    expect($this->get($url.'/assinado/baixar?n=2')->streamedContent ?? $this->get($url.'/assinado/baixar?n=2')->getContent())->toContain('segundo');
+    expect($this->get($url.'/assinado/baixar?n=1')->getContent())->not->toContain('segundo');
+    $this->get($url.'/assinado/baixar?n=9')->assertNotFound();
+    expect($e->evidenceEvents()->where('type', 'signed_copy_downloaded')->count())->toBeGreaterThanOrEqual(2);
+});
+
+it('baixar todos entrega um zip com um PDF por arquivo', function () {
+    [, , $url] = edCompleted();
+
+    $r = $this->get($url.'/assinado/baixar-todos');
+    $r->assertOk();
+    expect($r->headers->get('content-type'))->toContain('zip');
+    $tmp = tempnam(sys_get_temp_dir(), 'z');
+    file_put_contents($tmp, $r->getContent());
+    $zip = new ZipArchive();
+    $zip->open($tmp);
+    expect($zip->numFiles)->toBe(2)->and([$zip->getNameIndex(0), $zip->getNameIndex(1)])->toBe(['assinado-contrato.pdf', 'assinado-segundo.pdf']);
+    $zip->close();
+    unlink($tmp);
+});
+
+it('antes de selar não há zip', function () {
+    [, $e, $url] = edSent();
+    app(SigningService::class)->sign($e->signers()->where('role', 'signer')->first(), 'typed', 'Ana', true);
+
+    $this->get($url.'/assinado/baixar-todos')->assertNotFound();
+});
+
+it('a verificação pública lista os arquivos e reconhece o hash de qualquer um deles', function () {
+    [, $e] = edCompleted();
+    $files = $e->files();
+
+    $this->get("/verificar/{$e->verification_code}")->assertOk()->assertSee('contrato.pdf')->assertSee('segundo.pdf')->assertSee($files[1]->finalSha256)->assertSee($files[1]->sha256);
+
+    $upload = fn (string $bytes) => UploadedFile::fake()->createWithContent('x.pdf', $bytes);
+    $this->post("/verificar/{$e->verification_code}", ['file' => $upload(Storage::disk('local')->get($files[1]->finalPath))])->assertSee('idêntico ao documento selado');
+    $this->post("/verificar/{$e->verification_code}", ['file' => $upload(Storage::disk('local')->get($files[1]->storagePath))])->assertSee('idêntico ao documento original');
+    $this->post("/verificar/{$e->verification_code}", ['file' => $upload('outro')])->assertSee('NÃO corresponde');
+});
+
+it('a API devolve a lista de arquivos e baixa cada um pelo número', function () {
+    [$u, $e] = edCompleted();
+    $presented = app(\App\Api\Presenter::class)->envelope($e->fresh());
+
+    expect($presented['documents'])->toHaveCount(2)->and($presented['documents'][1])->toMatchArray(['n' => 2, 'name' => 'segundo.pdf'])
+        ->and($presented['file']['name'])->toBe('contrato.pdf')->and($presented['final_sha256'])->toBe($e->fresh()->files()[0]->finalSha256);
+});
+
+it('o webhook de conclusão lista os arquivos', function () {
+    [, $e] = edCompleted();
+
+    $payload = \App\Webhooks\EnvelopePayload::make($e->fresh());
+
+    expect($payload['document']['files'])->toHaveCount(2)->and($payload['document']['files'][1]['name'])->toBe('segundo.pdf');
+});
+
+it('a tela do remetente tem um botão de original e de selado para cada arquivo', function () {
+    [$u, $e] = edCompleted();
+
+    $this->actingAs($u)->get("/documentos/{$e->id}")->assertOk()->assertSee('n=2', false)->assertSee('segundo.pdf');
+});

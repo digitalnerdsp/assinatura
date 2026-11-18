@@ -9,9 +9,14 @@
             <span class="badge {{ $intact ? 'bg-success' : 'bg-danger' }}">{{ $intact ? 'trilha de auditoria íntegra' : 'trilha de auditoria inconsistente' }}</span>
         </div>
         <p class="text-secondary">Emitido por <strong>{{ $envelope->tenant->name }}</strong> · código <span class="mono">{{ $envelope->verification_code }}</span></p>
-        <div class="small text-secondary">SHA-256 do original<div class="mono text-body">{{ $envelope->document->sha256 }}</div></div>
+        @foreach ($envelope->files() as $f)
+            <div class="{{ $loop->first ? '' : 'border-top pt-2 ' }}mt-2">
+                @if ($envelope->files()->count() > 1)<div class="fw-semibold small">{{ $f->n }}. {{ $f->name }}</div>@endif
+                <div class="small text-secondary">SHA-256 do original<div class="mono text-body">{{ $f->sha256 }}</div></div>
+                @if ($f->finalSha256)<div class="small text-secondary mt-1">SHA-256 do documento selado<div class="mono text-body">{{ $f->finalSha256 }}</div></div>@endif
+            </div>
+        @endforeach
         @if ($envelope->final_sha256)
-            <div class="small text-secondary mt-2">SHA-256 do documento selado<div class="mono text-body">{{ $envelope->final_sha256 }}</div></div>
             <p class="small text-secondary mt-2 mb-0">Selado em {{ $envelope->sealed_at?->timezone('America/Sao_Paulo')->format('d/m/Y H:i:s') }} (BRT) · certificado <span class="mono">{{ $envelope->sealed_cert_serial }}</span></p>
         @endif
     </div>

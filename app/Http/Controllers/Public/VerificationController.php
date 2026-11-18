@@ -44,9 +44,10 @@ final class VerificationController extends Controller
         $envelope = $data['envelope'];
         $hash = hash_file('sha256', $request->file('file')->getRealPath());
 
+        $files = $envelope->files();
         $match = match (true) {
-            $envelope->final_sha256 !== null && hash_equals($envelope->final_sha256, $hash) => 'final',
-            hash_equals($envelope->document->sha256, $hash) => 'original',
+            $files->contains(fn ($f) => $f->finalSha256 !== null && hash_equals($f->finalSha256, $hash)) => 'final',
+            $files->contains(fn ($f) => hash_equals($f->sha256, $hash)) => 'original',
             default => 'none',
         };
 

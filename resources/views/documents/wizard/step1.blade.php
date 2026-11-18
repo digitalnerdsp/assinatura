@@ -11,7 +11,7 @@
     <input type="hidden" name="folder_id" id="wz-folder-id" value="{{ $folderId }}">
 
     <div class="wz-head"><h1 class="wz-h1">Novo documento</h1><a href="#" class="wz-help" id="wz-help"><i class="bx bxs-help-circle" aria-hidden="true"></i> Preciso de ajuda</a></div>
-    <p class="wz-helptext" id="wz-helptext" hidden>Escolha o PDF ou DOCX que será assinado. Na etapa seguinte você diz quem assina; depois, onde cada assinatura aparece no documento.</p>
+    <p class="wz-helptext" id="wz-helptext" hidden>Escolha os arquivos (PDF ou DOCX) que serão assinados; com vários, quem assina assina uma vez só. Arquivos do Word são convertidos em PDF: confira o resultado ao posicionar as assinaturas. Na etapa seguinte você diz quem assina; depois, onde cada assinatura aparece no documento.</p>
 
     <div class="wz-folder"><i class="bx bxs-folder" aria-hidden="true"></i> <strong id="wz-folder-name">{{ $currentName }}</strong> <button type="button" class="wz-link" id="wz-change-folder">Alterar pasta</button></div>
     @error('folder_id')<div class="wz-err" role="alert">{{ $message }}</div>@enderror

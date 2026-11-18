@@ -52,7 +52,7 @@ Fontes: [docs.zapsign.com.br](https://docs.zapsign.com.br/), [preços ZapSign](h
 
 ### 5.1 MVP (Fase 1)
 - Cadastro/login de empresas (multi-tenant), usuários e papéis (owner, admin, membro), 2FA para usuários.
-- Upload de PDF (e conversão DOCX→PDF opcional).
+- Upload de PDF ou DOCX (convertido no servidor com LibreOffice), até 10 arquivos por envio: o signatário assina uma vez e recebe os documentos selados (um PDF por arquivo, mais um zip), por e-mail e na tela final.
 - Criação de envelope: 1..N documentos, 1..N signatários, papéis (assina, testemunha, aprovador, observador), **ordem de assinatura** (sequencial/paralela), prazo de validade, mensagem.
 - Editor de posicionamento de campos (assinatura, rubrica, data, texto, CPF, checkbox) no PDF.
 - Envio por e-mail e link compartilhável; lembretes automáticos.

@@ -37,6 +37,7 @@ final class Presenter
             'folder' => $e->folder ? ['id' => $e->folder->getKey(), 'name' => $e->folder->name] : null,
             'tags' => $e->tags->map(fn (Tag $t) => ['id' => $t->getKey(), 'name' => $t->name, 'color' => $t->color])->all(),
             'file' => ['name' => $e->document->name, 'size' => $e->document->size, 'sha256' => $e->document->sha256],
+            'documents' => $e->files()->map(fn ($f) => ['n' => $f->n, 'name' => $f->name, 'size' => $f->size, 'sha256' => $f->sha256, 'final_sha256' => $f->finalSha256])->all(),
             'verification_code' => $e->verification_code,
             'verification_url' => route('verify.show', $e->verification_code),
             'created_at' => $e->created_at?->toIso8601String(),

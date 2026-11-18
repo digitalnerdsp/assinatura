@@ -33,14 +33,16 @@ final class ObserverCopyMail extends Mailable
         ]);
     }
 
-    /** @return list<Attachment> */
+    /** @return list<Attachment> um PDF selado por arquivo do envio */
     public function attachments(): array
     {
-        $envelope = $this->observer->envelope;
-        if ($envelope->final_path === null || ! Storage::disk('local')->exists($envelope->final_path)) {
-            return [];
+        $out = [];
+        foreach ($this->observer->envelope->files() as $file) {
+            if ($file->finalPath !== null && Storage::disk('local')->exists($file->finalPath)) {
+                $out[] = Attachment::fromStorageDisk('local', $file->finalPath)->as('assinado-'.$file->name)->withMime('application/pdf');
+            }
         }
 
-        return [Attachment::fromStorageDisk('local', $envelope->final_path)->as('assinado-'.$envelope->document->name)->withMime('application/pdf')];
+        return $out;
     }
 }

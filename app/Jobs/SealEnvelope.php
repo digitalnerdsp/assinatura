@@ -62,6 +62,57 @@ final class SealEnvelope implements ShouldQueue
         }
     }
 
+    /** Sela um arquivo do envio e grava o resultado no próprio arquivo. SigningException deixa o envio em "sealing" para nova tentativa. */
+    private function sealFile(Envelope $envelope, \App\Envelopes\DocumentFile $file, bool $many, SigningManager $manager, EvidenceLogger $evidence, ReportBuilder $reports): void
+    {
+        $original = Storage::disk('local')->get($file->storagePath);
+
+        try {
+            $sealed = $manager->seal(
+                $envelope->tenant->signingSetting,
+                new SealRequest($original, report: $reports->build($envelope, $file)),
+            );
+        } catch (SigningException $e) {
+            $evidence->record($envelope, 'seal_failed', ['error' => $e->getMessage()] + ($many ? ['document' => $file->name] : []));
+
+            throw $e; // a fila tenta novamente
+        }
+
+        $path = "tenants/{$envelope->tenant_id}/final/{$envelope->getKey()}".($file->extraId === null ? '' : "-{$file->n}").'.pdf';
+        Storage::disk('local')->put($path, $sealed->pdf);
+        $previousFinal = (int) $file->finalSize;
+
+        if ($file->extraId === null) {
+            $envelope->update([
+                'final_size' => strlen($sealed->pdf),
+                'final_path' => $path,
+                'final_sha256' => $sealed->sha256,
+                'sealed_provider' => $sealed->provider,
+                'sealed_cert_serial' => $sealed->certificate->serial,
+                'sealed_at' => $sealed->sealedAt,
+            ]);
+        } else {
+            \App\Models\EnvelopeDocument::query()->whereKey($file->extraId)->update([
+                'final_path' => $path, 'final_sha256' => $sealed->sha256, 'final_size' => strlen($sealed->pdf), 'sealed_at' => $sealed->sealedAt,
+            ]);
+        }
+
+        try {
+            app(\App\Plans\StorageUsage::class)->add($envelope->tenant, strlen($sealed->pdf) - $previousFinal);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        $evidence->record($envelope, 'document_sealed', [
+            'provider' => $sealed->provider,
+            'certificate_serial' => $sealed->certificate->serial,
+            'icp_brasil' => $sealed->certificate->icpBrasil,
+            'timestamped' => $sealed->timestamped,
+            'report_attached' => $sealed->decorated,
+            'final_sha256' => $sealed->sha256,
+        ] + ($many ? ['document' => $file->name, 'document_n' => $file->n] : []));
+    }
+
     use Queueable;
 
     public int $tries = 5;
@@ -86,50 +137,23 @@ final class SealEnvelope implements ShouldQueue
             return; // idempotente
         }
 
-        $original = Storage::disk('local')->get($envelope->document->storage_path);
-
-        try {
-            $sealed = $manager->seal(
-                $envelope->tenant->signingSetting,
-                new SealRequest($original, report: $reports->build($envelope)),
-            );
-        } catch (SigningException $e) {
-            $evidence->record($envelope, 'seal_failed', ['error' => $e->getMessage()]);
-
-            throw $e; // a fila tenta novamente
+        // Um PDF selado por arquivo. O que já foi selado numa tentativa anterior não é refeito.
+        $files = $envelope->files();
+        foreach ($files as $file) {
+            if ($file->finalPath !== null && Storage::disk('local')->exists($file->finalPath)) {
+                continue;
+            }
+            $this->sealFile($envelope, $file, $files->count() > 1, $manager, $evidence, $reports);
         }
 
-        $path = "tenants/{$envelope->tenant_id}/final/{$envelope->getKey()}.pdf";
-        Storage::disk('local')->put($path, $sealed->pdf);
-
-        $previousFinal = (int) $envelope->final_size;
-        $envelope->update([
-            'final_size' => strlen($sealed->pdf),
-            'status' => EnvelopeStatus::Completed,
-            'completed_at' => now(),
-            'final_path' => $path,
-            'final_sha256' => $sealed->sha256,
-            'sealed_provider' => $sealed->provider,
-            'sealed_cert_serial' => $sealed->certificate->serial,
-            'sealed_at' => $sealed->sealedAt,
-        ]);
+        $envelope->update(['status' => EnvelopeStatus::Completed, 'completed_at' => now()]);
 
         try {
-            app(\App\Plans\StorageUsage::class)->add($envelope->tenant, strlen($sealed->pdf) - $previousFinal);
-            app(\App\Plans\UsageLedger::class)->charge($envelope, 'complete'); // nunca impede a conclusão
+            app(\App\Plans\UsageLedger::class)->charge($envelope, 'complete'); // um envio conta uma vez, mesmo com vários arquivos; nunca impede a conclusão
             app(\App\Plans\PlanUsageMonitor::class)->check($envelope->tenant);
         } catch (\Throwable $e) {
             report($e);
         }
-
-        $evidence->record($envelope, 'document_sealed', [
-            'provider' => $sealed->provider,
-            'certificate_serial' => $sealed->certificate->serial,
-            'icp_brasil' => $sealed->certificate->icpBrasil,
-            'timestamped' => $sealed->timestamped,
-            'report_attached' => $sealed->decorated,
-            'final_sha256' => $sealed->sha256,
-        ]);
 
         $this->sendSignedCopies($envelope->fresh(), $evidence);
         $this->sendObserverCopies($envelope->fresh(), $evidence);

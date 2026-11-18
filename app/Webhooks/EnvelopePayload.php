@@ -23,6 +23,7 @@ final class EnvelopePayload
                 'metadata' => $envelope->metadata,
                 'title' => $envelope->title,
                 'status' => $envelope->status->value,
+                'files' => $envelope->files()->map(fn ($f) => ['n' => $f->n, 'name' => $f->name, 'sha256' => $f->sha256, 'final_sha256' => $f->finalSha256])->all(),
                 'verification_code' => $envelope->verification_code,
                 'verification_url' => route('verify.show', $envelope->verification_code),
                 'sent_at' => $envelope->sent_at?->toIso8601String(),
