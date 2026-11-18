@@ -34,7 +34,7 @@
                 @if (! empty($brand['logo_url']))
                     <img src="{{ $brand['logo_url'] }}" alt="{{ $brand['name'] }}">
                 @else
-                    <span class="ab-brand-mark" aria-hidden="true"><i class="ti ti-signature"></i></span>
+                    <span class="ab-brand-mark" aria-hidden="true"><img src="{{ asset('assets/images/logo-assinaja-mark.svg') }}" alt="" width="30" height="24"></span>
                     <span class="ab-brand-name">{{ $brand['name'] }}</span>
                 @endif
             </a>

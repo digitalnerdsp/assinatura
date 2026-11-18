@@ -1,0 +1,117 @@
+/*
+ * Assine Já — camada visual da plataforma (vale para os dois temas, o painel, o assistente e as telas públicas).
+ * Vem depois dos temas e do Bootstrap e é sem @layer, então vence o CSS em camadas do Tailwind dos temas.
+ *
+ * Princípios: menos peso (negrito só onde ajuda), sem sombra nas caixas, menos caixas e fundos,
+ * três níveis de texto bem distintos e menu lateral colorido com contraste conferido (WCAG AA).
+ *
+ * Paleta (do logotipo):
+ *   azul #2563EB · azul escuro #1D4ED8 · verde-petróleo #0F766E · azul-noturno #0F172A
+ *   cinza claro #F1F5F9 (fundo) · borda #E2E8F0 · azul suave #DBEAFE
+ *
+ * Contrastes conferidos (razão): menu #CBD5E1 em #0F172A = 12,0 · legenda do menu #94A3B8 = 7,0 · item ativo
+ * branco em #1D4ED8 = 6,7 · título #0F172A = 17,9 · texto #1E293B = 14,6 · apoio #5B6B80 = 5,4 (branco) e 5,0 (fundo cinza).
+ */
+
+:root {
+  --aj-blue: #2563eb;
+  --aj-blue-dark: #1d4ed8;
+  --aj-teal: #0f766e;
+  --aj-navy: #0f172a;
+  --aj-bg: #f1f5f9;
+  --aj-border: #e2e8f0;
+  --aj-soft: #dbeafe;
+
+  /* três níveis de texto */
+  --aj-ink-1: #0f172a; /* títulos */
+  --aj-ink-2: #1e293b; /* texto corrido */
+  --aj-ink-3: #5b6b80; /* apoio: datas, legendas, rótulos secundários */
+
+  /* peso da letra */
+  --aj-w-text: 400;
+  --aj-w-medium: 500;
+  --aj-w-strong: 600;
+
+  --aj-menu-text: #cbd5e1;
+  --aj-menu-caption: #94a3b8;
+}
+
+/* ---------- Texto: níveis e pesos (modo claro) ---------- */
+html:not([data-pc-theme="dark"]):not(.dark-theme) {
+  --ab-muted: var(--aj-ink-3);
+  --color-theme-headings: var(--aj-ink-1);
+  --color-theme-bodycolor: var(--aj-ink-2);
+  --color-theme-secondarytextcolor: var(--aj-ink-3);
+  --color-theme-bodybg: var(--aj-bg);
+}
+html:not([data-pc-theme="dark"]):not(.dark-theme) body { color: var(--aj-ink-2); }
+html:not([data-pc-theme="dark"]):not(.dark-theme) body :is(h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6, .card-title, .ab-page-title, .ab-kpi-value, .modal-title) { color: var(--aj-ink-1); }
+html:not([data-pc-theme="dark"]):not(.dark-theme) body :is(.text-secondary, .text-muted, small, .small, .form-text, .ab-muted) { color: var(--aj-ink-3) !important; }
+
+/* títulos e destaques ficam mais leves; o corpo é regular */
+html body :is(h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6, .card-title, .modal-title, .ab-page-title, .ab-kpi-value, .ab-card-head h5, .ab-dd-head h6, .wz-h1, .wz-h2) { font-weight: var(--aj-w-medium); }
+html body :is(strong, b, .fw-bold, .font-bold, .fw-bolder) { font-weight: var(--aj-w-strong); }
+html body :is(.fw-semibold, .font-semibold, .font-medium, th, label, .form-label, .btn, .badge, .nav-link, .ab-link, .ab-brand-name, .ab-user-name) { font-weight: var(--aj-w-medium); }
+html body :is(.fw-medium) { font-weight: var(--aj-w-medium); }
+
+/* ---------- Caixas: sem sombra, borda fina ---------- */
+html body :is(.card, .ab-card, .pc-header, .wz-card, .alert, .list-group, .table-responsive, [class*="shadow"], .btn, .form-control, .form-select, .input-group-text) { box-shadow: none; }
+html body .card { border: 1px solid var(--aj-border); background-clip: border-box; }
+html body .card-header { background: transparent; border-bottom: 1px solid var(--aj-border); }
+html body .card-footer { background: transparent; border-top: 1px solid var(--aj-border); }
+/* caixa dentro de caixa vira só conteúdo */
+html body .card .card { border: 0; background: transparent; }
+html body .card .card > .card-body { padding-left: 0; padding-right: 0; }
+/* só o que flutua mantém uma sombra leve, para separar do fundo */
+html body :is(.dropdown-menu, .modal-content, .wz-pop, .wz-modal, .toast) { box-shadow: 0 8px 24px rgba(15, 23, 42, .12); border-color: var(--aj-border); }
+
+/* ---------- Tabelas: linhas finas, sem faixas de fundo ---------- */
+html body .table { --bs-table-striped-bg: transparent; --bs-table-hover-bg: rgba(15, 23, 42, .03); }
+html body .table > :not(caption) > * > * { background-color: transparent; border-bottom-color: var(--aj-border); box-shadow: none; }
+html body .table > thead > tr > th { color: var(--aj-ink-3); font-size: .8125rem; border-bottom: 1px solid var(--aj-border); background: transparent; text-transform: none; letter-spacing: 0; }
+
+/* ---------- Fundo e campos ---------- */
+html:not([data-pc-theme="dark"]):not(.dark-theme) body,
+html:not([data-pc-theme="dark"]):not(.dark-theme) .pc-container { background-color: var(--aj-bg); }
+html body :is(.form-control, .form-select) { border-color: var(--aj-border); }
+html body :is(.form-control:focus, .form-select:focus) { border-color: var(--aj-blue); box-shadow: 0 0 0 3px color-mix(in srgb, var(--aj-blue) 18%, transparent); }
+
+/* ---------- Menu lateral colorido (Able) ---------- */
+html body .pc-sidebar { background: var(--aj-navy); border-right: 0; box-shadow: none; color: var(--aj-menu-text); }
+html body .pc-sidebar :is(.navbar-wrapper, .navbar-content, .m-header) { background: transparent; border: 0; }
+html body .pc-sidebar .ab-brand,
+html body .pc-sidebar .ab-brand-name { color: #fff; }
+html body .pc-sidebar .ab-brand img { background: #fff; border-radius: 8px; padding: 4px 8px; }
+html body .pc-sidebar .ab-user-card { background: rgba(255, 255, 255, .06); }
+html body .pc-sidebar .ab-user-card .ab-user-name { color: #fff; }
+html body .pc-sidebar .ab-user-card small { color: var(--aj-menu-caption); }
+html body .pc-sidebar .pc-navbar .pc-caption label { color: var(--aj-menu-caption); font-weight: var(--aj-w-medium); }
+html body .pc-sidebar .pc-navbar .pc-link { color: var(--aj-menu-text); font-weight: var(--aj-w-text); border-radius: 8px; }
+html body .pc-sidebar .pc-navbar .pc-link .pc-micon { color: var(--aj-menu-caption); }
+html body .pc-sidebar .pc-navbar .pc-link .pc-arrow { color: var(--aj-menu-caption); }
+html body .pc-sidebar .pc-navbar .pc-link:hover { background: rgba(255, 255, 255, .07); color: #fff; }
+html body .pc-sidebar .pc-navbar .pc-link:hover .pc-micon { color: #fff; }
+html body .pc-sidebar .pc-navbar > .pc-item.active > .pc-link,
+html body .pc-sidebar .pc-navbar .pc-submenu .pc-item.active > .pc-link { background: var(--aj-blue-dark); color: #fff; font-weight: var(--aj-w-medium); }
+html body .pc-sidebar .pc-navbar > .pc-item.active > .pc-link .pc-micon,
+html body .pc-sidebar .pc-navbar > .pc-item.active > .pc-link .pc-arrow { color: #fff; }
+/* item pai aberto (tem filho ativo): só um leve destaque, sem competir com o filho */
+html body .pc-sidebar .pc-navbar > .pc-item.pc-hasmenu.active > .pc-link { background: rgba(255, 255, 255, .07); }
+html body .pc-sidebar .pc-navbar .pc-submenu .pc-link { color: var(--aj-menu-text); }
+html body .pc-sidebar .pc-navbar .pc-submenu .pc-link::after { background-color: var(--aj-menu-caption); }
+html body .pc-sidebar .pc-navbar .pc-submenu .pc-item.active > .pc-link::after { background-color: #fff; }
+
+/* cabeçalho do painel: sem linha pesada nem sombra */
+html body .pc-header { background: var(--aj-bg); border-bottom: 0; }
+
+/* ---------- Assistente de criar documento ---------- */
+html body .wz { --wz-brand: var(--aj-blue); }
+html body .wz :is(.wz-btn, .wz-again, .wz-link) { font-weight: var(--aj-w-medium); }
+
+/* ---------- Botões ---------- */
+html body :is(.btn-primary) { background-color: var(--aj-blue); border-color: var(--aj-blue); color: #fff; }
+html body :is(.btn-primary:hover, .btn-primary:focus-visible) { background-color: var(--aj-blue-dark); border-color: var(--aj-blue-dark); }
+html body :is(.btn-success) { background-color: var(--aj-teal); border-color: var(--aj-teal); color: #fff; }
+html body :is(.btn-success:hover) { background-color: color-mix(in srgb, var(--aj-teal) 85%, #000); border-color: color-mix(in srgb, var(--aj-teal) 85%, #000); }
+
+@media (prefers-reduced-motion: reduce) { html body * { scroll-behavior: auto; } }
