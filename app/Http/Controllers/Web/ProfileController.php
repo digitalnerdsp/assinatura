@@ -53,6 +53,36 @@ final class ProfileController extends Controller
         return redirect()->route('profile.edit')->with('status', 'Perfil atualizado.');
     }
 
+    /** Troca de senha: exige a senha atual; encerra as outras sessões da conta e mantém esta. */
+    public function updatePassword(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'current_password' => ['required', 'string', 'current_password'],
+            'password' => ['required', 'string', 'min:8', 'max:200', 'confirmed', 'different:current_password'],
+        ], [
+            'current_password.current_password' => 'A senha atual não confere.',
+            'password.min' => 'A nova senha precisa ter pelo menos 8 caracteres.',
+            'password.confirmed' => 'A confirmação não é igual à nova senha.',
+            'password.different' => 'A nova senha precisa ser diferente da atual.',
+        ]);
+
+        $user = $request->user();
+        $user->forceFill(['password' => $data['password'], 'remember_token' => Str::random(60)])->save();
+
+        $request->session()->regenerate();
+        $this->forgetOtherSessions($user->getKey(), $request->session()->getId());
+
+        return redirect()->route('profile.edit')->with('status', 'Senha alterada.');
+    }
+
+    /** Apaga as sessões abertas da conta em outros navegadores (sessões ficam no banco). */
+    public function forgetOtherSessions(string|int $userId, string $currentSessionId): void
+    {
+        if (config('session.driver') === 'database') {
+            \Illuminate\Support\Facades\DB::table(config('session.table', 'sessions'))->where('user_id', $userId)->where('id', '!=', $currentSessionId)->delete();
+        }
+    }
+
     /** "Minha assinatura": desenhada (PNG pequeno em data URL) ou digitada. Usada ao assinar como remetente. */
     public function updateSignature(Request $request): RedirectResponse
     {

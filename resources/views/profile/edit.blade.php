@@ -44,6 +44,31 @@
                 @endif
             </div>
         </div>
+
+        <div class="card" id="alterar-senha">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Alterar senha</h5>
+                <form method="post" action="{{ route('profile.password') }}" autocomplete="off">
+                    @csrf @method('PUT')
+                    <div class="mb-3">
+                        <label class="form-label" for="current_password">Senha atual</label>
+                        <input type="password" name="current_password" id="current_password" class="form-control @error('current_password') is-invalid @enderror" autocomplete="current-password" required>
+                        @error('current_password')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="new_password">Nova senha <span class="text-secondary">(mínimo 8 caracteres)</span></label>
+                        <input type="password" name="password" id="new_password" class="form-control @error('password') is-invalid @enderror" minlength="8" maxlength="200" autocomplete="new-password" required>
+                        @error('password')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="password_confirmation">Repita a nova senha</label>
+                        <input type="password" name="password_confirmation" id="password_confirmation" class="form-control" minlength="8" maxlength="200" autocomplete="new-password" required>
+                    </div>
+                    <p class="form-text">Ao trocar, os outros navegadores e aparelhos em que você está conectado são desconectados.</p>
+                    <button class="btn btn-primary">Alterar senha</button>
+                </form>
+            </div>
+        </div>
     </div>
 
     <div class="col-lg-6">
