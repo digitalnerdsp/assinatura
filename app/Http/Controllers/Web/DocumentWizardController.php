@@ -43,26 +43,46 @@ final class DocumentWizardController extends Controller
     public function upload(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'document' => ['required', 'file', 'mimes:pdf', 'max:'.((int) config('signing.max_pdf_mb') * 1024)],
+            'document' => ['required', 'file', 'extensions:pdf,docx', 'max:'.((int) config('signing.max_pdf_mb') * 1024)],
             'title' => ['nullable', 'string', 'max:190'],
             'folder_id' => ['nullable', 'uuid'],
-        ], ['document.required' => 'Escolha o PDF que será assinado.', 'document.mimes' => 'O arquivo precisa ser um PDF.', 'document.max' => 'O PDF passa do tamanho máximo ('.config('signing.max_pdf_mb').' MB).']);
+        ], $this->documentMessages());
 
         $file = $request->file('document');
         try {
+            $source = app(\App\Documents\DocumentIntake::class)->fromUpload($file);
             $envelope = $this->envelopes->createDraft(
                 $request->user()->tenant,
                 $request->user(),
-                (string) file_get_contents($file->getRealPath()),
-                $file->getClientOriginalName(),
-                $this->titleFor($data['title'] ?? null, $file->getClientOriginalName()),
+                $source['pdf'],
+                $source['name'],
+                $this->titleFor($data['title'] ?? null, $source['name']),
                 ($data['folder_id'] ?? null) ?: null,
             );
+            $this->recordConversion($envelope, $source);
         } catch (FlowException $e) {
             return back()->withInput()->withErrors([$e->reason === 'invalid_folder' ? 'folder_id' : 'document' => $e->getMessage()]);
         }
 
         return redirect()->route('envelopes.step', [$envelope, 2]);
+    }
+
+    /** @return array<string,string> */
+    private function documentMessages(): array
+    {
+        return [
+            'document.required' => 'Escolha o arquivo que será assinado (PDF ou DOCX).',
+            'document.extensions' => 'O arquivo precisa ser um PDF ou um DOCX (Word).',
+            'document.max' => 'O arquivo passa do tamanho máximo ('.config('signing.max_pdf_mb').' MB).',
+        ];
+    }
+
+    /** DOCX convertido: a trilha guarda o hash do original, já que só o PDF fica armazenado. */
+    private function recordConversion(Envelope $envelope, array $source): void
+    {
+        if ($source['source_sha256'] !== null) {
+            app(\App\Evidence\EvidenceLogger::class)->record($envelope, 'source_converted', ['original_name' => $source['source_name'], 'original_sha256' => $source['source_sha256']]);
+        }
     }
 
     public function show(Request $request, Envelope $envelope, int $n): View|RedirectResponse
@@ -117,10 +137,10 @@ final class DocumentWizardController extends Controller
     private function saveStep1(Request $request, Envelope $envelope): RedirectResponse
     {
         $data = $request->validate([
-            'document' => ['nullable', 'file', 'mimes:pdf', 'max:'.((int) config('signing.max_pdf_mb') * 1024)],
+            'document' => ['nullable', 'file', 'extensions:pdf,docx', 'max:'.((int) config('signing.max_pdf_mb') * 1024)],
             'title' => ['nullable', 'string', 'max:190'],
             'folder_id' => ['nullable', 'uuid'],
-        ], ['document.mimes' => 'O arquivo precisa ser um PDF.', 'document.max' => 'O PDF passa do tamanho máximo ('.config('signing.max_pdf_mb').' MB).']);
+        ], $this->documentMessages());
 
         $folderId = ($data['folder_id'] ?? null) ?: null;
         if ($folderId !== null && ! Folder::query()->where('tenant_id', $envelope->tenant_id)->whereKey($folderId)->exists()) {
@@ -129,7 +149,9 @@ final class DocumentWizardController extends Controller
 
         try {
             if ($file = $request->file('document')) {
-                $this->envelopes->replaceDocument($envelope, (string) file_get_contents($file->getRealPath()), $file->getClientOriginalName());
+                $source = app(\App\Documents\DocumentIntake::class)->fromUpload($file);
+                $this->envelopes->replaceDocument($envelope, $source['pdf'], $source['name']);
+                $this->recordConversion($envelope, $source);
             }
         } catch (FlowException $e) {
             return back()->withInput()->withErrors(['document' => $e->getMessage()]);

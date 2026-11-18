@@ -11,7 +11,7 @@
     <input type="hidden" name="folder_id" id="wz-folder-id" value="{{ $folderId }}">
 
     <div class="wz-head"><h1 class="wz-h1">Novo documento</h1><a href="#" class="wz-help" id="wz-help"><i class="bx bxs-help-circle" aria-hidden="true"></i> Preciso de ajuda</a></div>
-    <p class="wz-helptext" id="wz-helptext" hidden>Escolha o PDF que será assinado. Na etapa seguinte você diz quem assina; depois, onde cada assinatura aparece no documento.</p>
+    <p class="wz-helptext" id="wz-helptext" hidden>Escolha o PDF ou DOCX que será assinado. Na etapa seguinte você diz quem assina; depois, onde cada assinatura aparece no documento.</p>
 
     <div class="wz-folder"><i class="bx bxs-folder" aria-hidden="true"></i> <strong id="wz-folder-name">{{ $currentName }}</strong> <button type="button" class="wz-link" id="wz-change-folder">Alterar pasta</button></div>
     @error('folder_id')<div class="wz-err" role="alert">{{ $message }}</div>@enderror
@@ -19,12 +19,12 @@
     <h2 class="wz-h2">Qual documento será assinado?</h2>
     @error('document')<div class="wz-err" role="alert">{{ $message }}</div>@enderror
 
-    <input type="file" name="document" id="wz-file" accept="application/pdf,.pdf" class="wz-sr">
+    <input type="file" name="document" id="wz-file" accept="application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="wz-sr">
     <div class="wz-drop" id="wz-drop" @if ($envelope) hidden @endif>
         <div>
             <span class="wz-up" aria-hidden="true"><i class="bx bx-up-arrow-alt"></i></span>
             <div>Arraste e solte ou <button type="button" class="wz-link" id="wz-pick">busque pelo arquivo</button></div>
-            <div class="wz-small"><strong>PDF</strong> até {{ config('signing.max_pdf_mb') }} MB</div>
+            <div class="wz-small"><strong>PDF ou DOCX</strong> até {{ config('signing.max_pdf_mb') }} MB</div>
         </div>
     </div>
     <div id="wz-chosen" @if (! $envelope) hidden @endif>

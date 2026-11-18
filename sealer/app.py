@@ -37,6 +37,8 @@ from pydantic import BaseModel
 
 from report import SEAL_BOX, decorate
 import fill
+import convert
+import threading
 from fastapi.responses import Response
 from pypdf import PdfReader as _PdfReader
 
@@ -244,6 +246,24 @@ def fill_fields(pdf: UploadFile = File(...), fields: str = Form(...)):
     except fill.InvalidField:
         return JSONResponse(status_code=422, content={"error": "invalid_fields"})
     return Response(content=out, media_type="application/pdf", headers={"X-Page-Count": str(pages)})
+
+
+_convert_slots = threading.BoundedSemaphore(int(os.environ.get("SEALER_CONVERT_SLOTS", "2")))
+
+
+@app.post("/v1/convert", dependencies=[Depends(auth)])
+def convert_docx(docx: UploadFile = File(...)):
+    """DOCX -> PDF pelo LibreOffice. 422: invalid_docx, timeout, convert_failed. 503: unavailable (sem LibreOffice) ou fila cheia."""
+    if not _convert_slots.acquire(timeout=30):
+        return JSONResponse(status_code=503, content={"error": "busy"})
+    try:
+        out = convert.convert_docx(docx.file.read(convert.MAX_INPUT + 1))
+    except convert.ConvertError as exc:
+        status = 503 if exc.reason == "unavailable" else 422
+        return JSONResponse(status_code=status, content={"error": exc.reason})
+    finally:
+        _convert_slots.release()
+    return Response(content=out, media_type="application/pdf")
 
 
 @app.post("/v1/seal", dependencies=[Depends(auth)])

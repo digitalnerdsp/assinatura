@@ -113,6 +113,35 @@ final class SealerClient
         return ['pdf' => $response->body(), 'pages' => (int) $response->header('X-Page-Count')];
     }
 
+    /**
+     * Converte um DOCX em PDF (LibreOffice dentro do selador).
+     *
+     * @throws \App\Documents\ConvertException arquivo inválido, tempo esgotado ou falha na conversão (422)
+     * @throws SigningException serviço indisponível ou sem LibreOffice
+     */
+    public function convert(string $docx): string
+    {
+        try {
+            $response = $this->http
+                ->withToken($this->token)
+                ->timeout(90)
+                ->attach('docx', $docx, 'document.docx')
+                ->post($this->baseUrl.'/v1/convert');
+        } catch (ConnectionException $e) {
+            throw new SigningException('Serviço de selagem indisponível: '.$this->short($e->getMessage()), 0, $e);
+        }
+
+        if ($response->status() === 422) {
+            throw new \App\Documents\ConvertException((string) $response->json('error', 'convert_failed'));
+        }
+
+        if ($response->failed()) {
+            throw new SigningException('Falha ao converter o DOCX (HTTP '.$response->status().'): '.$this->detail($response));
+        }
+
+        return $response->body();
+    }
+
     /** @param array<string,mixed> $credential */
     public function certificate(array $credential): CertificateInfo
     {

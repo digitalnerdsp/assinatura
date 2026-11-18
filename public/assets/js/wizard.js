@@ -46,7 +46,7 @@
 
   function show(f) {
     fname.textContent = f.name;
-    if (!title.value) { title.value = f.name.replace(/\.pdf$/i, ''); }
+    if (!title.value) { title.value = f.name.replace(/\.(pdf|docx)$/i, ''); }
     drop.hidden = true; chosen.hidden = false;
     if (remove) { remove.hidden = hasSaved; }
     sync();
@@ -54,7 +54,7 @@
   file.addEventListener('change', function () {
     var f = file.files && file.files[0];
     if (!f) { sync(); return; }
-    if (!/\.pdf$/i.test(f.name) && f.type !== 'application/pdf') { file.value = ''; alert('Envie um arquivo PDF.'); sync(); return; }
+    if (!/\.(pdf|docx)$/i.test(f.name)) { file.value = ''; alert('Envie um arquivo PDF ou DOCX.'); sync(); return; }
     show(f);
   });
   if (remove) {

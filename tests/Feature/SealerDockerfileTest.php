@@ -41,3 +41,9 @@ it('o app.py do selador importa o fill (a rota /v1/fill depende dele no contêin
     expect(file_get_contents(base_path('sealer/app.py')))->toContain('import fill');
     expect(file_get_contents(base_path('sealer/Dockerfile')))->toContain('fill.py');
 });
+
+it('o Dockerfile instala o LibreOffice e as fontes que a conversão de DOCX usa', function () {
+    $d = (string) file_get_contents(base_path('sealer/Dockerfile'));
+    expect($d)->toContain('libreoffice-writer')->toContain('fonts-liberation')->toContain('convert.py');
+    expect(file_get_contents(base_path('sealer/app.py')))->toContain('import convert');
+});
