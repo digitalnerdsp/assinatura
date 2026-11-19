@@ -145,6 +145,12 @@ final class AssistantSettings
         return $this->metaPlain('phone_number_id');
     }
 
+    /** Identificador da conta do WhatsApp Business (WABA): necessário para criar e consultar modelos de mensagem. */
+    public function wabaId(): string
+    {
+        return $this->metaPlain('waba_id');
+    }
+
     /** Número da plataforma para a pessoa mandar o código (só dígitos; vazio = não configurado). */
     public function displayPhone(): string
     {

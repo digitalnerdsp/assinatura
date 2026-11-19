@@ -72,6 +72,10 @@ Route::middleware(['auth', 'tenant.active', 'platform'])->prefix('admin')->name(
         Route::get('/assistente', [\App\Http\Controllers\Admin\AssistantSettingsController::class, 'edit'])->name('assistant');
         Route::put('/assistente', [\App\Http\Controllers\Admin\AssistantSettingsController::class, 'update'])->middleware('throttle:30,1,admin-assistant')->name('assistant.update');
         Route::post('/assistente/lancamentos', [\App\Http\Controllers\Admin\AssistantSettingsController::class, 'entry'])->middleware('throttle:30,1,admin-assistant-entry')->name('assistant.entries');
+        Route::get('/avisos-whatsapp', [\App\Http\Controllers\Admin\WhatsAppNotificationsController::class, 'edit'])->name('notifications');
+        Route::put('/avisos-whatsapp/{key}', [\App\Http\Controllers\Admin\WhatsAppNotificationsController::class, 'update'])->middleware('throttle:60,1,admin-notifications')->name('notifications.update');
+        Route::post('/avisos-whatsapp/{key}/enviar', [\App\Http\Controllers\Admin\WhatsAppNotificationsController::class, 'submit'])->middleware('throttle:20,1,admin-notifications-submit')->name('notifications.submit');
+        Route::post('/avisos-whatsapp-status', [\App\Http\Controllers\Admin\WhatsAppNotificationsController::class, 'sync'])->middleware('throttle:20,1,admin-notifications-sync')->name('notifications.sync');
         Route::get('/configuracoes', [\App\Http\Controllers\Admin\SettingsController::class, 'edit'])->name('settings');
         Route::put('/configuracoes', [\App\Http\Controllers\Admin\SettingsController::class, 'update'])->name('settings.update');
     });

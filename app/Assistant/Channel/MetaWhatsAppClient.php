@@ -108,7 +108,64 @@ final class MetaWhatsAppClient
         return $this->send(['to' => $to, 'type' => 'document', 'document' => $document]);
     }
 
+    /**
+     * Mensagem de modelo aprovado (a única permitida fora da janela de 24 h).
+     *
+     * @param  list<string>  $params valores das variáveis {{1}}, {{2}}… em ordem
+     */
+    public function sendTemplate(string $to, string $name, string $language, array $params): string
+    {
+        $template = ['name' => $name, 'language' => ['code' => $language]];
+        if ($params !== []) {
+            $template['components'] = [['type' => 'body', 'parameters' => array_map(fn ($p) => ['type' => 'text', 'text' => $this->param((string) $p)], array_values($params))]];
+        }
+
+        return $this->send(['to' => $to, 'type' => 'template', 'template' => $template]);
+    }
+
+    /**
+     * Cria um modelo para a Meta aprovar.
+     *
+     * @param  list<string>  $example valores de exemplo das variáveis (a Meta exige)
+     * @return array{id:string,status:string}
+     */
+    public function createTemplate(string $name, string $language, string $category, string $body, array $example): array
+    {
+        $json = $this->call('post', $this->wabaUrl('message_templates'), [
+            'name' => $name, 'language' => $language, 'category' => strtoupper($category),
+            'components' => [['type' => 'BODY', 'text' => $body, 'example' => ['body_text' => [array_values($example)]]]],
+        ]);
+
+        return ['id' => (string) ($json['id'] ?? ''), 'status' => (string) ($json['status'] ?? 'PENDING')];
+    }
+
+    /** @return list<array<string,mixed>> modelos da conta com nome, status e categoria */
+    public function listTemplates(): array
+    {
+        $json = $this->call('get', $this->wabaUrl('message_templates').'?limit=200&fields=name,status,category,language,rejected_reason');
+
+        return array_values(array_filter((array) ($json['data'] ?? []), 'is_array'));
+    }
+
     // ---------------------------------------------------------------- interno
+
+    /** A Meta recusa variável com quebra de linha, tabulação ou mais de 4 espaços seguidos. */
+    private function param(string $value): string
+    {
+        $v = trim((string) preg_replace('/\s+/u', ' ', $value));
+
+        return mb_substr($v === '' ? '-' : $v, 0, 200);
+    }
+
+    private function wabaUrl(string $path): string
+    {
+        $waba = $this->settings->wabaId();
+        if ($waba === '') {
+            throw new MetaException('Informe o identificador da conta (WABA) em Admin ▸ Assistente WhatsApp para criar ou consultar modelos.');
+        }
+
+        return $this->base().'/'.rawurlencode($waba).'/'.$path;
+    }
 
     /** @param array<string,mixed> $payload @return string id da mensagem enviada */
     private function send(array $payload): string
