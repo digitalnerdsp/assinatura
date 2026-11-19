@@ -67,6 +67,7 @@ final class MenuBuilder
                 $menu[] = $item('Usuários da plataforma', 'platform-users', route('admin.users.index'), $is('admin.users.*'));
                 $menu[] = $item('Temas', 'themes', route('admin.themes.index'), $is('admin.themes.*'));
                 $menu[] = $item('E-mail (SMTP)', 'mail', route('admin.mail'), $is('admin.mail*'));
+                $menu[] = $item('Assistente WhatsApp', 'assistant', route('admin.assistant'), $is('admin.assistant*'));
                 $menu[] = $item('Configurações', 'platform-settings', route('admin.settings'), $is('admin.settings*'));
             }
         }

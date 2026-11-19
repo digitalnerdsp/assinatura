@@ -325,3 +325,10 @@ it('o comando assistant:prune existe e roda todo dia', function () {
     $events = collect(app(\Illuminate\Console\Scheduling\Schedule::class)->events())->map(fn ($e) => $e->command)->implode(' ');
     expect($events)->toContain('assistant:prune');
 });
+
+it('o menu da plataforma mostra o link do assistente só para o super administrador', function () {
+    $super = adSuper();
+    $menu = collect(app(\App\Themes\MenuBuilder::class)->for($super))->pluck('label')->all();
+
+    expect($menu)->toContain('Assistente WhatsApp');
+});
