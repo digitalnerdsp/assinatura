@@ -332,3 +332,26 @@ it('o menu da plataforma mostra o link do assistente só para o super administra
 
     expect($menu)->toContain('Assistente WhatsApp');
 });
+
+it('a empresa do super administrador usa o assistente sem plano: perfil, código de vínculo e pacote de tokens', function () {
+    $super = adSuper();
+    $plain = adOwner(false);
+    app(PlanService::class)->assign($super->tenant, Plan::create(['name' => 'Sem', 'slug' => 'sem-assist', 'active' => true, 'features' => ['assistant' => false]]));
+
+    expect(\App\Plans\Entitlements::for($super->tenant)->feature('assistant'))->toBeTrue()
+        ->and(\App\Plans\Entitlements::for($plain->tenant)->feature('assistant'))->toBeFalse();
+
+    $this->actingAs($super)->post(route('profile.whatsapp.code'))->assertRedirect(route('profile.edit'))->assertSessionHas('whatsapp_code');
+    $this->actingAs($plain)->post(route('profile.whatsapp.code'))->assertForbidden();
+
+    expect(app(\App\Assistant\Metering\TokenWallet::class)->planPackageFor($super->tenant))->toBeGreaterThan(0);
+});
+
+it('super administrador desativado ou com convite pendente não libera o assistente da empresa', function () {
+    $super = adSuper();
+    app(PlanService::class)->assign($super->tenant, Plan::create(['name' => 'Sem2', 'slug' => 'sem-assist-2', 'active' => true, 'features' => ['assistant' => false]]));
+    expect(\App\Plans\Entitlements::for($super->tenant)->feature('assistant'))->toBeTrue();
+    $super->forceFill(['deactivated_at' => now()])->save();
+
+    expect(\App\Plans\Entitlements::for($super->tenant)->feature('assistant'))->toBeFalse();
+});
