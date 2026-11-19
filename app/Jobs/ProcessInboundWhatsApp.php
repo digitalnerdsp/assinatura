@@ -17,6 +17,8 @@ final class ProcessInboundWhatsApp implements ShouldQueue
 
     public int $tries = 3;
 
+    public int $timeout = 120;
+
     /** @return list<int> */
     public function backoff(): array
     {

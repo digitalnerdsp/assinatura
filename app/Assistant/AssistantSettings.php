@@ -94,6 +94,37 @@ final class AssistantSettings
         Setting::put('assistant.meta', json_encode($stored));
     }
 
+    /** @param array<string,?string> $in */
+    public function saveOpenAi(array $in): void
+    {
+        $stored = json_decode((string) Setting::get('assistant.openai', '{}'), true);
+        $stored = is_array($stored) ? $stored : [];
+        $key = trim((string) ($in['api_key'] ?? ''));
+        if ($key !== '') {
+            $stored['api_key'] = Crypt::encryptString($key);
+        }
+        Setting::put('assistant.openai', json_encode($stored));
+    }
+
+    public function openAiApiKey(): string
+    {
+        $stored = json_decode((string) Setting::get('assistant.openai', '{}'), true);
+        $cipher = is_array($stored) ? (string) ($stored['api_key'] ?? '') : '';
+        if ($cipher === '') {
+            return '';
+        }
+        try {
+            return Crypt::decryptString($cipher);
+        } catch (DecryptException) {
+            return '';
+        }
+    }
+
+    public function openAiBaseUrl(): string
+    {
+        return rtrim((string) config('assistant.openai_url'), '/');
+    }
+
     public function metaAccessToken(): string
     {
         return $this->metaSecret('access_token');

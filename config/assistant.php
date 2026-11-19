@@ -20,6 +20,13 @@ return [
     'output_factor' => (float) env('ASSISTANT_OUTPUT_FACTOR', 4),
     'cached_factor' => (float) env('ASSISTANT_CACHED_FACTOR', 0.1),
 
+    // API de conversa da OpenAI (chamada de funções) e limites por conversa.
+    'openai_url' => env('ASSISTANT_OPENAI_URL', 'https://api.openai.com/v1'),
+    'max_output_tokens' => (int) env('ASSISTANT_MAX_OUTPUT_TOKENS', 700),
+    'history_messages' => 12,
+    'history_chars' => 6000,
+    'messages_per_hour' => (int) env('ASSISTANT_MESSAGES_PER_HOUR', 40),
+
     // Validade (meses) dos pacotes extras comprados.
     'purchase_validity_months' => (int) env('ASSISTANT_PURCHASE_VALIDITY_MONTHS', 12),
 ];

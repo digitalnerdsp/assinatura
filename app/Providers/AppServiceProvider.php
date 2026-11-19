@@ -20,8 +20,12 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(\App\Assistant\Channel\InboundHandler::class, fn ($app) => new \App\Assistant\Linking\LinkingInboundHandler(
             $app->make(\App\Assistant\Linking\WhatsAppLinker::class),
             $app->make(\App\Assistant\Channel\MetaWhatsAppClient::class),
-            new \App\Assistant\Channel\NullInboundHandler(), // Tarefa 4: o orquestrador entra aqui
+            $app->make(\App\Assistant\Channel\AssistantInboundHandler::class),
         ));
+
+        $this->app->bind(\App\Assistant\Llm\LlmClient::class, \App\Assistant\Llm\OpenAiClient::class);
+        // Ferramentas do assistente (Tarefa 5 registra as de consulta aqui).
+        $this->app->singleton(\App\Assistant\Tools\ToolRegistry::class, fn () => new \App\Assistant\Tools\ToolRegistry([]));
     }
 
     /**
