@@ -38,20 +38,23 @@ final class StatusProcessor
             'occurred_at' => CarbonImmutable::createFromTimestampUTC((int) ($status['timestamp'] ?? time())),
         ];
 
-        if (! $this->charge($id, $event)) {
-            WhatsAppStatusEvent::query()->firstOrCreate(['wa_message_id' => $id], $event + ['tenant_id' => $this->tenantFor($event['recipient_phone'])?->getKey()]);
+        $tenant = $this->tenantFor($event['recipient_phone']);
+        if ($tenant === null || ! $this->charge($tenant, $id, $event)) {
+            // Sem empresa na hora: era mensagem da própria plataforma (orientação, vínculo) e nunca é cobrada de quem vincula depois.
+            // Com empresa mas sem preço cadastrado: espera o preço (assistant:reconcile).
+            WhatsAppStatusEvent::query()->firstOrCreate(['wa_message_id' => $id], $event + ['tenant_id' => $tenant?->getKey()]);
         }
     }
 
-    /** Cobra os avisos guardados que agora têm empresa e preço. @return int quantos foram resolvidos */
+    /** Cobra os avisos guardados que têm empresa (a gravada no evento) e agora têm preço. @return int quantos foram resolvidos */
     public function reconcile(): int
     {
         $done = 0;
-        WhatsAppStatusEvent::query()->whereNull('processed_at')->orderBy('occurred_at')->each(function (WhatsAppStatusEvent $e) use (&$done): void {
-            $ok = $this->charge($e->wa_message_id, [
-                'recipient_phone' => $e->recipient_phone, 'category' => (string) $e->category, 'billable' => $e->billable, 'occurred_at' => $e->occurred_at,
-            ]);
-            if ($ok) {
+        WhatsAppStatusEvent::query()->whereNull('processed_at')->whereNotNull('tenant_id')->orderBy('occurred_at')->each(function (WhatsAppStatusEvent $e) use (&$done): void {
+            $tenant = Tenant::query()->find($e->tenant_id);
+            if ($tenant !== null && $this->charge($tenant, $e->wa_message_id, [
+                'category' => (string) $e->category, 'billable' => $e->billable, 'occurred_at' => $e->occurred_at,
+            ])) {
                 $e->forceFill(['processed_at' => now()])->save();
                 $done++;
             }
@@ -61,12 +64,8 @@ final class StatusProcessor
     }
 
     /** @param array<string,mixed> $e @return bool registrou o uso? */
-    private function charge(string $id, array $e): bool
+    private function charge(Tenant $tenant, string $id, array $e): bool
     {
-        $tenant = $this->tenantFor((string) $e['recipient_phone']);
-        if ($tenant === null) {
-            return false;
-        }
         $amount = $e['billable'] ? $this->settings->rateFor((string) $e['category']) : 0.0;
         if ($amount === null) {
             return false;

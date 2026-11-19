@@ -25,10 +25,12 @@ final class WhatsAppLinker
     /** Gera o código (8 caracteres) e invalida os anteriores do usuário. Devolve o código uma única vez. */
     public function start(User $user): string
     {
-        $code = '';
-        for ($i = 0; $i < 8; $i++) {
-            $code .= self::ALPHABET[random_int(0, strlen(self::ALPHABET) - 1)];
-        }
+        do { // sempre com letra e número: palavras comuns nunca viram "código"
+            $code = '';
+            for ($i = 0; $i < 8; $i++) {
+                $code .= self::ALPHABET[random_int(0, strlen(self::ALPHABET) - 1)];
+            }
+        } while (! $this->valid($code));
 
         DB::transaction(function () use ($user, $code): void {
             WhatsAppLinkCode::query()->where('user_id', $user->getKey())->delete();
@@ -62,7 +64,7 @@ final class WhatsAppLinker
             }
 
             $user = $match?->user;
-            if ($match === null || $user === null || ! Entitlements::for($user->tenant)->feature('assistant')) {
+            if ($match === null || $user === null || ! $user->isActive() || $user->isPendingInvite() || ! Entitlements::for($user->tenant)->feature('assistant')) {
                 $this->fail($phone);
 
                 return null;
@@ -89,7 +91,7 @@ final class WhatsAppLinker
     {
         $phone = $this->normalize($fromPhone);
 
-        return $phone === '' ? null : User::query()->where('whatsapp_phone', $phone)->whereNotNull('whatsapp_verified_at')->first();
+        return $phone === '' ? null : User::query()->where('whatsapp_phone', $phone)->whereNotNull('whatsapp_verified_at')->whereNull('deactivated_at')->whereNull('invite_token_hash')->first();
     }
 
     public function unlink(User $user): void
@@ -111,18 +113,12 @@ final class WhatsAppLinker
         return preg_replace('/\D/', '', $phone) ?? '';
     }
 
+    /** Conta uma tentativa errada de forma atômica (duas mensagens ao mesmo tempo não colidem) e bloqueia no 5º erro. */
     private function fail(string $phone): void
     {
-        $row = WhatsAppLinkAttempt::query()->lockForUpdate()->find($phone) ?? new WhatsAppLinkAttempt(['phone' => $phone, 'attempts' => 0]);
-        if ($row->blocked_until !== null && $row->blocked_until->isPast()) {
-            $row->attempts = 0;
-            $row->blocked_until = null;
-        }
-        $row->attempts++;
-        if ($row->attempts >= self::MAX_ATTEMPTS) {
-            $row->blocked_until = now()->addMinutes(self::BLOCK_MINUTES);
-        }
-        $row->save();
+        DB::statement('UPDATE whatsapp_link_attempts SET attempts = 0, blocked_until = NULL WHERE phone = ? AND blocked_until IS NOT NULL AND blocked_until < ?', [$phone, now()]);
+        DB::statement('INSERT INTO whatsapp_link_attempts (phone, attempts, created_at, updated_at) VALUES (?, 1, ?, ?) ON CONFLICT (phone) DO UPDATE SET attempts = whatsapp_link_attempts.attempts + 1, updated_at = EXCLUDED.updated_at', [$phone, now(), now()]);
+        DB::statement('UPDATE whatsapp_link_attempts SET blocked_until = ? WHERE phone = ? AND attempts >= ? AND blocked_until IS NULL', [now()->addMinutes(self::BLOCK_MINUTES), $phone, self::MAX_ATTEMPTS]);
     }
 
     /** O texto é o código? Aceita hífen, espaço, minúsculas e uma frase em volta; só valores no alfabeto do código. */
@@ -147,7 +143,7 @@ final class WhatsAppLinker
 
     private function valid(string $candidate): bool
     {
-        return (bool) preg_match('/^['.self::ALPHABET.']{8}$/', $candidate);
+        return (bool) preg_match('/^['.self::ALPHABET.']{8}$/', $candidate) && preg_match('/[A-Z]/', $candidate) === 1 && preg_match('/[2-9]/', $candidate) === 1;
     }
 
     private function hash(string $code): string

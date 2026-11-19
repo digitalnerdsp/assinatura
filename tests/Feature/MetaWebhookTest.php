@@ -198,14 +198,14 @@ it('status de um número que ninguém vinculou fica guardado para conciliar, sem
     expect($e->wa_message_id)->toBe('wamid.OUT1')->and($e->category)->toBe('utility')->and($e->tenant_id)->toBeNull();
 });
 
-it('o status guardado é cobrado quando o número é vinculado depois', function () {
+it('o status de um número sem empresa na hora nunca é cobrado de quem vincula depois (era mensagem da plataforma)', function () {
     metaPost(metaFixture('status_priced'))->assertOk();
     $u = wzOwner();
     $u->forceFill(['whatsapp_phone' => '5511999990000'])->save();
 
     $n = app(\App\Assistant\Channel\StatusReconciler::class)->run();
 
-    expect($n)->toBe(1)->and(MetaMessageUsage::query()->where('tenant_id', $u->tenant_id)->count())->toBe(1)->and(WhatsAppStatusEvent::query()->whereNull('processed_at')->count())->toBe(0);
+    expect($n)->toBe(0)->and(MetaMessageUsage::query()->count())->toBe(0);
 });
 
 it('a categoria sem preço na tabela da plataforma é guardada para conciliar (não inventa valor)', function () {

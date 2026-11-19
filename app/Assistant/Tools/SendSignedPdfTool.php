@@ -58,19 +58,23 @@ final class SendSignedPdfTool extends ReadOnlyTool
         }
 
         $limit = (int) round((float) config('assistant.max_send_mb') * 1048576);
-        if ($files->contains(fn ($f) => (int) ($f->finalSize ?? 0) > $limit)) {
+        if ($files->contains(fn ($f) => (int) ($f->finalSize ?? Storage::disk('local')->size($f->finalPath)) > $limit)) {
             return new ToolResult("O PDF assinado de {$title} é grande demais para o WhatsApp. Baixe pelo painel: ".route('envelopes.show', $e));
         }
 
+        $sent = 0;
         try {
             foreach ($files as $i => $f) {
                 $mediaId = $this->client->uploadMedia((string) Storage::disk('local')->get($f->finalPath), 'application/pdf');
                 $this->client->sendDocument($phone, $mediaId, 'assinado-'.$this->fileName($f->name), $i === 0 ? 'Documento assinado: '.$this->clean($e->title, 100) : null);
+                $sent++;
             }
         } catch (MetaException $ex) {
             report($ex);
 
-            return new ToolResult('Não consegui enviar o arquivo agora. Baixe pelo painel: '.route('envelopes.show', $e));
+            return new ToolResult($sent === 0
+                ? 'Não consegui enviar o arquivo agora. Baixe pelo painel: '.route('envelopes.show', $e)
+                : "Não consegui enviar tudo agora: {$sent} de {$files->count()} arquivos já foram enviados. Baixe o restante pelo painel: ".route('envelopes.show', $e));
         }
 
         return new ToolResult($files->count() === 1

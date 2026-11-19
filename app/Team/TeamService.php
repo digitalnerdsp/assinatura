@@ -92,6 +92,7 @@ final class TeamService
     {
         $this->guard($owner, $member);
         $member->forceFill(['deactivated_at' => now(), 'remember_token' => Str::random(60)])->save();
+        app(\App\Assistant\Linking\WhatsAppLinker::class)->unlink($member); // quem saiu da empresa não consulta mais pelo WhatsApp
     }
 
     public function reactivate(User $owner, User $member): void

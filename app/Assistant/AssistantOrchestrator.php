@@ -53,6 +53,9 @@ final class AssistantOrchestrator
         if (! Entitlements::for($tenant)->feature('assistant')) {
             return new AssistantReply('O assistente no WhatsApp não está incluído no plano da sua empresa. Fale com o administrador para ativar.');
         }
+        if ($tenant->isSuspended()) {
+            return new AssistantReply('A conta da sua empresa está suspensa. Fale com o suporte.');
+        }
         if ($tenant->assistant_enabled === false) { // nulo (modelo recém-criado) conta como ligado: o padrão do banco é ligado
             return new AssistantReply('O assistente está desativado na sua empresa. Fale com o administrador.');
         }
@@ -96,7 +99,12 @@ final class AssistantOrchestrator
         $list = null;
         $final = null;
 
+        $deadline = microtime(true) + (float) config('assistant.max_seconds');
+
         for ($round = 1; $round <= self::MAX_ROUNDS; $round++) {
+            if ($round > 1 && microtime(true) > $deadline) {
+                break; // prazo total da mensagem: a fila não repete o job, então o laço precisa terminar a tempo
+            }
             try {
                 $response = $this->llm->chat($messages, $toolRuns >= self::MAX_TOOL_CALLS ? [] : $registry->specs(), $model);
             } catch (LlmUnavailable $e) {
@@ -105,7 +113,10 @@ final class AssistantOrchestrator
                 return new AssistantReply('O assistente está indisponível no momento. Use as consultas rápidas abaixo.', FixedMenu::buttons($allowed));
             }
 
-            $this->wallet->debit($tenant, $model, $response->usage['input'], $response->usage['cached'], $response->usage['output'], $conversation->getKey());
+            $charged = $this->wallet->debit($tenant, $model, $response->usage['input'], $response->usage['cached'], $response->usage['output'], $conversation->getKey());
+            if ($charged === 0 && $this->wallet->equivalent($model, $response->usage['input'], $response->usage['cached'], $response->usage['output']) > 0) {
+                return new AssistantReply('Seus tokens do assistente acabaram durante a conversa. Use as consultas rápidas abaixo ou peça mais pacotes ao administrador.', FixedMenu::buttons($allowed));
+            }
 
             if ($response->toolCalls === []) {
                 $final = trim((string) $response->text);
@@ -124,7 +135,7 @@ final class AssistantOrchestrator
                 } else {
                     $toolRuns++;
                     [$content, $toolList] = $this->runTool($user, $call, $registry);
-                    $list = $toolList ?? $list;
+                    $list = $toolList; // a lista só acompanha a resposta se vier da última consulta
                 }
                 $toolMessage = ['role' => 'tool', 'tool_call_id' => $call['id'], 'content' => $content];
                 $messages[] = $toolMessage;

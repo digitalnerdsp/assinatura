@@ -25,6 +25,8 @@ return [
     'max_output_tokens' => (int) env('ASSISTANT_MAX_OUTPUT_TOKENS', 700),
     'history_messages' => 12,
     'history_chars' => 6000,
+    // Prazo total para responder uma mensagem (segundos): menor que o tempo limite do job da fila.
+    'max_seconds' => (int) env('ASSISTANT_MAX_SECONDS', 65),
     'messages_per_hour' => (int) env('ASSISTANT_MESSAGES_PER_HOUR', 40),
 
     // Maior PDF assinado que o assistente envia pelo WhatsApp (MB); acima disso responde com o link do painel.

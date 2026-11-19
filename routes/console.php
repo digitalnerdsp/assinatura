@@ -44,3 +44,22 @@ Artisan::command('assistant:prune', function (\App\Assistant\AssistantPruner $pr
     $this->info("{$r['conversations']} conversa(s), {$r['inbounds']} mensagem(ns) recebida(s) e {$r['codes']} código(s) removido(s).");
 })->purpose('Apaga dados de conversa do assistente com mais de 90 dias');
 Schedule::command('assistant:prune')->dailyAt('04:10')->withoutOverlapping();
+
+// Reenvia para a fila mensagens recebidas cujo despacho se perdeu (nunca começaram a ser tratadas).
+Artisan::command('assistant:redispatch', function () {
+    $n = 0;
+    \App\Models\WhatsAppInbound::query()->whereNull('processed_at')->whereNull('processing_started_at')
+        ->where('created_at', '<', now()->subMinutes(2))->where('created_at', '>', now()->subHours(6))
+        ->each(function ($row) use (&$n) {
+            \App\Jobs\ProcessInboundWhatsApp::dispatch($row->getKey());
+            $n++;
+        });
+    $this->info("{$n} mensagem(ns) reenviada(s) para a fila.");
+})->purpose('Reenvia para a fila mensagens do WhatsApp que não chegaram a ser tratadas');
+Schedule::command('assistant:redispatch')->everyFiveMinutes()->withoutOverlapping();
+
+// Cobra os avisos de preço da Meta que esperavam o preço da categoria.
+Artisan::command('assistant:reconcile', function (\App\Assistant\Channel\StatusReconciler $reconciler) {
+    $this->info($reconciler->run().' aviso(s) de preço conciliado(s).');
+})->purpose('Concilia os avisos de preço de mensagens da Meta');
+Schedule::command('assistant:reconcile')->hourly()->withoutOverlapping();

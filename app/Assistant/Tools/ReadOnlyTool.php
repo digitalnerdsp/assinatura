@@ -66,6 +66,9 @@ abstract class ReadOnlyTool implements Tool
     protected function resolve(User $user, string $term): array
     {
         $term = trim($term);
+        if (preg_match('/^doc_([0-9a-f-]{36})$/i', $term, $m)) {
+            $term = $m[1]; // escolha numa lista interativa chega como doc_<uuid>
+        }
         if ($term === '') {
             return ['doc' => null, 'options' => collect()];
         }

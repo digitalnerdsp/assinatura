@@ -28,7 +28,9 @@ final class AssistantPruner
             'inbounds' => WhatsAppInbound::query()->where('created_at', '<', $cut)->delete(),
             'codes' => WhatsAppLinkCode::query()->where(fn ($q) => $q->where('expires_at', '<', now()->subDay())->orWhereNotNull('used_at'))->delete(),
             'attempts' => WhatsAppLinkAttempt::query()->where('updated_at', '<', now()->subDays(7))->where(fn ($q) => $q->whereNull('blocked_until')->orWhere('blocked_until', '<', now()))->delete(),
-            'status_events' => WhatsAppStatusEvent::query()->whereNotNull('processed_at')->where('processed_at', '<', $cut)->delete(),
+            // avisos já cobrados (90 dias) e avisos sem empresa, que nunca serão cobrados de ninguém (30 dias)
+            'status_events' => WhatsAppStatusEvent::query()->where(fn ($q) => $q->where(fn ($a) => $a->whereNotNull('processed_at')->where('processed_at', '<', $cut))
+                ->orWhere(fn ($b) => $b->whereNull('tenant_id')->where('created_at', '<', now()->subDays(30))))->delete(),
         ];
     }
 }

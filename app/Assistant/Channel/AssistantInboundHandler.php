@@ -43,7 +43,13 @@ final class AssistantInboundHandler implements InboundHandler
     private function send(string $to, AssistantReply $reply): void
     {
         if ($reply->list !== null) {
-            $this->client->sendList($to, mb_substr($reply->text !== '' ? $reply->text : $reply->list['body'], 0, 1024), $reply->list['button'], $reply->list['rows']);
+            if (mb_strlen($reply->text) > 1000) { // o corpo da lista é curto: o texto vai inteiro antes
+                $this->client->sendText($to, $reply->text);
+                $this->client->sendList($to, $reply->list['body'], $reply->list['button'], $reply->list['rows']);
+
+                return;
+            }
+            $this->client->sendList($to, $reply->text !== '' ? $reply->text : $reply->list['body'], $reply->list['button'], $reply->list['rows']);
 
             return;
         }

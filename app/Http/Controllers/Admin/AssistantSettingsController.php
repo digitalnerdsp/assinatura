@@ -72,6 +72,8 @@ final class AssistantSettingsController extends Controller
         Setting::put('assistant.purchase_validity_months', (string) $d['purchase_validity_months']);
         Setting::put('assistant.currency', strtoupper($d['currency']));
 
+        app(\App\Assistant\Channel\StatusReconciler::class)->run(); // avisos que esperavam preço
+
         return redirect()->route('admin.assistant')->with('status', 'Configuração do assistente salva.');
     }
 

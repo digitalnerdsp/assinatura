@@ -31,9 +31,15 @@ final class TokenWallet
     public function balance(Tenant $tenant): int
     {
         $remaining = $this->grants($tenant)->sum(fn (array $g) => $g['remaining']);
-        $overrun = (int) AssistantTokenEntry::query()->where('tenant_id', $tenant->getKey())->whereNull('source_id')->where('tokens', '<', 0)->sum('tokens');
 
-        return (int) $remaining + $overrun;
+        return (int) $remaining + $this->overrun($tenant);
+    }
+
+    /** Dívida em aberto (negativa): excesso de uso e ajustes negativos sem saldo, menos o que já foi quitado por créditos novos. */
+    private function overrun(Tenant $tenant): int
+    {
+        return (int) AssistantTokenEntry::query()->where('tenant_id', $tenant->getKey())->whereNull('source_id')
+            ->where(fn ($q) => $q->where('tokens', '<', 0)->orWhere('kind', 'settle'))->sum('tokens');
     }
 
     public function canStart(Tenant $tenant): bool
@@ -71,11 +77,15 @@ final class TokenWallet
         }
 
         try {
-            AssistantTokenEntry::query()->create([
-                'tenant_id' => $tenant->getKey(), 'kind' => 'plan', 'tokens' => $tokens, 'period' => $period,
-                'expires_on' => CarbonImmutable::createFromFormat('Y-m-d', $period.'-01', self::TZ)->endOfMonth()->toDateString(),
-                'note' => 'Pacote do plano '.$period,
-            ]);
+            DB::transaction(function () use ($tenant, $tokens, $period): void {
+                Tenant::query()->whereKey($tenant->getKey())->lockForUpdate()->first();
+                AssistantTokenEntry::query()->create([
+                    'tenant_id' => $tenant->getKey(), 'kind' => 'plan', 'tokens' => $tokens, 'period' => $period,
+                    'expires_on' => CarbonImmutable::createFromFormat('Y-m-d', $period.'-01', self::TZ)->endOfMonth()->toDateString(),
+                    'note' => 'Pacote do plano '.$period,
+                ]);
+                $this->settleDebt($tenant);
+            });
         } catch (UniqueConstraintViolationException) {
             // outra execução concedeu ao mesmo tempo: já está feito
         }
@@ -86,10 +96,14 @@ final class TokenWallet
         if ($tokens <= 0) {
             return;
         }
-        AssistantTokenEntry::query()->create([
-            'tenant_id' => $tenant->getKey(), 'kind' => 'purchase', 'tokens' => $tokens,
-            'expires_on' => $expires?->format('Y-m-d'), 'note' => mb_substr($note, 0, 190),
-        ]);
+        DB::transaction(function () use ($tenant, $tokens, $expires, $note): void {
+            Tenant::query()->whereKey($tenant->getKey())->lockForUpdate()->first();
+            AssistantTokenEntry::query()->create([
+                'tenant_id' => $tenant->getKey(), 'kind' => 'purchase', 'tokens' => $tokens,
+                'expires_on' => $expires?->format('Y-m-d'), 'note' => mb_substr($note, 0, 190),
+            ]);
+            $this->settleDebt($tenant);
+        });
     }
 
     /** Ajuste manual do administrador (positivo concede, negativo desconta), sempre com nota. */
@@ -98,7 +112,62 @@ final class TokenWallet
         if ($tokens === 0) {
             return;
         }
-        AssistantTokenEntry::query()->create(['tenant_id' => $tenant->getKey(), 'kind' => 'adjust', 'tokens' => $tokens, 'note' => mb_substr($note, 0, 190)]);
+        $note = mb_substr($note, 0, 190);
+
+        DB::transaction(function () use ($tenant, $tokens, $note): void {
+            Tenant::query()->whereKey($tenant->getKey())->lockForUpdate()->first();
+            if ($tokens > 0) {
+                AssistantTokenEntry::query()->create(['tenant_id' => $tenant->getKey(), 'kind' => 'adjust', 'tokens' => $tokens, 'note' => $note]);
+                $this->settleDebt($tenant);
+
+                return;
+            }
+
+            // Ajuste negativo: sai do saldo que existe agora (uma vez só); o que passar disso vira dívida.
+            $left = -$tokens - $this->consume($tenant, -$tokens, fn (string $grant, int $take) => AssistantTokenEntry::query()->create([
+                'tenant_id' => $tenant->getKey(), 'kind' => 'adjust', 'tokens' => -$take, 'source_id' => $grant, 'note' => $note,
+            ]));
+            if ($left > 0) {
+                AssistantTokenEntry::query()->create(['tenant_id' => $tenant->getKey(), 'kind' => 'adjust', 'tokens' => -$left, 'note' => $note]);
+            }
+        });
+    }
+
+    /** Quita a dívida em aberto com o crédito que acabou de entrar: uma vez, e não todos os meses seguintes. */
+    private function settleDebt(Tenant $tenant): void
+    {
+        $debt = -$this->overrun($tenant);
+        if ($debt <= 0) {
+            return;
+        }
+        $paid = $this->consume($tenant, $debt, fn (string $grant, int $take) => AssistantTokenEntry::query()->create([
+            'tenant_id' => $tenant->getKey(), 'kind' => 'settle', 'tokens' => -$take, 'source_id' => $grant, 'note' => 'Quitação do excesso',
+        ]));
+        if ($paid > 0) {
+            AssistantTokenEntry::query()->create(['tenant_id' => $tenant->getKey(), 'kind' => 'settle', 'tokens' => $paid, 'note' => 'Excesso quitado']);
+        }
+    }
+
+    /**
+     * Gasta `$amount` das concessões que ainda valem (plano primeiro, depois quem vence antes). Devolve quanto saiu de fato.
+     *
+     * @param  \Closure(string,int):void  $record  grava a linha de uso daquela concessão
+     */
+    private function consume(Tenant $tenant, int $amount, \Closure $record): int
+    {
+        $left = $amount;
+        foreach ($this->grants($tenant)->sortBy(fn (array $g) => $g['order']) as $g) {
+            if ($left <= 0) {
+                break;
+            }
+            $take = min($left, $g['remaining']);
+            if ($take > 0) {
+                $record($g['id'], $take);
+                $left -= $take;
+            }
+        }
+
+        return $amount - $left;
     }
 
     /** Tokens equivalentes de uma resposta da IA (peso do modelo, saída mais cara, entrada em cache mais barata). */
@@ -125,11 +194,6 @@ final class TokenWallet
             Tenant::query()->whereKey($tenant->getKey())->lockForUpdate()->first(); // serializa os débitos da mesma empresa
 
             $charge = max(0, min($equivalent, $this->balance($tenant) + $this->settings->overrunCap()));
-            if ($charge === 0) {
-                return 0;
-            }
-
-            $left = $charge;
             $first = true;
             $row = function (?string $sourceId, int $tokens) use ($tenant, $model, $input, $cached, $output, $conversationId, &$first): void {
                 AssistantTokenEntry::query()->create([
@@ -140,18 +204,15 @@ final class TokenWallet
                 $first = false;
             };
 
-            foreach ($this->grants($tenant)->sortBy(fn (array $g) => $g['order']) as $g) {
-                if ($left <= 0) {
-                    break;
-                }
-                $take = min($left, $g['remaining']);
-                if ($take > 0) {
-                    $row($g['id'], $take);
-                    $left -= $take;
-                }
+            if ($charge === 0) {
+                $row(null, 0); // no piso do excesso: nada é cobrado, mas o uso real fica registrado (para conferir a fatura da IA)
+
+                return 0;
             }
-            if ($left > 0) {
-                $row(null, $left); // excesso: sem concessão de origem
+
+            $paid = $this->consume($tenant, $charge, fn (string $grant, int $take) => $row($grant, $take));
+            if ($charge - $paid > 0) {
+                $row(null, $charge - $paid); // excesso: sem concessão de origem
             }
 
             return $charge;
