@@ -173,8 +173,14 @@ final class TokenWallet
     /** Tokens equivalentes de uma resposta da IA (peso do modelo, saída mais cara, entrada em cache mais barata). */
     public function equivalent(string $model, int $input, int $cached, int $output): int
     {
+        // Com a tabela de preços salva e o modelo com preço, vale a fórmula (régua = entrada do modelo base); senão, os pesos manuais.
+        $priced = app(\App\Assistant\Pricing\AssistantPricing::class)->equivalent($model, $input, $cached, $output);
+        if ($priced !== null) {
+            return $priced;
+        }
+
         $cached = min($cached, $input);
-        $raw = ($input - $cached) + $cached * $this->settings->cachedFactor() + $output * $this->settings->outputFactor();
+        $raw =($input - $cached) + $cached * $this->settings->cachedFactor() + $output * $this->settings->outputFactor();
 
         return (int) ceil($raw * $this->settings->modelWeight($model));
     }
@@ -190,16 +196,23 @@ final class TokenWallet
             return 0;
         }
 
-        return DB::transaction(function () use ($tenant, $model, $input, $cached, $output, $conversationId, $equivalent): int {
+        // Custo real desta resposta, com o preço e o câmbio de agora (guardado: preço novo nunca reescreve o passado).
+        $pricing = app(\App\Assistant\Pricing\AssistantPricing::class);
+        $costUsd = $pricing->costUsd($model, $input, $cached, $output);
+        $fx = $costUsd === null ? null : $pricing->fx();
+        $costBrl = $costUsd === null ? null : $pricing->costBrl($costUsd, $fx);
+
+        return DB::transaction(function () use ($tenant, $model, $input, $cached, $output, $conversationId, $equivalent, $costUsd, $fx, $costBrl): int {
             Tenant::query()->whereKey($tenant->getKey())->lockForUpdate()->first(); // serializa os débitos da mesma empresa
 
             $charge = max(0, min($equivalent, $this->balance($tenant) + $this->settings->overrunCap()));
             $first = true;
-            $row = function (?string $sourceId, int $tokens) use ($tenant, $model, $input, $cached, $output, $conversationId, &$first): void {
+            $row = function (?string $sourceId, int $tokens) use ($tenant, $model, $input, $cached, $output, $conversationId, $costUsd, $fx, $costBrl, &$first): void {
                 AssistantTokenEntry::query()->create([
                     'tenant_id' => $tenant->getKey(), 'kind' => 'usage', 'tokens' => -$tokens, 'source_id' => $sourceId, 'model' => $model,
                     'input_tokens' => $first ? $input : 0, 'cached_tokens' => $first ? $cached : 0, 'output_tokens' => $first ? $output : 0,
                     'conversation_id' => $conversationId,
+                    'cost_usd' => $first ? $costUsd : null, 'fx' => $first ? $fx : null, 'cost_brl' => $first ? $costBrl : null,
                 ]);
                 $first = false;
             };
