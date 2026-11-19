@@ -69,6 +69,7 @@ final class MenuBuilder
                 $menu[] = $item('E-mail (SMTP)', 'mail', route('admin.mail'), $is('admin.mail*'));
                 $menu[] = $item('Assistente WhatsApp', 'assistant', route('admin.assistant'), $is('admin.assistant*'));
                 $menu[] = $item('Economia dos tokens', 'assistant', route('admin.economy'), $is('admin.economy*'));
+                $menu[] = $item('Pacotes de tokens', 'assistant', route('admin.packages'), $is('admin.packages*'));
                 $menu[] = $item('Avisos do WhatsApp', 'assistant', route('admin.notifications'), $is('admin.notifications*'));
                 $menu[] = $item('Configurações', 'platform-settings', route('admin.settings'), $is('admin.settings*'));
             }

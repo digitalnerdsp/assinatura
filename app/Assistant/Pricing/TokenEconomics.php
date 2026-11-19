@@ -54,7 +54,7 @@ final class TokenEconomics
     /**
      * Uso do mês por empresa: tokens equivalentes, custo real (guardado na hora de cada resposta) e quanto isso valeria na venda.
      *
-     * @return list<array{tenant_id:string,tenant:string,eq_tokens:int,cost_brl:float,sale_brl:?float}>
+     * @return list<array{tenant_id:string,tenant:string,eq_tokens:int,cost_brl:float,sale_brl:?float,revenue_brl:float}>
      */
     public function monthReport(string $period): array
     {
@@ -64,12 +64,23 @@ final class TokenEconomics
 
         $rows = AssistantTokenEntry::query()->where('kind', 'usage')->where('created_at', '>=', $start)->where('created_at', '<', $end)
             ->selectRaw('tenant_id, coalesce(-sum(tokens), 0) as eq_tokens, coalesce(sum(cost_brl), 0) as cost_brl')->groupBy('tenant_id')->get();
-        $names = Tenant::query()->whereIn('id', $rows->pluck('tenant_id'))->pluck('name', 'id');
+        // Receita: pacotes liberados no mês (preço da hora do pedido). Empresa que só comprou, sem usar, também aparece.
+        $revenue = \App\Models\AssistantPackageOrder::query()->where('status', 'approved')->where('decided_at', '>=', $start)->where('decided_at', '<', $end)
+            ->selectRaw('tenant_id, sum(price_cents) as cents')->groupBy('tenant_id')->pluck('cents', 'tenant_id');
+        $usage = $rows->keyBy('tenant_id');
+        $ids = $usage->keys()->merge($revenue->keys())->unique()->values();
+        $names = Tenant::query()->whereIn('id', $ids)->pluck('name', 'id');
 
-        $out = $rows->map(fn ($r) => [
-            'tenant_id' => (string) $r->tenant_id, 'tenant' => (string) ($names[$r->tenant_id] ?? '—'), 'eq_tokens' => (int) $r->eq_tokens,
-            'cost_brl' => round((float) $r->cost_brl, 6), 'sale_brl' => $sale === null ? null : round((int) $r->eq_tokens / 1_000_000 * $sale, 6),
-        ])->all();
+        $out = $ids->map(function ($id) use ($usage, $revenue, $names, $sale) {
+            $r = $usage[$id] ?? null;
+            $eq = (int) ($r->eq_tokens ?? 0);
+
+            return [
+                'tenant_id' => (string) $id, 'tenant' => (string) ($names[$id] ?? '—'), 'eq_tokens' => $eq,
+                'cost_brl' => round((float) ($r->cost_brl ?? 0), 6), 'sale_brl' => $sale === null ? null : round($eq / 1_000_000 * $sale, 6),
+                'revenue_brl' => round(((int) ($revenue[$id] ?? 0)) / 100, 2),
+            ];
+        })->all();
         usort($out, fn ($a, $b) => [$b['cost_brl'], $a['tenant']] <=> [$a['cost_brl'], $b['tenant']]);
 
         return array_values($out);

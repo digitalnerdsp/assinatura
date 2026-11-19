@@ -115,13 +115,13 @@
         @else
             <div class="table-responsive">
                 <table class="table align-middle mb-0">
-                    <thead><tr><th>Empresa</th><th class="text-end">Tokens equivalentes</th><th class="text-end">Custo real (IA)</th><th class="text-end">Valor de venda equivalente</th></tr></thead>
+                    <thead><tr><th>Empresa</th><th class="text-end">Tokens equivalentes</th><th class="text-end">Custo real (IA)</th><th class="text-end">Valor de venda equivalente</th><th class="text-end">Receita de pacotes</th></tr></thead>
                     <tbody>
                     @foreach ($report as $r)
-                        <tr><td>{{ $r['tenant'] }}</td><td class="text-end">{{ $i($r['eq_tokens']) }}</td><td class="text-end">R$ {{ $m($r['cost_brl'], 4) }}</td><td class="text-end">{{ $r['sale_brl'] === null ? '—' : 'R$ '.$m($r['sale_brl'], 4) }}</td></tr>
+                        <tr><td>{{ $r['tenant'] }}</td><td class="text-end">{{ $i($r['eq_tokens']) }}</td><td class="text-end">R$ {{ $m($r['cost_brl'], 4) }}</td><td class="text-end">{{ $r['sale_brl'] === null ? '—' : 'R$ '.$m($r['sale_brl'], 4) }}</td><td class="text-end">R$ {{ $m($r['revenue_brl']) }}</td></tr>
                     @endforeach
                     </tbody>
-                    <tfoot><tr class="fw-semibold"><td>Total</td><td class="text-end">{{ $i(array_sum(array_column($report, 'eq_tokens'))) }}</td><td class="text-end">R$ {{ $m(array_sum(array_column($report, 'cost_brl')), 4) }}</td><td class="text-end">{{ $perMillion ? 'R$ '.$m(array_sum(array_column($report, 'sale_brl')), 4) : '—' }}</td></tr></tfoot>
+                    <tfoot><tr class="fw-semibold"><td>Total</td><td class="text-end">{{ $i(array_sum(array_column($report, 'eq_tokens'))) }}</td><td class="text-end">R$ {{ $m(array_sum(array_column($report, 'cost_brl')), 4) }}</td><td class="text-end">{{ $perMillion ? 'R$ '.$m(array_sum(array_column($report, 'sale_brl')), 4) : '—' }}</td><td class="text-end">R$ {{ $m(array_sum(array_column($report, 'revenue_brl'))) }}</td></tr></tfoot>
                 </table>
             </div>
             <p class="text-secondary small mt-2 mb-0">Custo real = o que a OpenAI cobra, calculado com o preço e o câmbio do dia de cada resposta. Mensagens da Meta têm repasse separado.</p>

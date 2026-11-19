@@ -70,9 +70,14 @@ Route::middleware(['auth', 'tenant.active', 'platform'])->prefix('admin')->name(
         Route::post('/email/teste', [\App\Http\Controllers\Admin\MailController::class, 'test'])->middleware('throttle:10,1,admin-mail-test')->name('mail.test');
         Route::delete('/email', [\App\Http\Controllers\Admin\MailController::class, 'reset'])->name('mail.reset');
         Route::get('/assistente', [\App\Http\Controllers\Admin\AssistantSettingsController::class, 'edit'])->name('assistant');
-        Route::put('/assistente', [\App\Http\Controllers\Admin\AssistantSettingsController::class, 'update'])->middleware('throttle:30,1,admin-assistant')->name('assistant.update');
+    Route::put('/assistente', [\App\Http\Controllers\Admin\AssistantSettingsController::class, 'update'])->middleware('throttle:30,1,admin-assistant')->name('assistant.update');
         Route::post('/assistente/lancamentos', [\App\Http\Controllers\Admin\AssistantSettingsController::class, 'entry'])->middleware('throttle:30,1,admin-assistant-entry')->name('assistant.entries');
         Route::post('/assinaturas/{tenant}/saldo-whatsapp', [\App\Http\Controllers\Admin\SubscriptionController::class, 'waCredit'])->whereUuid('tenant')->middleware('throttle:30,1,admin-wa-credit')->name('subscriptions.wa-credit');
+        Route::get('/pacotes-tokens', [\App\Http\Controllers\Admin\PackageController::class, 'index'])->name('packages');
+        Route::post('/pacotes-tokens', [\App\Http\Controllers\Admin\PackageController::class, 'store'])->middleware('throttle:30,1,admin-packages')->name('packages.store');
+        Route::put('/pacotes-tokens/{package}', [\App\Http\Controllers\Admin\PackageController::class, 'update'])->middleware('throttle:60,1,admin-packages')->name('packages.update');
+        Route::post('/pedidos-tokens/{order}/liberar', [\App\Http\Controllers\Admin\PackageController::class, 'approve'])->middleware('throttle:30,1,admin-package-orders')->name('packages.approve');
+        Route::post('/pedidos-tokens/{order}/recusar', [\App\Http\Controllers\Admin\PackageController::class, 'reject'])->middleware('throttle:30,1,admin-package-orders')->name('packages.reject');
         Route::get('/economia-tokens', [\App\Http\Controllers\Admin\TokenEconomyController::class, 'edit'])->name('economy');
         Route::put('/economia-tokens', [\App\Http\Controllers\Admin\TokenEconomyController::class, 'update'])->middleware('throttle:30,1,admin-economy')->name('economy.update');
         Route::get('/avisos-whatsapp', [\App\Http\Controllers\Admin\WhatsAppNotificationsController::class, 'edit'])->name('notifications');
@@ -191,6 +196,8 @@ Route::middleware(['auth', 'tenant.active'])->group(function () {
     Route::put('/configuracoes/assinatura-da-empresa', [\App\Http\Controllers\Web\CompanySigningController::class, 'update'])->middleware('throttle:20,1,company-signing')->name('company.signing.update');
 
     Route::get('/assistente', [\App\Http\Controllers\Web\AssistantController::class, 'index'])->middleware('owner')->middleware('feature:assistant')->name('assistant.index');
+    Route::post('/assistente/pacotes/{package}/pedir', [\App\Http\Controllers\Web\AssistantController::class, 'orderPackage'])->middleware('throttle:10,1,assistant-order')->middleware('owner')->middleware('feature:assistant')->name('assistant.packages.order');
+    Route::delete('/assistente/pedidos/{order}', [\App\Http\Controllers\Web\AssistantController::class, 'cancelOrder'])->middleware('throttle:20,1,assistant-order-cancel')->middleware('owner')->middleware('feature:assistant')->name('assistant.orders.cancel');
     Route::put('/assistente', [\App\Http\Controllers\Web\AssistantController::class, 'update'])->middleware('throttle:30,1,assistant-settings')->middleware('owner')->middleware('feature:assistant')->name('assistant.update');
 
     Route::get('/api-keys', [ApiKeyController::class, 'index'])->middleware('owner')->name('api-keys.index');

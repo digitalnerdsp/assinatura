@@ -44,6 +44,9 @@ final class AssistantController extends Controller
             'markup' => app(\App\Assistant\AssistantSettings::class)->markupPercent(),
             'period' => $period,
             'credit' => $this->creditPanel($tenant, $period),
+            'packages' => \App\Models\AssistantPackage::query()->where('active', true)->orderBy('position')->orderBy('name')->get(),
+            'orders' => \App\Models\AssistantPackageOrder::query()->where('tenant_id', $tenant->getKey())->latest()->limit(8)->get(),
+            'tokensPerConversation' => app(\App\Assistant\Pricing\TokenEconomics::class)->tokensPerConversation()['value'],
         ]);
     }
 
@@ -62,6 +65,30 @@ final class AssistantController extends Controller
             'month' => $credit->monthSummary($tenant, $period),
             'noBalance' => ! $credit->canAfford($tenant, $oneMessage),
         ];
+    }
+
+    /** Pede um pacote adicional de tokens: fica aguardando o super administrador confirmar o pagamento e liberar. */
+    public function orderPackage(Request $request, \App\Models\AssistantPackage $package): RedirectResponse
+    {
+        try {
+            app(\App\Assistant\Pricing\PackageOrders::class)->request($request->user(), $package);
+        } catch (\DomainException $e) {
+            return back()->withErrors(['package' => $e->getMessage()]);
+        }
+
+        return redirect()->route('assistant.index')->with('status', 'Pedido enviado. Assim que o pagamento for confirmado, os tokens entram no saldo.');
+    }
+
+    public function cancelOrder(Request $request, \App\Models\AssistantPackageOrder $order): RedirectResponse
+    {
+        abort_unless($order->tenant_id === $request->user()->tenant_id, 404);
+        try {
+            app(\App\Assistant\Pricing\PackageOrders::class)->cancel($order, $request->user());
+        } catch (\DomainException $e) {
+            return back()->withErrors(['package' => $e->getMessage()]);
+        }
+
+        return redirect()->route('assistant.index')->with('status', 'Pedido cancelado.');
     }
 
     public function update(Request $request): RedirectResponse

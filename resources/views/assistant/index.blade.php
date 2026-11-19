@@ -64,4 +64,40 @@
         </div>
     </div>
 </div>
+
+<div class="card radius-10">
+    <div class="card-header"><h6 class="mb-0"><i class="bx bx-package me-1"></i> Pacotes de tokens</h6></div>
+    <div class="card-body">
+        @error('package')<div class="alert alert-danger border-0">{{ $message }}</div>@enderror
+        @if ($packages->isEmpty())
+            <p class="text-secondary mb-0">Nenhum pacote disponível no momento. Fale com o suporte.</p>
+        @else
+            <p class="text-secondary small">Precisa de mais tokens? Peça um pacote: o pagamento é confirmado pelo suporte e os tokens entram no seu saldo.</p>
+            <div class="table-responsive"><table class="table align-middle mb-0">
+                <thead><tr><th>Pacote</th><th class="text-end">Tokens</th><th class="text-end">Conversas (estimativa)</th><th class="text-end">Preço</th><th>Validade</th><th></th></tr></thead>
+                <tbody>
+                @foreach ($packages as $p)
+                    <tr>
+                        <td>{{ $p->name }}</td><td class="text-end">{{ number_format($p->tokens, 0, ',', '.') }}</td>
+                        <td class="text-end">≈ {{ number_format(intdiv($p->tokens, max(1, $tokensPerConversation)), 0, ',', '.') }} conversas</td>
+                        <td class="text-end">R$ {{ number_format($p->price_cents / 100, 2, ',', '.') }}</td><td>{{ $p->validity_months }} meses</td>
+                        <td class="text-end"><form method="post" action="{{ route('assistant.packages.order', $p) }}" data-confirm="Pedir o pacote {{ $p->name }} por R$ {{ number_format($p->price_cents / 100, 2, ',', '.') }}?">@csrf<button class="btn btn-primary btn-sm">Pedir</button></form></td>
+                    </tr>
+                @endforeach
+                </tbody>
+            </table></div>
+        @endif
+        @if ($orders->isNotEmpty())
+            <h6 class="mt-3">Seus pedidos</h6>
+            <ul class="list-unstyled mb-0">
+                @foreach ($orders as $o)
+                    <li class="d-flex justify-content-between align-items-center border-top py-2">
+                        <span>{{ $o->name }} · R$ {{ number_format($o->price_cents / 100, 2, ',', '.') }} · {{ ['pending' => 'pedido aguardando liberação', 'approved' => 'liberado', 'rejected' => 'recusado', 'canceled' => 'cancelado'][$o->status] ?? $o->status }}@if ($o->status === 'rejected' && $o->note) <span class="text-secondary small">({{ $o->note }})</span>@endif</span>
+                        @if ($o->status === 'pending')<form method="post" action="{{ route('assistant.orders.cancel', $o) }}" data-confirm="Cancelar este pedido?">@csrf @method('DELETE')<button class="btn btn-outline-danger btn-sm">Cancelar</button></form>@endif
+                    </li>
+                @endforeach
+            </ul>
+        @endif
+    </div>
+</div>
 @endsection
