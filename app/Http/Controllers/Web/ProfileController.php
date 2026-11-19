@@ -21,7 +21,32 @@ final class ProfileController extends Controller
 
     public function edit(Request $request): View
     {
-        return view('profile.edit', ['user' => $request->user()]);
+        $user = $request->user();
+        $enabled = \App\Plans\Entitlements::for($user->tenant)->feature('assistant');
+
+        return view('profile.edit', ['user' => $user, 'whatsapp' => [
+            'enabled' => $enabled,
+            'linked' => $user->whatsapp_phone !== null && $user->whatsapp_verified_at !== null,
+            'masked' => $user->whatsapp_phone !== null ? '+'.substr($user->whatsapp_phone, 0, 2).' •••••'.substr($user->whatsapp_phone, -4) : null,
+            'code' => session('whatsapp_code'), // aparece uma vez só (flash)
+            'platformPhone' => app(\App\Assistant\AssistantSettings::class)->displayPhone(),
+        ]]);
+    }
+
+    /** Gera o código de vínculo do WhatsApp. O código vai para a próxima tela uma única vez. */
+    public function whatsappCode(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        abort_unless(\App\Plans\Entitlements::for($user->tenant)->feature('assistant'), 403);
+
+        return redirect()->route('profile.edit')->with('whatsapp_code', app(\App\Assistant\Linking\WhatsAppLinker::class)->start($user));
+    }
+
+    public function whatsappUnlink(Request $request): RedirectResponse
+    {
+        app(\App\Assistant\Linking\WhatsAppLinker::class)->unlink($request->user());
+
+        return redirect()->route('profile.edit')->with('status', 'WhatsApp desvinculado.');
     }
 
     public function update(Request $request): RedirectResponse

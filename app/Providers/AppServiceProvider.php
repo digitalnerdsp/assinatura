@@ -17,7 +17,11 @@ class AppServiceProvider extends ServiceProvider
         );
 
         // Tratador das mensagens do WhatsApp: troca-se quando o vínculo e o orquestrador existirem.
-        $this->app->bind(\App\Assistant\Channel\InboundHandler::class, \App\Assistant\Channel\NullInboundHandler::class);
+        $this->app->bind(\App\Assistant\Channel\InboundHandler::class, fn ($app) => new \App\Assistant\Linking\LinkingInboundHandler(
+            $app->make(\App\Assistant\Linking\WhatsAppLinker::class),
+            $app->make(\App\Assistant\Channel\MetaWhatsAppClient::class),
+            new \App\Assistant\Channel\NullInboundHandler(), // Tarefa 4: o orquestrador entra aqui
+        ));
     }
 
     /**

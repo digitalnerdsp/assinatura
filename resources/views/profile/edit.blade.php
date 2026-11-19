@@ -69,6 +69,28 @@
                 </form>
             </div>
         </div>
+
+        @if ($whatsapp['enabled'])
+        <div class="card" id="assistente-whatsapp">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Assistente no WhatsApp</h5>
+                @if ($whatsapp['linked'])
+                    <p class="mb-2">Número vinculado: <strong>{{ $whatsapp['masked'] }}</strong>. Pelo WhatsApp você consulta seus documentos e verifica assinaturas.</p>
+                    <form method="post" action="{{ route('profile.whatsapp.unlink') }}" data-confirm="Desvincular este número do WhatsApp? O assistente deixa de responder a ele.">@csrf @method('DELETE')<button class="btn btn-outline-danger btn-sm">Desvincular</button></form>
+                @else
+                    <p class="text-secondary">Vincule o seu WhatsApp para consultar documentos conversando. Gere um código e envie-o, pelo próprio WhatsApp, para o número da plataforma{{ $whatsapp['platformPhone'] !== '' ? ': +'.$whatsapp['platformPhone'] : '' }}.</p>
+                    @if ($whatsapp['code'])
+                        <div class="alert alert-info border-0">
+                            Seu código (vale 15 minutos e aparece só agora):
+                            <div class="fs-3 fw-semibold my-1" style="letter-spacing:.15em">{{ $whatsapp['code'] }}</div>
+                            @if ($whatsapp['platformPhone'] !== '')<a class="btn btn-success btn-sm" target="_blank" rel="noopener" href="https://wa.me/{{ $whatsapp['platformPhone'] }}?text={{ $whatsapp['code'] }}">Abrir o WhatsApp com o código</a>@endif
+                        </div>
+                    @endif
+                    <form method="post" action="{{ route('profile.whatsapp.code') }}">@csrf<button class="btn btn-primary btn-sm">Gerar código</button></form>
+                @endif
+            </div>
+        </div>
+        @endif
     </div>
 
     <div class="col-lg-6">

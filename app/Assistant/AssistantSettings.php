@@ -70,7 +70,7 @@ final class AssistantSettings
     // ---------- credenciais da Meta (cifradas com a APP_KEY; segredo em branco ao salvar mantém o anterior) ----------
 
     private const META_SECRETS = ['access_token', 'app_secret', 'verify_token'];
-    private const META_PLAIN = ['phone_number_id', 'graph_version', 'waba_id'];
+    private const META_PLAIN = ['phone_number_id', 'graph_version', 'waba_id', 'display_phone'];
 
     /** @param array<string,?string> $in */
     public function saveMeta(array $in): void
@@ -112,6 +112,12 @@ final class AssistantSettings
     public function metaPhoneNumberId(): string
     {
         return $this->metaPlain('phone_number_id');
+    }
+
+    /** Número da plataforma para a pessoa mandar o código (só dígitos; vazio = não configurado). */
+    public function displayPhone(): string
+    {
+        return preg_replace('/\D/', '', $this->metaPlain('display_phone')) ?? '';
     }
 
     public function graphVersion(): string

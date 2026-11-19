@@ -170,6 +170,8 @@ Route::middleware(['auth', 'tenant.active'])->group(function () {
     Route::put('/perfil/senha', [\App\Http\Controllers\Web\ProfileController::class, 'updatePassword'])->middleware('throttle:5,1,profile-password')->name('profile.password');
     Route::put('/perfil/assinatura', [\App\Http\Controllers\Web\ProfileController::class, 'updateSignature'])->middleware('throttle:20,1,profile-signature')->name('profile.signature.update');
     Route::delete('/perfil/assinatura', [\App\Http\Controllers\Web\ProfileController::class, 'destroySignature'])->name('profile.signature.destroy');
+    Route::post('/perfil/whatsapp/codigo', [\App\Http\Controllers\Web\ProfileController::class, 'whatsappCode'])->middleware('throttle:5,1,profile-whatsapp')->name('profile.whatsapp.code');
+    Route::delete('/perfil/whatsapp', [\App\Http\Controllers\Web\ProfileController::class, 'whatsappUnlink'])->name('profile.whatsapp.unlink');
     Route::delete('/perfil/foto', [\App\Http\Controllers\Web\ProfileController::class, 'destroyPhoto'])->name('profile.photo.destroy');
     Route::get('/perfil/foto/{user}', [\App\Http\Controllers\Web\ProfileController::class, 'photo'])->name('profile.photo');
 
