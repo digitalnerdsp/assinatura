@@ -93,7 +93,7 @@ function wsToReview(User $u, array $signers = ['Maria Souza maria@email.com']): 
 
 function wsButtonIds(?\App\Assistant\AssistantReply $r): array
 {
-    return array_map(fn ($b) => $b['id'], $r->buttons ?? []);
+    return array_map(fn ($b) => explode(':', $b['id'])[0], $r->buttons ?? []); // sem o carimbo do envio
 }
 
 // ------------------------------------------------------------------ arquivo → rascunho → título

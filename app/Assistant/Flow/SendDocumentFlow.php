@@ -17,12 +17,14 @@ use App\Envelopes\EnvelopeService;
 use App\Envelopes\Exceptions\FlowException;
 use App\Envelopes\SenderPolicy;
 use App\Envelopes\TrashService;
+use App\Evidence\RequestContext;
 use App\Models\Envelope;
 use App\Models\User;
 use App\Models\WhatsAppFlow;
 use App\Notifications\SignerNotifier;
 use App\Plans\Entitlements;
 use Illuminate\Support\Facades\DB;
+use Throwable;
 
 /**
  * Conversa guiada, sem IA, para enviar um documento para assinatura pelo WhatsApp:
@@ -33,6 +35,12 @@ final class SendDocumentFlow
 {
     private const MAX_SIGNERS = 20;
     private const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    /** O job da fila tem 80 s: baixar (até 45 s) + converter (30 s) cabe com folga. */
+    private const CONVERT_SECONDS = 30;
+    private const BUSY = 'Há um envio em andamento. Aguarde a confirmação antes de cancelar ou trocar o arquivo.';
+
+    /** Carimbo (8 primeiros caracteres do id do rascunho) que vai em cada botão: botão de outro envio é reconhecido como antigo. */
+    private ?string $stamp = null;
 
     public function __construct(
         private readonly FlowStore $store,
@@ -49,62 +57,102 @@ final class SendDocumentFlow
         $isDoc = $m->type === 'document';
         $isFlowButton = $m->payloadId !== null && str_starts_with($m->payloadId, 'flow_');
         $text = trim((string) $m->text);
-        $wantsStart = $m->type === 'text' && preg_match('/\b(enviar|mandar|criar|novo|nova)\b.{0,25}\bdocumento\b|\bpara assinatura\b|\bmandar (um )?contrato\b/iu', $text) === 1;
+        $wantsStart = $m->type === 'text' && self::wantsStart($text);
 
         if (! ToolGroups::allows($user->tenant, 'send_documents')) {
             return ($isDoc || $isFlowButton || $wantsStart) ? new AssistantReply('Enviar documentos pelo WhatsApp não está liberado para a sua empresa. Fale com o administrador.') : null;
         }
 
         $flow = $this->store->current($user);
+        $this->stamp = $flow !== null ? $this->stampOf($flow) : null;
 
         if ($isDoc) {
             return $this->receiveFile($user, $m, $flow);
         }
         if ($isFlowButton) {
-            return $flow === null
-                ? new AssistantReply('Não há um envio em andamento (ele já foi concluído ou expirou). Mande o arquivo em PDF ou Word para começar.')
-                : $this->button($user, (string) $m->payloadId, $flow);
+            if ($flow === null) {
+                return new AssistantReply('Não há um envio em andamento (ele já foi concluído ou expirou; se ficou um rascunho, ele continua no site). Mande o arquivo em PDF ou Word para começar.');
+            }
+            [$base, $given] = array_pad(explode(':', (string) $m->payloadId, 2), 2, null);
+            if ($given !== null && $given !== $this->stamp) {
+                return new AssistantReply('Esses botões são de um envio antigo. Use os botões da mensagem mais recente (o rascunho antigo continua no site).');
+            }
+
+            return $this->button($user, (string) $base, $flow);
         }
-        if (! in_array($m->type, ['text'], true)) {
+        if ($m->type !== 'text') {
             return null;
         }
         if ($flow !== null) {
-            return preg_match('/^(cancelar|cancela|sair)$/iu', $text) === 1 ? $this->cancel($user, $flow) : $this->typed($user, $flow, $text);
+            if (preg_match('/^(cancelar|cancela|sair)$/iu', $text) === 1) {
+                return (string) $flow->step === 'sending' ? new AssistantReply(self::BUSY) : $this->cancel($user, $flow);
+            }
+
+            return $this->typed($user, $flow, $text);
         }
 
         return $wantsStart ? new AssistantReply('Para enviar um documento, mande aqui o arquivo em PDF ou Word (DOCX). Eu pergunto o título e quem vai assinar.') : null;
+    }
+
+    /** Só o pedido direto e curto ("enviar documento", "quero mandar um documento para assinar"): perguntas e frases soltas seguem para o assistente. */
+    public static function wantsStart(string $text): bool
+    {
+        $t = trim($text);
+        if ($t === '' || mb_strlen($t) > 60 || str_contains($t, '?')) {
+            return false;
+        }
+
+        return preg_match('/^(?:(?:quero|preciso|vou|gostaria de|queria|posso)\s+)?(?:enviar|mandar|criar|fazer)\s+(?:um\s+|o\s+)?(?:novo\s+)?(?:documento|contrato)(?:\s+(?:para|pra)\s+(?:assinar|assinatura))?\s*[.!]?$/iu', $t) === 1
+            || preg_match('/^(?:novo|nova)\s+documento\s*[.!]?$/iu', $t) === 1;
     }
 
     // ---------------------------------------------------------------- arquivo
 
     private function receiveFile(User $user, InboundMessage $m, ?WhatsAppFlow $flow): AssistantReply
     {
+        if ($flow !== null && (string) $flow->step === 'sending') {
+            return new AssistantReply(self::BUSY);
+        }
         if (($why = $this->blockReason($user)) !== null) {
             return new AssistantReply($why);
         }
 
-        $name = trim((string) $m->filename) !== '' ? (string) $m->filename : ($m->mime === 'application/pdf' ? 'documento.pdf' : 'documento');
-        $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
-        if (! in_array($ext, ['pdf', 'docx'], true) && ! in_array($m->mime, ['application/pdf', self::DOCX_MIME], true)) {
-            return new AssistantReply('Só consigo receber arquivos em PDF ou Word (DOCX). Salve o documento num desses formatos e mande de novo.');
+        $original = trim((string) $m->filename) !== '' ? (string) $m->filename : ($m->mime === 'application/pdf' ? 'documento.pdf' : 'documento');
+        $ext = strtolower(pathinfo($original, PATHINFO_EXTENSION));
+        if (! in_array($ext, ['pdf', 'docx'], true)) {
+            if ($m->mime === 'application/pdf') {
+                $ext = 'pdf';
+            } elseif ($m->mime === self::DOCX_MIME) {
+                $ext = 'docx';
+            } else {
+                return new AssistantReply('Só consigo receber arquivos em PDF ou Word (DOCX). Salve o documento num desses formatos e mande de novo.');
+            }
         }
-        if ($ext === '' || ! in_array($ext, ['pdf', 'docx'], true)) {
-            $name .= $m->mime === self::DOCX_MIME ? '.docx' : '.pdf';
-        }
+        $name = $this->cleanFilename($original, $ext);
         if ($m->mediaId === null || $m->mediaId === '') {
             return new AssistantReply('Não consegui baixar o arquivo. Mande de novo.');
         }
 
         if ($flow !== null && ! empty($flow->data['envelope_id'])) {
-            $this->store->advance($flow, (string) $flow->step, ['pending_media' => ['id' => $m->mediaId, 'name' => $name, 'mime' => $m->mime]]);
+            $this->store->advance($flow, (string) $flow->step, ['pending_media' => ['id' => $m->mediaId, 'name' => $name]]);
 
-            return new AssistantReply('Você já está enviando *'.($flow->data['title'] ?? $flow->data['filename'] ?? 'um documento').'*. Quer descartar e começar com *'.$name.'*?', [['id' => 'flow_discard', 'title' => 'Descartar e trocar'], ['id' => 'flow_keep', 'title' => 'Manter o atual']]);
+            return new AssistantReply('Você já está enviando *'.($flow->data['title'] ?? $flow->data['filename'] ?? 'um documento').'*. Quer descartar e começar com *'.$name.'*?', [$this->btn('flow_discard', 'Descartar e trocar'), $this->btn('flow_keep', 'Manter o atual')]);
         }
 
-        return $this->startWith($user, $m->mediaId, $name);
+        $new = $this->prepare($user, $m->mediaId, $name);
+        if ($new instanceof AssistantReply) {
+            return $new;
+        }
+
+        return $this->openFlow($user, $new);
     }
 
-    private function startWith(User $user, string $mediaId, string $name): AssistantReply
+    /**
+     * Baixa o arquivo, converte o Word e cria o rascunho. Devolve os dados do novo envio ou a resposta de erro.
+     *
+     * @return array{envelope:Envelope,name:string,title:string}|AssistantReply
+     */
+    private function prepare(User $user, string $mediaId, string $name): array|AssistantReply
     {
         try {
             $file = $this->client->downloadMedia($mediaId);
@@ -117,16 +165,23 @@ final class SendDocumentFlow
         }
 
         try {
-            $doc = $this->intake->fromBytes($file['bytes'], $name);
+            $doc = $this->intake->fromBytes($file['bytes'], $name, self::CONVERT_SECONDS);
             $title = $this->defaultTitle($doc['name']);
             $envelope = $this->envelopes->createDraft($user->tenant, $user, $doc['pdf'], $doc['name'], $title);
         } catch (FlowException $e) {
             return new AssistantReply($e->getMessage());
         }
 
-        $this->store->open($user, 'title', ['envelope_id' => $envelope->getKey(), 'filename' => $doc['name'], 'title' => $title, 'signers' => [], 'order' => 'parallel']);
+        return ['envelope' => $envelope, 'name' => $doc['name'], 'title' => $title];
+    }
 
-        return $this->prompt($this->store->current($user));
+    /** @param array{envelope:Envelope,name:string,title:string} $new */
+    private function openFlow(User $user, array $new): AssistantReply
+    {
+        $flow = $this->store->open($user, 'title', ['envelope_id' => $new['envelope']->getKey(), 'filename' => $new['name'], 'title' => $new['title'], 'signers' => [], 'order' => 'parallel']);
+        $this->stamp = $this->stampOf($flow);
+
+        return $this->prompt($flow);
     }
 
     // ---------------------------------------------------------------- botões
@@ -137,24 +192,36 @@ final class SendDocumentFlow
 
         switch ($id) {
             case 'flow_cancel':
-                return $this->cancel($user, $flow);
+                return $step === 'sending' ? new AssistantReply(self::BUSY) : $this->cancel($user, $flow);
 
             case 'flow_discard':
+                if ($step === 'sending') {
+                    return new AssistantReply(self::BUSY);
+                }
                 $pending = $flow->data['pending_media'] ?? null;
                 if (! is_array($pending)) {
                     return $this->prompt($flow);
                 }
-                $this->discardDraft($user, $flow);
-                $this->store->clear($user);
+                if (($why = $this->blockReason($user)) !== null) {
+                    $this->dropPending($flow);
 
-                return $this->startWith($user, (string) $pending['id'], (string) $pending['name']);
+                    return new AssistantReply($why);
+                }
+                // O arquivo novo precisa ser aceito ANTES de descartar o atual: se falhar, o progresso não se perde.
+                $new = $this->prepare($user, (string) $pending['id'], (string) $pending['name']);
+                if ($new instanceof AssistantReply) {
+                    $this->dropPending($flow);
+
+                    return new AssistantReply($new->text."\nO envio atual continua: *".($flow->data['title'] ?? 'documento').'*.', $this->prompt($flow->refresh())->buttons);
+                }
+                $this->discardDraft($user, $flow);
+
+                return $this->openFlow($user, $new);
 
             case 'flow_keep':
-                $data = (array) $flow->data;
-                unset($data['pending_media']);
-                $flow->forceFill(['data' => $data])->save();
+                $this->dropPending($flow);
 
-                return new AssistantReply('Ok, continuamos com *'.($data['title'] ?? 'o documento atual').'*.', $this->prompt($flow)->buttons);
+                return new AssistantReply('Ok, continuamos com *'.($flow->data['title'] ?? 'o documento atual').'*.', $this->prompt($flow->refresh())->buttons);
 
             case 'flow_title_keep':
                 return $step === 'title' ? $this->setTitle($flow, (string) ($flow->data['title'] ?? 'Documento')) : $this->prompt($flow);
@@ -164,7 +231,7 @@ final class SendDocumentFlow
                     return $this->prompt($flow);
                 }
                 if (empty($flow->data['signers'])) {
-                    return new AssistantReply('Adicione ao menos uma pessoa antes de continuar. Mande o nome e o e-mail.', [['id' => 'flow_cancel', 'title' => 'Cancelar']]);
+                    return new AssistantReply('Adicione ao menos uma pessoa antes de continuar. Mande o nome e o e-mail.', [$this->btn('flow_cancel', 'Cancelar')]);
                 }
                 $this->store->advance($flow, 'review');
 
@@ -184,6 +251,13 @@ final class SendDocumentFlow
         }
 
         return $this->prompt($flow);
+    }
+
+    private function dropPending(WhatsAppFlow $flow): void
+    {
+        $data = (array) $flow->data;
+        unset($data['pending_media']);
+        $flow->forceFill(['data' => $data])->save();
     }
 
     // ---------------------------------------------------------------- texto digitado
@@ -215,14 +289,14 @@ final class SendDocumentFlow
     {
         $line = SignerLine::parse($text);
         if ($line === null) {
-            return new AssistantReply('Não entendi. Mande um por mensagem, com nome e e-mail. Exemplo: Maria Souza maria@email.com', [['id' => 'flow_cancel', 'title' => 'Cancelar']]);
+            return new AssistantReply('Não entendi. Mande um por mensagem, com nome e e-mail (só letras sem acento no e-mail). Exemplo: Maria Souza maria@email.com', [$this->btn('flow_cancel', 'Cancelar')]);
         }
 
         if ($line['email'] === null) {
             $found = $this->contacts->search($user->tenant, $line['name'], 3);
             $withEmail = $found->filter(fn ($c) => filter_var((string) $c->email, FILTER_VALIDATE_EMAIL))->values();
             if ($found->count() === 1 && $withEmail->count() === 1) {
-                $line = ['name' => (string) $withEmail[0]->name, 'email' => mb_strtolower((string) $withEmail[0]->email)];
+                $line = ['name' => $this->cleanTitle((string) $withEmail[0]->name), 'email' => mb_strtolower((string) $withEmail[0]->email)];
             } else {
                 return new AssistantReply('Preciso do e-mail de '.$line['name'].'. Mande o nome e o e-mail juntos, por exemplo: '.$line['name'].' pessoa@email.com');
             }
@@ -239,13 +313,14 @@ final class SendDocumentFlow
         }
 
         $signers[] = ['name' => $line['name'], 'email' => $line['email']];
-        $this->store->advance($flow, (string) $flow->step === 'review' ? 'review' : 'signers', ['signers' => $signers]);
+        $inReview = (string) $flow->step === 'review';
+        $this->store->advance($flow, $inReview ? 'review' : 'signers', ['signers' => $signers]);
 
-        if ((string) $flow->step === 'review') {
+        if ($inReview) {
             return $this->review($flow->refresh());
         }
 
-        return new AssistantReply('Adicionei '.$line['name'].' ('.$line['email'].'): '.count($signers).' pessoa(s) na lista.'."\n".'Mande a próxima pessoa ou toque em Pronto.', [['id' => 'flow_done', 'title' => 'Pronto'], ['id' => 'flow_cancel', 'title' => 'Cancelar']]);
+        return new AssistantReply('Adicionei '.$line['name'].' ('.$line['email'].'): '.count($signers).' pessoa(s) na lista.'."\n".'Mande a próxima pessoa ou toque em Pronto.', [$this->btn('flow_done', 'Pronto'), $this->btn('flow_cancel', 'Cancelar')]);
     }
 
     // ---------------------------------------------------------------- revisão e envio
@@ -266,7 +341,7 @@ final class SendDocumentFlow
             ."Prazo: {$days} dias".($remind > 0 ? ", lembrete a cada {$remind} dias" : '')."\n"
             .'Os links de assinatura vão por e-mail.'."\n".'Para incluir mais alguém, mande o nome e o e-mail.';
 
-        return new AssistantReply($text, [['id' => 'flow_send', 'title' => 'Enviar agora'], ['id' => 'flow_order', 'title' => $sequential ? 'Todos juntos' : 'Um de cada vez'], ['id' => 'flow_cancel', 'title' => 'Cancelar']]);
+        return new AssistantReply($text, [$this->btn('flow_send', 'Enviar agora'), $this->btn('flow_order', $sequential ? 'Todos juntos' : 'Um de cada vez'), $this->btn('flow_cancel', 'Cancelar')]);
     }
 
     private function send(User $user, WhatsAppFlow $flow): AssistantReply
@@ -277,8 +352,10 @@ final class SendDocumentFlow
         if ((string) $flow->step !== 'review') {
             return $this->prompt($flow);
         }
-        // Reivindica o envio: um segundo toque no botão não envia de novo.
-        if (WhatsAppFlow::query()->whereKey($flow->getKey())->where('step', 'review')->update(['step' => 'sending', 'updated_at' => now()]) === 0) {
+        // Reivindica o envio (e renova o prazo do fluxo): um segundo toque no botão não envia de novo.
+        $claimed = WhatsAppFlow::query()->whereKey($flow->getKey())->where('step', 'review')
+            ->update(['step' => 'sending', 'expires_at' => now()->addMinutes(FlowStore::TTL_MINUTES), 'updated_at' => now()]);
+        if ($claimed === 0) {
             return new AssistantReply('Este envio já foi iniciado. Aguarde a confirmação.');
         }
 
@@ -303,8 +380,9 @@ final class SendDocumentFlow
                     throw FlowException::because('not_draft', 'Este documento já foi enviado.');
                 }
                 $this->envelopes->syncPeople($locked, $user, $people, false, $order);
+                $this->envelopes->applyDelivery($locked->refresh(), ['channels' => ['email']]); // a conversa promete e-mail, mesmo que o rascunho tenha sido mexido no site
                 $this->envelopes->assertSendable($locked->refresh(), true);
-                $this->envelopes->send($locked);
+                $this->envelopes->send($locked, new RequestContext(null, 'WhatsApp'));
             });
         } catch (FlowException $e) {
             if ($e->reason === 'not_draft') {
@@ -312,13 +390,23 @@ final class SendDocumentFlow
 
                 return new AssistantReply('Este documento já foi enviado.');
             }
-            $this->store->advance($flow->refresh(), 'review');
 
-            return new AssistantReply('Não consegui enviar: '.$e->getMessage()."\nO rascunho continua salvo.", $this->review($flow->refresh())->buttons);
+            return $this->backToReview($flow, 'Não consegui enviar: '.$e->getMessage());
+        } catch (Throwable $e) {
+            report($e);
+            // Se o envio já saiu (falha depois de gravar), segue para avisar os signatários; senão volta para a revisão.
+            if (Envelope::query()->whereKey($envelope->getKey())->value('status') !== EnvelopeStatus::Sent->value) {
+                return $this->backToReview($flow, 'Não consegui enviar agora (erro temporário). Toque em Enviar agora para tentar de novo.');
+            }
         }
 
         $envelope->refresh();
-        $failed = $this->notifier->inviteActive($envelope);
+        try {
+            $failed = $this->notifier->inviteActive($envelope);
+        } catch (Throwable $e) {
+            report($e);
+            $failed = array_values(array_filter($envelope->signers()->pluck('email')->all()));
+        }
         $this->store->clear($user);
 
         $n = count($people);
@@ -333,6 +421,13 @@ final class SendDocumentFlow
         return new AssistantReply($out);
     }
 
+    private function backToReview(WhatsAppFlow $flow, string $message): AssistantReply
+    {
+        $flow = $this->store->advance($flow->refresh(), 'review');
+
+        return new AssistantReply($message."\nO rascunho continua salvo.", $this->review($flow->refresh())->buttons);
+    }
+
     // ---------------------------------------------------------------- cancelar e apoio
 
     private function cancel(User $user, WhatsAppFlow $flow): AssistantReply
@@ -343,12 +438,15 @@ final class SendDocumentFlow
         return new AssistantReply('Cancelado. O rascunho foi para a lixeira. Quando quiser, mande outro arquivo.');
     }
 
+    /** Manda o rascunho (só se ainda for rascunho) para a lixeira, com a linha travada: não corre com um envio. */
     private function discardDraft(User $user, WhatsAppFlow $flow): void
     {
-        $envelope = Envelope::query()->where('tenant_id', $user->tenant_id)->where('created_by', $user->getKey())->whereKey($flow->data['envelope_id'] ?? '')->first();
-        if ($envelope !== null && $envelope->status === EnvelopeStatus::Draft && ! $envelope->isTrashed()) {
-            app(TrashService::class)->trash($envelope);
-        }
+        DB::transaction(function () use ($user, $flow): void {
+            $envelope = Envelope::query()->where('tenant_id', $user->tenant_id)->where('created_by', $user->getKey())->whereKey($flow->data['envelope_id'] ?? '')->lockForUpdate()->first();
+            if ($envelope !== null && $envelope->status === EnvelopeStatus::Draft && ! $envelope->isTrashed()) {
+                app(TrashService::class)->trash($envelope);
+            }
+        });
     }
 
     private function prompt(WhatsAppFlow $flow): AssistantReply
@@ -356,8 +454,8 @@ final class SendDocumentFlow
         $d = (array) $flow->data;
 
         return match ((string) $flow->step) {
-            'title' => new AssistantReply('Recebi o arquivo *'.($d['filename'] ?? 'documento')."*.\nQual será o título do documento? Escreva o título ou toque em Manter o nome.\nTítulo atual: ".($d['title'] ?? ''), [['id' => 'flow_title_keep', 'title' => 'Manter o nome'], ['id' => 'flow_cancel', 'title' => 'Cancelar']]),
-            'signers' => new AssistantReply('Título: *'.($d['title'] ?? '')."*\nQuem vai assinar? Mande o nome e o e-mail de uma pessoa por mensagem. Exemplo: Maria Souza maria@email.com\nSe a pessoa já está nos seus contatos, basta o nome.", ! empty($d['signers']) ? [['id' => 'flow_done', 'title' => 'Pronto'], ['id' => 'flow_cancel', 'title' => 'Cancelar']] : [['id' => 'flow_cancel', 'title' => 'Cancelar']]),
+            'title' => new AssistantReply('Recebi o arquivo *'.($d['filename'] ?? 'documento')."*.\nQual será o título do documento? Escreva o título ou toque em Manter o nome.\nTítulo atual: ".($d['title'] ?? ''), [$this->btn('flow_title_keep', 'Manter o nome'), $this->btn('flow_cancel', 'Cancelar')]),
+            'signers' => new AssistantReply('Título: *'.($d['title'] ?? '')."*\nQuem vai assinar? Mande o nome e o e-mail de uma pessoa por mensagem. Exemplo: Maria Souza maria@email.com\nSe a pessoa já está nos seus contatos, basta o nome.", ! empty($d['signers']) ? [$this->btn('flow_done', 'Pronto'), $this->btn('flow_cancel', 'Cancelar')] : [$this->btn('flow_cancel', 'Cancelar')]),
             'review' => $this->review($flow),
             default => new AssistantReply('Estou terminando o envio. Aguarde um instante.'),
         };
@@ -381,6 +479,20 @@ final class SendDocumentFlow
         return $decision->allowed ? null : $decision->message;
     }
 
+    // ---------------------------------------------------------------- textos
+
+    private function btn(string $id, string $title): array
+    {
+        return ['id' => $this->stamp !== null ? $id.':'.$this->stamp : $id, 'title' => $title];
+    }
+
+    private function stampOf(WhatsAppFlow $flow): ?string
+    {
+        $id = (string) ($flow->data['envelope_id'] ?? '');
+
+        return $id === '' ? null : substr($id, 0, 8);
+    }
+
     private function defaultTitle(string $filename): string
     {
         $base = (string) preg_replace('/\.(pdf|docx)$/i', '', $filename);
@@ -389,10 +501,21 @@ final class SendDocumentFlow
         return $base !== '' ? $base : 'Documento';
     }
 
+    /** Tira controles, marcas de direção/largura zero e os caracteres de formatação do WhatsApp (* _ ~ `), junta espaços e corta em 190. */
     private function cleanTitle(string $text): string
     {
-        $t = trim((string) preg_replace('/\s+/u', ' ', (string) preg_replace('/[\x00-\x1F\x7F]/u', ' ', $text)));
+        $t = (string) preg_replace('/[\x00-\x1F\x7F\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2066}-\x{2069}\x{FEFF}]/u', ' ', $text);
+        $t = str_replace(['*', '_', '~', '`'], '', $t);
 
-        return mb_substr($t, 0, 190);
+        return mb_substr(trim((string) preg_replace('/\s+/u', ' ', $t)), 0, 190);
+    }
+
+    /** Nome do arquivo guardado: limpo, até 120 caracteres antes da extensão (pdf ou docx). */
+    private function cleanFilename(string $original, string $ext): string
+    {
+        $base = (string) preg_replace('/\.(pdf|docx)$/i', '', basename(str_replace('\\', '/', $original)));
+        $base = mb_substr($this->cleanTitle($base), 0, 120);
+
+        return ($base !== '' ? $base : 'documento').'.'.$ext;
     }
 }

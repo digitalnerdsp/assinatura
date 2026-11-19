@@ -119,12 +119,12 @@ final class SealerClient
      * @throws \App\Documents\ConvertException arquivo inválido, tempo esgotado ou falha na conversão (422)
      * @throws SigningException serviço indisponível ou sem LibreOffice
      */
-    public function convert(string $docx): string
+    public function convert(string $docx, int $timeoutSeconds = 90): string
     {
         try {
             $response = $this->http
                 ->withToken($this->token)
-                ->timeout(90)
+                ->timeout($timeoutSeconds)
                 ->attach('docx', $docx, 'document.docx')
                 ->post($this->baseUrl.'/v1/convert');
         } catch (ConnectionException $e) {

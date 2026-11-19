@@ -19,6 +19,11 @@ final class SignerLine
             return null;
         }
 
+        // E-mail com letra acentuada colada no @ não é aceito (seria cortado em silêncio): a pessoa precisa digitar de novo.
+        if (preg_match('/[^\s@]*[^\x00-\x7F][^\s@]*@|@\S*[^\x00-\x7F]/u', $text) === 1) {
+            return null;
+        }
+
         preg_match_all('/[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)+/', $text, $m);
         if (count($m[0]) > 1) {
             return null; // uma pessoa por mensagem

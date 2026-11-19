@@ -74,7 +74,11 @@ final class MetaWhatsAppClient
         $url = (string) ($info['url'] ?? '');
         $this->assertMediaUrl($url);
 
-        $response = $this->request()->timeout(30)->get($url);
+        try {
+            $response = $this->request()->timeout(30)->get($url);
+        } catch (ConnectionException $e) {
+            throw new MetaException('Falha de rede ao baixar o arquivo da Meta.', 0, null, $e);
+        }
         $this->throwIfFailed($response);
         $bytes = $response->body();
         if (strlen($bytes) > self::MAX_MEDIA_BYTES) {

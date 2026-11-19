@@ -40,7 +40,7 @@ final class DocumentIntake
      *
      * @throws FlowException
      */
-    public function fromBytes(string $bytes, string $name): array
+    public function fromBytes(string $bytes, string $name, int $convertTimeout = 90): array
     {
         if (str_starts_with($bytes, '%PDF')) {
             return ['pdf' => $bytes, 'name' => $name, 'source_sha256' => null, 'source_name' => null];
@@ -51,7 +51,7 @@ final class DocumentIntake
         }
 
         try {
-            $pdf = app(SealerClient::class)->convert($bytes);
+            $pdf = app(SealerClient::class)->convert($bytes, $convertTimeout);
         } catch (ConvertException $e) {
             throw FlowException::because('convert_failed', match ($e->reason) {
                 'invalid_docx' => 'Este arquivo não parece ser um documento do Word (DOCX) válido.',
