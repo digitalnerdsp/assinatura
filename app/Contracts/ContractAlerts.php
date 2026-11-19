@@ -45,6 +45,9 @@ final class ContractAlerts
                 $kind = $left <= 0 ? 'due' : 'before';
                 $due = $envelope->contract_expires_on->toDateString();
 
+                // Aviso no WhatsApp de quem criou (independe do e-mail; a chave de deduplicação garante um só por vencimento e tipo).
+                app(\App\Assistant\Notifications\WhatsAppNotifier::class)->toCreator($envelope, 'contract_expiring', [$envelope->title, $envelope->contract_expires_on->format('d/m/Y')], "contract:{$envelope->getKey()}:{$kind}:{$due}");
+
                 if ($envelope->contractAlerts->contains(fn (ContractAlert $a) => $a->kind === $kind && $a->due_on->toDateString() === $due)) {
                     return;
                 }

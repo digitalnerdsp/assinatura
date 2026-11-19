@@ -171,5 +171,6 @@ final class SealEnvelope implements ShouldQueue
         $this->sendObserverCopies($envelope->fresh(), $evidence);
 
         $webhooks->dispatch($envelope->fresh(), 'document.completed');
+        app(\App\Assistant\Notifications\WhatsAppNotifier::class)->toCreator($envelope, 'document_completed', [$envelope->title], 'document_completed:'.$envelope->getKey());
     }
 }

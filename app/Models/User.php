@@ -86,7 +86,16 @@ class User extends Authenticatable
             'invite_expires_at' => 'datetime',
             'platform_granted_at' => 'datetime',
             'assistant_enabled' => 'boolean',
+            'whatsapp_notifications' => 'array',
             'password' => 'hashed',
         ];
+    }
+
+    /** Quer receber este aviso no WhatsApp? Sem escolha feita, recebe todos. */
+    public function wantsWhatsAppNotice(string $key): bool
+    {
+        $chosen = $this->whatsapp_notifications;
+
+        return $chosen === null || in_array($key, (array) $chosen, true);
     }
 }

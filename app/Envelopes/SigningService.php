@@ -252,6 +252,7 @@ final class SigningService
         });
 
         $this->webhooks->dispatch($envelope, 'signer.signed', $signer->fresh());
+        app(\App\Assistant\Notifications\WhatsAppNotifier::class)->toCreator($envelope, 'signer_signed', [$signer->name, $envelope->title], 'signer_signed:'.$signer->getKey());
 
         if ($allSigned) {
             SealEnvelope::dispatch($envelope->getKey())->afterCommit();
@@ -371,6 +372,7 @@ final class SigningService
         });
 
         $this->webhooks->dispatch($signer->envelope, 'signer.refused', $signer->fresh());
+        app(\App\Assistant\Notifications\WhatsAppNotifier::class)->toCreator($signer->envelope, 'signer_refused', [$signer->name, $signer->envelope->title], 'signer_refused:'.$signer->getKey());
     }
 
     private function assertOpen(Signer $signer): void

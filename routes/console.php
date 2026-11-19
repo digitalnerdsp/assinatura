@@ -63,3 +63,9 @@ Artisan::command('assistant:reconcile', function (\App\Assistant\Channel\StatusR
     $this->info($reconciler->run().' aviso(s) de preço conciliado(s).');
 })->purpose('Concilia os avisos de preço de mensagens da Meta');
 Schedule::command('assistant:reconcile')->hourly()->withoutOverlapping();
+
+// Avisa no WhatsApp quem criou documentos parados há X dias (12:00 UTC = 09:00 em Brasília).
+Artisan::command('documents:notify-stalled', function (\App\Assistant\Notifications\StalledDocuments $stalled) {
+    $this->info($stalled->run().' aviso(s) de documento parado enfileirado(s).');
+})->purpose('Avisa no WhatsApp sobre documentos parados');
+Schedule::command('documents:notify-stalled')->dailyAt('12:00')->timezone('UTC')->withoutOverlapping();

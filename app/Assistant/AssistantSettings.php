@@ -47,6 +47,12 @@ final class AssistantSettings
         return max(0, (int) $this->float('assistant.default_package_tokens', (float) config('assistant.default_package_tokens')));
     }
 
+    /** Dias sem nova assinatura para o documento contar como parado (padrão 3). */
+    public function stalledDays(): int
+    {
+        return max(1, min(90, (int) $this->float('assistant.stalled_days', 3.0)));
+    }
+
     public function overrunCap(): int
     {
         return max(0, (int) $this->float('assistant.overrun_cap', (float) config('assistant.overrun_cap')));
