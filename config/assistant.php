@@ -27,6 +27,9 @@ return [
     'history_chars' => 6000,
     'messages_per_hour' => (int) env('ASSISTANT_MESSAGES_PER_HOUR', 40),
 
+    // Maior PDF assinado que o assistente envia pelo WhatsApp (MB); acima disso responde com o link do painel.
+    'max_send_mb' => (float) env('ASSISTANT_MAX_SEND_MB', 16),
+
     // Validade (meses) dos pacotes extras comprados.
     'purchase_validity_months' => (int) env('ASSISTANT_PURCHASE_VALIDITY_MONTHS', 12),
 ];

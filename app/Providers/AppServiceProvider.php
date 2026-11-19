@@ -24,8 +24,15 @@ class AppServiceProvider extends ServiceProvider
         ));
 
         $this->app->bind(\App\Assistant\Llm\LlmClient::class, \App\Assistant\Llm\OpenAiClient::class);
-        // Ferramentas do assistente (Tarefa 5 registra as de consulta aqui).
-        $this->app->singleton(\App\Assistant\Tools\ToolRegistry::class, fn () => new \App\Assistant\Tools\ToolRegistry([]));
+        // Ferramentas de consulta do assistente (nenhuma muda dados).
+        $this->app->singleton(\App\Assistant\Tools\ToolRegistry::class, fn ($app) => new \App\Assistant\Tools\ToolRegistry([
+            $app->make(\App\Assistant\Tools\ListDocumentsTool::class),
+            $app->make(\App\Assistant\Tools\DocumentStatusTool::class),
+            $app->make(\App\Assistant\Tools\PendingSignersTool::class),
+            $app->make(\App\Assistant\Tools\SendSignedPdfTool::class),
+            $app->make(\App\Assistant\Tools\VerifyCodeTool::class),
+            $app->make(\App\Assistant\Tools\ListContractsDueTool::class),
+        ]));
     }
 
     /**
