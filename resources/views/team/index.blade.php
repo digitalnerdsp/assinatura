@@ -73,8 +73,6 @@
 <script>
 (function () {
     document.addEventListener('submit', function (e) {
-        var msg = e.target.dataset.confirm;
-        if (msg && !window.confirm(msg)) { e.preventDefault(); return; }
         var btn = e.target.querySelector('button:not([data-bs-dismiss])');
         if (btn) { if (btn.dataset.sent) { e.preventDefault(); return; } btn.dataset.sent = '1'; }
     });

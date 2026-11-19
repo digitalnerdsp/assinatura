@@ -124,10 +124,6 @@
         var edit = e.target.closest('[data-contact-edit]');
         if (edit) { e.preventDefault(); open(edit.dataset, edit.dataset.id); }
     });
-    document.addEventListener('submit', function (e) {
-        var msg = e.target.dataset.confirm;
-        if (msg && !window.confirm(msg)) e.preventDefault();
-    });
     modal.addEventListener('shown.bs.modal', function () { form.elements.name.focus(); });
 })();
 </script>

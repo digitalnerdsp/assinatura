@@ -1,6 +1,6 @@
 /* Assistente de criação de documento: posição do painel no celular e passo 1 (arquivo e pasta). */
 (function () {
-  window.wzNotify = window.wzNotify || function (m) { window.alert(m); };
+  window.wzNotify = window.wzNotify || function (m) { if (window.ajAlert) { window.ajAlert(m, { tone: 'error' }); } };
   'use strict';
   var panel = document.getElementById('wz-panel');
   var card = document.getElementById('wz-card');

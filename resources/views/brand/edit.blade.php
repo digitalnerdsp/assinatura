@@ -75,7 +75,6 @@
 @push('scripts')
 <script>
 (function () {
-    document.addEventListener('submit', function (e) { var m = e.target.dataset.confirm; if (m && !window.confirm(m)) e.preventDefault(); });
     var f = document.getElementById('brand-form'); if (!f) return;
     var name = document.getElementById('b-name'), p = document.getElementById('b-primary'), a = document.getElementById('b-accent');
     var pp = document.getElementById('b-primary-picker'), ap = document.getElementById('b-accent-picker');

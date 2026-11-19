@@ -48,7 +48,7 @@
             </div>
         </form>
         @if ($envelope->contract_expires_on)
-            <form method="post" action="{{ route('envelopes.term.clear', $envelope) }}" class="mt-2" onsubmit="return confirm('Parar de monitorar o vencimento deste contrato?')">
+            <form method="post" action="{{ route('envelopes.term.clear', $envelope) }}" class="mt-2" data-confirm="Parar de monitorar o vencimento deste contrato?">
                 @csrf @method('DELETE')
                 <button class="btn btn-sm btn-outline-secondary"><i class="bx bx-trash"></i> Remover vigência</button>
             </form>

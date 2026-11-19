@@ -32,7 +32,7 @@
                     <ul class="dropdown-menu">
                         <li><button type="button" class="dropdown-item drive-tap justify-content-start" data-drive-action="edit-tag" data-id="{{ $t->id }}" data-name="{{ $t->name }}" data-color="{{ $t->color }}"><i class="bx bx-edit me-2"></i>Renomear ou mudar a cor</button></li>
                         <li>
-                            <form method="post" action="{{ route('tags.destroy', $t) }}" onsubmit="return confirm('Apagar a etiqueta {{ addslashes($t->name) }}? Os documentos continuam, só perdem a etiqueta.')">@csrf @method('DELETE')
+                            <form method="post" action="{{ route('tags.destroy', $t) }}" data-confirm="Apagar a etiqueta {{ $t->name }}? Os documentos continuam, só perdem a etiqueta.">@csrf @method('DELETE')
                                 <button class="dropdown-item drive-tap justify-content-start text-danger" data-drive-action="delete-tag"><i class="bx bx-trash me-2"></i>Apagar</button>
                             </form>
                         </li>

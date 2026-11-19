@@ -1,3 +1,4 @@
+<script src="{{ asset('assets/js/assinaja-ui.js') }}?v={{ @filemtime(public_path('assets/js/assinaja-ui.js')) }}"></script>
 <script src="{{ asset('assets/js/bootstrap.bundle.min.js') }}"></script>
 <script src="{{ asset('assets/js/jquery.min.js') }}"></script>
 <script src="{{ asset('assets/plugins/simplebar/js/simplebar.min.js') }}"></script>

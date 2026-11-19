@@ -115,3 +115,31 @@ html body :is(.btn-success) { background-color: var(--aj-teal); border-color: va
 html body :is(.btn-success:hover) { background-color: color-mix(in srgb, var(--aj-teal) 85%, #000); border-color: color-mix(in srgb, var(--aj-teal) 85%, #000); }
 
 @media (prefers-reduced-motion: reduce) { html body * { scroll-behavior: auto; } }
+
+/* ---------- Avisos e confirmações próprios (assinaja-ui.js) ---------- */
+.aj-toasts { position: fixed; top: 16px; right: 16px; z-index: 3000; display: flex; flex-direction: column; gap: 8px; width: min(380px, calc(100vw - 32px)); }
+.aj-toast { display: flex; align-items: flex-start; gap: 10px; background: #fff; color: var(--aj-ink-2); border: 1px solid var(--aj-border); border-left: 4px solid var(--aj-blue); border-radius: 10px; padding: 12px 14px; box-shadow: 0 8px 24px rgba(15, 23, 42, .12); font-size: 14px; line-height: 1.45; }
+.aj-toast.aj-error { border-left-color: #dc2626; }
+.aj-toast.aj-success { border-left-color: var(--aj-teal); }
+.aj-toast-body { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.aj-toast-title { display: block; margin-bottom: 2px; color: var(--aj-ink-1); font-weight: var(--aj-w-medium); }
+.aj-x { flex: 0 0 auto; border: 0; background: transparent; color: var(--aj-ink-3); font-size: 20px; line-height: 1; cursor: pointer; padding: 0 2px; border-radius: 6px; }
+.aj-x:hover { color: var(--aj-ink-1); }
+.aj-back { position: fixed; inset: 0; z-index: 3100; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(15, 23, 42, .5); }
+.aj-dialog { width: min(440px, 100%); background: #fff; color: var(--aj-ink-2); border-radius: 14px; padding: 22px 22px 18px; box-shadow: 0 16px 48px rgba(15, 23, 42, .25); }
+.aj-title { margin: 0 0 8px; font-size: 1.125rem; font-weight: var(--aj-w-medium); color: var(--aj-ink-1); }
+.aj-msg { margin: 0 0 18px; line-height: 1.5; overflow-wrap: anywhere; }
+.aj-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+.aj-btn { border: 1px solid transparent; border-radius: 999px; padding: 9px 20px; font: inherit; font-weight: var(--aj-w-medium); cursor: pointer; min-height: 42px; }
+.aj-btn:focus-visible { outline: 2px solid var(--aj-blue); outline-offset: 2px; }
+.aj-pri { background: var(--aj-blue); color: #fff; }
+.aj-pri:hover { background: var(--aj-blue-dark); }
+.aj-danger { background: #dc2626; color: #fff; }
+.aj-danger:hover { background: #b91c1c; }
+.aj-sec { background: #fff; color: var(--aj-ink-2); border-color: var(--aj-border); }
+.aj-sec:hover { background: var(--aj-bg); }
+body.aj-open { overflow: hidden; }
+html[data-pc-theme="dark"] .aj-toast, html[data-pc-theme="dark"] .aj-dialog { background: #1e293b; color: #e2e8f0; border-color: #334155; }
+html[data-pc-theme="dark"] .aj-title, html[data-pc-theme="dark"] .aj-toast-title { color: #f8fafc; }
+html[data-pc-theme="dark"] .aj-sec { background: transparent; color: #e2e8f0; border-color: #475569; }
+@media (max-width: 575.98px) { .aj-toasts { top: auto; bottom: 12px; right: 12px; left: 12px; width: auto; } }

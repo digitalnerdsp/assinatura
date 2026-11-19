@@ -267,7 +267,7 @@ document.getElementById('geobtn').addEventListener('click', function () {
     $('tab-typed').addEventListener('click', () => tab('typed'));
     $('typed').addEventListener('input', e => $('preview').textContent = e.target.value || ' ');
     $('signform').addEventListener('submit', e => {
-        if (type.value === 'drawn' && !drawn.value) { e.preventDefault(); alert('Desenhe sua assinatura ou use a aba "Digitar".'); }
+        if (type.value === 'drawn' && !drawn.value) { e.preventDefault(); window.ajAlert('Desenhe sua assinatura ou use a aba "Digitar".'); }
     });
     size();
 })();
@@ -299,8 +299,8 @@ document.getElementById('geobtn').addEventListener('click', function () {
     $('tab-i-drawn').addEventListener('click', () => tab('drawn'));
     $('tab-i-typed').addEventListener('click', () => tab('typed'));
     $('signform').addEventListener('submit', e => {
-        if (type.value === 'drawn' && !drawn.value) { e.preventDefault(); alert('Faça o seu visto no quadro ou use a aba "Digitar".'); }
-        if (type.value === 'typed' && !$('initials_typed').value.trim()) { e.preventDefault(); alert('Digite as suas iniciais.'); }
+        if (type.value === 'drawn' && !drawn.value) { e.preventDefault(); window.ajAlert('Faça o seu visto no quadro ou use a aba "Digitar".'); }
+        if (type.value === 'typed' && !$('initials_typed').value.trim()) { e.preventDefault(); window.ajAlert('Digite as suas iniciais.'); }
     });
     size();
 })();

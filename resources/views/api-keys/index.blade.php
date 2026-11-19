@@ -35,7 +35,7 @@
                     <td>{{ $k->name }}</td><td class="mono">{{ $k->prefix }}…@if ($k->read_only) <span class="badge bg-info text-dark">leitura</span>@endif @if ($k->can_sign_as_company) <span class="badge bg-warning text-dark">Assina pela empresa</span>@endif</td>
                     <td>{{ $k->last_used_at?->timezone('America/Sao_Paulo')->format('d/m/Y H:i') ?? 'nunca' }}</td>
                     <td class="text-end">@if ($k->revoked_at)<span class="badge bg-danger">revogada</span>@else
-                        <form method="post" action="{{ route('api-keys.destroy', $k) }}" onsubmit="return confirm('Revogar esta chave?')">@csrf @method('DELETE')<button class="btn btn-sm btn-outline-danger">Revogar</button></form>@endif</td>
+                        <form method="post" action="{{ route('api-keys.destroy', $k) }}" data-confirm="Revogar esta chave?">@csrf @method('DELETE')<button class="btn btn-sm btn-outline-danger">Revogar</button></form>@endif</td>
                 </tr>
             @empty
                 <tr><td colspan="4" class="text-secondary p-4">Nenhuma chave ainda.</td></tr>

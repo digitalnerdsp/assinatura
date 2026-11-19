@@ -92,7 +92,7 @@
         </div>
     </div>
 
-    <form method="post" action="{{ route('templates.destroy', $template) }}" onsubmit="return confirm('Remover este modelo? Os documentos já criados a partir dele não são afetados.')">
+    <form method="post" action="{{ route('templates.destroy', $template) }}" data-confirm="Remover este modelo? Os documentos já criados a partir dele não são afetados.">
         @csrf @method('DELETE')<button class="btn btn-outline-danger btn-sm"><i class="bx bx-trash"></i> Remover modelo</button>
     </form>
 @endif

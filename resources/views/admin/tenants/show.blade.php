@@ -11,7 +11,7 @@
                 @if ($tenant->isSuspended())
                     <form method="post" action="{{ route('admin.tenants.reactivate', $tenant) }}">@csrf<button class="btn btn-success"><i class="bx bx-play-circle"></i> Reativar conta</button></form>
                 @else
-                    <form method="post" action="{{ route('admin.tenants.suspend', $tenant) }}" onsubmit="return confirm('Suspender esta conta? Os usuários serão desconectados e a API deixa de responder.')">@csrf<button class="btn btn-danger"><i class="bx bx-pause-circle"></i> Suspender conta</button></form>
+                    <form method="post" action="{{ route('admin.tenants.suspend', $tenant) }}" data-confirm="Suspender esta conta? Os usuários serão desconectados e a API deixa de responder.">@csrf<button class="btn btn-danger"><i class="bx bx-pause-circle"></i> Suspender conta</button></form>
                 @endif
             </div>
         </div>

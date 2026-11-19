@@ -50,7 +50,7 @@
                         <div class="d-inline-flex gap-1">
                             <form method="post" action="{{ route('webhooks.test', $e) }}">@csrf<button class="btn btn-sm btn-outline-primary">Testar</button></form>
                             <form method="post" action="{{ route('webhooks.toggle', $e) }}">@csrf<button class="btn btn-sm btn-outline-secondary">{{ $e->active ? 'Desativar' : 'Ativar' }}</button></form>
-                            <form method="post" action="{{ route('webhooks.destroy', $e) }}" onsubmit="return confirm('Remover este webhook?')">@csrf @method('DELETE')<button class="btn btn-sm btn-outline-danger">Remover</button></form>
+                            <form method="post" action="{{ route('webhooks.destroy', $e) }}" data-confirm="Remover este webhook?">@csrf @method('DELETE')<button class="btn btn-sm btn-outline-danger">Remover</button></form>
                         </div>
                     </td>
                 </tr>

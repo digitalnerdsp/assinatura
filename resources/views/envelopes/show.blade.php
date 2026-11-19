@@ -28,10 +28,10 @@
                     @if ($f->finalPath)<a class="btn btn-sm btn-success" href="{{ route('envelopes.final', ['envelope' => $envelope, 'n' => $f->n]) }}"><i class="bx bx-download"></i> {{ $many ? $f->n.'. '.$f->name.' (selado)' : 'PDF selado' }}</a>@endif
                 @endforeach
                 @if (in_array($envelope->status->value, ['draft', 'sent', 'in_progress']))
-                    <form method="post" action="{{ route('envelopes.cancel', $envelope) }}" onsubmit="return confirm('Cancelar este documento?')">@csrf<button class="btn btn-sm btn-outline-danger"><i class="bx bx-x"></i> Cancelar</button></form>
+                    <form method="post" action="{{ route('envelopes.cancel', $envelope) }}" data-confirm="Cancelar este documento?">@csrf<button class="btn btn-sm btn-outline-danger"><i class="bx bx-x"></i> Cancelar</button></form>
                 @endif
                 @if ($envelope->isTrashable() && ! $envelope->isTrashed())
-                    <form method="post" action="{{ route('envelopes.trash', $envelope) }}" onsubmit="return confirm('Mover este documento para a lixeira? Ele será apagado em 30 dias.')">@csrf<button class="btn btn-sm btn-outline-secondary"><i class="bx bx-trash"></i> Mover para a lixeira</button></form>
+                    <form method="post" action="{{ route('envelopes.trash', $envelope) }}" data-confirm="Mover este documento para a lixeira? Ele será apagado em 30 dias.">@csrf<button class="btn btn-sm btn-outline-secondary"><i class="bx bx-trash"></i> Mover para a lixeira</button></form>
                 @endif
                 @if ($envelope->isArchivable() && ! $envelope->isArchived())
                     <form method="post" action="{{ route('envelopes.archive', $envelope) }}">@csrf<button class="btn btn-sm btn-outline-secondary"><i class="bx bx-archive"></i> Arquivar</button></form>
@@ -125,7 +125,7 @@
                     </div>
                     <div class="d-flex flex-wrap gap-2 mt-2">
                         <form method="post" action="{{ route('envelopes.resend', [$envelope, $s]) }}">@csrf<button class="btn btn-sm btn-outline-secondary"><i class="bx bx-envelope"></i> Reenviar aviso</button></form>
-                        <form method="post" action="{{ route('envelopes.regenerate', [$envelope, $s]) }}" onsubmit="return confirm('Gerar um novo link? O link atual deixará de funcionar.')">@csrf<button class="btn btn-sm btn-outline-secondary"><i class="bx bx-refresh"></i> Gerar novo link</button></form>
+                        <form method="post" action="{{ route('envelopes.regenerate', [$envelope, $s]) }}" data-confirm="Gerar um novo link? O link atual deixará de funcionar.">@csrf<button class="btn btn-sm btn-outline-secondary"><i class="bx bx-refresh"></i> Gerar novo link</button></form>
                     </div>
                 @else
                     <p class="text-secondary mt-2 mb-2">Link indisponível para este documento (enviado antes deste recurso).</p>

@@ -43,7 +43,7 @@
         </div>
         <div class="card radius-10">
             <div class="card-body">
-                <form method="post" action="{{ route('admin.mail.reset') }}" onsubmit="return confirm('Remover a configuração salva no painel?')">@csrf @method('DELETE')
+                <form method="post" action="{{ route('admin.mail.reset') }}" data-confirm="Remover a configuração salva no painel?">@csrf @method('DELETE')
                     <button class="btn btn-sm btn-outline-secondary">Remover configuração do painel</button></form>
             </div>
         </div>

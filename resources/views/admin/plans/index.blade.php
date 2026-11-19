@@ -55,8 +55,6 @@
 @push('scripts')
 <script>
 document.addEventListener('submit', function (e) {
-    var m = e.target.dataset.confirm;
-    if (m && !window.confirm(m)) { e.preventDefault(); return; }
     var b = e.target.querySelector('button:not([data-bs-dismiss])');
     if (b) { if (b.dataset.sent) { e.preventDefault(); return; } b.dataset.sent = '1'; }
 });

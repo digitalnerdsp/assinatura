@@ -6,7 +6,7 @@
         <li><button type="button" class="dropdown-item drive-tap justify-content-start" data-drive-action="move-doc" data-id="{{ $e->id }}" data-title="{{ $e->title }}" data-folder="{{ $e->folder_id }}"><i class="bx bx-move me-2"></i>Mover para…</button></li>
         <li><button type="button" class="dropdown-item drive-tap justify-content-start" data-drive-action="tags-doc" data-id="{{ $e->id }}" data-title="{{ $e->title }}" data-tags='@json($e->tags->pluck('id')->values())'><i class="bx bx-purchase-tag-alt me-2"></i>Etiquetas…</button></li>
         @if ($e->isTrashable())
-            <li><form method="post" action="{{ route('envelopes.trash', $e) }}" onsubmit="return confirm('Mover este documento para a lixeira? Ele será apagado em 30 dias.')">@csrf<button class="dropdown-item drive-tap justify-content-start"><i class="bx bx-trash me-2"></i>Mover para a lixeira</button></form></li>
+            <li><form method="post" action="{{ route('envelopes.trash', $e) }}" data-confirm="Mover este documento para a lixeira? Ele será apagado em 30 dias.">@csrf<button class="dropdown-item drive-tap justify-content-start"><i class="bx bx-trash me-2"></i>Mover para a lixeira</button></form></li>
         @elseif ($e->isArchivable() && ! $e->isArchived())
             <li><form method="post" action="{{ route('envelopes.archive', $e) }}">@csrf<button class="dropdown-item drive-tap justify-content-start"><i class="bx bx-archive me-2"></i>Arquivar</button></form></li>
         @elseif ($e->isArchived())

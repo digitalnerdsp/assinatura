@@ -37,7 +37,7 @@
                 </form>
 
                 @if ($user->avatar_path)
-                    <form method="post" action="{{ route('profile.photo.destroy') }}" class="mt-3" onsubmit="return confirm('Remover a foto de perfil?')">
+                    <form method="post" action="{{ route('profile.photo.destroy') }}" class="mt-3" data-confirm="Remover a foto de perfil?">
                         @csrf @method('DELETE')
                         <button class="btn btn-outline-danger btn-sm">Remover foto</button>
                     </form>
@@ -110,7 +110,7 @@
                 </form>
 
                 @if ($user->hasSignature())
-                    <form method="post" action="{{ route('profile.signature.destroy') }}" class="mt-3" onsubmit="return confirm('Remover a sua assinatura salva?')">
+                    <form method="post" action="{{ route('profile.signature.destroy') }}" class="mt-3" data-confirm="Remover a sua assinatura salva?">
                         @csrf @method('DELETE')
                         <button class="btn btn-outline-danger btn-sm">Remover assinatura</button>
                     </form>
@@ -151,7 +151,7 @@
     $('sig-tab-typed').addEventListener('click', () => tab('typed'));
     $('sig-typed').addEventListener('input', e => { data.value = e.target.value; $('sig-preview').textContent = e.target.value || ' '; });
     $('sigform').addEventListener('submit', e => {
-        if (!data.value) { e.preventDefault(); alert('Desenhe a assinatura ou use a aba "Digitar".'); }
+        if (!data.value) { e.preventDefault(); window.ajAlert('Desenhe a assinatura ou use a aba "Digitar".'); }
     });
     size();
 })();
