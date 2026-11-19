@@ -30,6 +30,20 @@ final class PlanForm
         return (int) $int * 100 + (int) str_pad($dec, 2, '0');
     }
 
+    /** O campo `limits[wa_credit_limit]` vem em reais ("50,00") e é guardado em centavos (`wa_credit_limit_cents`). Vazio = não definido. */
+    private function waLimit(array $limits): array
+    {
+        if (array_key_exists('wa_credit_limit', $limits)) {
+            $cents = self::money((string) $limits['wa_credit_limit']);
+            if ($cents !== null) {
+                $limits['wa_credit_limit_cents'] = $cents;
+            }
+            unset($limits['wa_credit_limit']);
+        }
+
+        return $limits;
+    }
+
     /**
      * Atributos do plano (sem nome, que o controller valida) e os preços por período.
      *
@@ -38,7 +52,7 @@ final class PlanForm
      */
     public function plan(array $in): array
     {
-        $limits = $this->plans->cleanLimits((array) ($in['limits'] ?? []));
+        $limits = $this->plans->cleanLimits($this->waLimit((array) ($in['limits'] ?? [])));
 
         $trialIn = (array) ($in['trial'] ?? []);
         $days = trim((string) ($trialIn['days'] ?? ''));
@@ -92,8 +106,9 @@ final class PlanForm
     {
         $out = [];
 
-        $limitsIn = (array) ($in['limits'] ?? []);
+        $limitsIn = $this->waLimit((array) ($in['limits'] ?? []));
         $unlimited = (array) ($in['unlimited'] ?? []);
+        unset($unlimited['wa_credit_limit_cents']); // em dinheiro, "ilimitado" não existe
         $limits = $this->plans->cleanLimits(array_diff_key($limitsIn, $unlimited));
         foreach (array_keys($unlimited) as $key) {
             if (in_array($key, Plan::LIMITS, true) && ! empty($unlimited[$key])) {

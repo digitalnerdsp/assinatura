@@ -57,8 +57,8 @@ final class AssistantController extends Controller
 
         return [
             'balance' => $credit->balance($tenant),
-            'postpaid' => $tenant->wa_billing_mode === 'postpaid',
-            'limit' => (float) $tenant->wa_credit_limit,
+            'postpaid' => $credit->isPostpaid($tenant),
+            'limit' => $credit->limit($tenant),
             'month' => $credit->monthSummary($tenant, $period),
             'noBalance' => ! $credit->canAfford($tenant, $oneMessage),
         ];

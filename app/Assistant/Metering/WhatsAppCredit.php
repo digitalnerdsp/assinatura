@@ -24,7 +24,7 @@ final class WhatsAppCredit
     /** Quanto ainda pode gastar: o saldo, mais o limite quando é pós-pago. */
     public function available(Tenant $tenant): float
     {
-        $limit = $tenant->wa_billing_mode === 'postpaid' ? max(0.0, (float) $tenant->wa_credit_limit) : 0.0;
+        $limit = $this->limit($tenant);
 
         return round(max(0.0, $this->balance($tenant) + $limit - $this->reserved($tenant)), 6);
     }
@@ -40,6 +40,17 @@ final class WhatsAppCredit
             ->where('n.created_at', '>', now()->subDays(3))
             ->whereNotExists(fn ($q) => $q->from('meta_message_usages as u')->whereColumn('u.wa_message_id', 'n.wa_message_id'))
             ->sum('n.reserved_amount'), 6);
+    }
+
+    /** Teto do pós-pago (do plano, ou da sobrescrita da empresa). 0 = pré-pago. */
+    public function limit(Tenant $tenant): float
+    {
+        return \App\Plans\Entitlements::for($tenant)->waCreditLimit();
+    }
+
+    public function isPostpaid(Tenant $tenant): bool
+    {
+        return $this->limit($tenant) > 0;
     }
 
     public function canAfford(Tenant $tenant, float $amount): bool

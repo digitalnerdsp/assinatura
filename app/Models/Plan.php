@@ -21,7 +21,8 @@ class Plan extends Model
     /** Recursos que o sistema já barra de verdade quando desligados; os demais ainda são só informativos. */
     public const FEATURES_ENFORCED = ['api', 'webhooks', 'templates', 'reports', 'white_label', 'assistant'];
 
-    public const LIMITS = ['documents', 'users', 'storage_mb', 'max_pdf_mb', 'assistant_tokens'];
+    /** `wa_credit_limit_cents`: teto do pós-pago dos avisos do WhatsApp, em centavos (ausente ou 0 = pré-pago: só envia com saldo). */
+    public const LIMITS = ['documents', 'users', 'storage_mb', 'max_pdf_mb', 'assistant_tokens', 'wa_credit_limit_cents'];
 
     protected $guarded = [];
 

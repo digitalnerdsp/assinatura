@@ -46,6 +46,29 @@
     </div>
 
     <div class="col-12">
+        <div class="card radius-10"><div class="card-body">
+            <h5 class="mb-1"><i class="bx bx-wallet me-1"></i> Saldo dos avisos no WhatsApp</h5>
+            @php($money = fn ($v) => number_format((float) $v, 2, ',', '.'))
+            <p class="text-secondary small">Cobrança: <strong>{{ $wa['postpaid'] ? 'pós-pago, limite de R$ '.$money($wa['limit']).' (somado à mensalidade)' : 'pré-pago (só envia com saldo)' }}</strong>. Definida no plano; personalize só para esta empresa em "Sobrescritas" abaixo. Saldo: <strong class="{{ $wa['balance'] < 0 ? 'text-danger' : '' }}">R$ {{ $money($wa['balance']) }}</strong>@if ($wa['reserved'] > 0) (R$ {{ $money($wa['reserved']) }} reservado em avisos ainda não cobrados pela Meta)@endif.</p>
+            @if (auth()->user()->isSuperAdmin())
+            <form method="post" action="{{ route('admin.subscriptions.wa-credit', $tenant) }}" class="row g-2 align-items-end">
+                @csrf
+                <div class="col-6 col-md-3"><label class="form-label" for="wa-kind">Tipo</label><select class="form-select" id="wa-kind" name="kind"><option value="topup">Recarga</option><option value="settle">Quitação do pós-pago</option><option value="adjust">Ajuste (+/−)</option></select></div>
+                <div class="col-6 col-md-2"><label class="form-label" for="wa-amount">Valor (R$)</label><input class="form-control @error('amount') is-invalid @enderror" id="wa-amount" name="amount" inputmode="decimal" placeholder="20,00" required>@error('amount')<div class="invalid-feedback">{{ $message }}</div>@enderror</div>
+                <div class="col-8 col-md-5"><label class="form-label" for="wa-note">Nota (obrigatória)</label><input class="form-control @error('wa_note') is-invalid @enderror" id="wa-note" name="note" maxlength="190" required>@error('wa_note')<div class="invalid-feedback">{{ $message }}</div>@enderror</div>
+                <div class="col-4 col-md-2"><button class="btn btn-primary drive-tap w-100">Lançar</button></div>
+            </form>
+            @endif
+            @if ($wa['entries']->isNotEmpty())
+            <div class="table-responsive mt-3"><table class="table table-sm align-middle mb-0">
+                <thead><tr><th>Quando</th><th>Tipo</th><th class="text-end">Valor</th><th>Nota</th></tr></thead>
+                <tbody>@foreach ($wa['entries'] as $e)<tr><td>{{ $e->created_at->timezone('America/Sao_Paulo')->format('d/m/Y H:i') }}</td><td>{{ ['topup' => 'Recarga', 'settle' => 'Quitação', 'adjust' => 'Ajuste', 'usage' => 'Uso'][$e->kind] ?? $e->kind }}</td><td class="text-end">R$ {{ $money($e->amount) }}</td><td class="text-secondary small">{{ $e->note }}@if ($e->created_by) · {{ $e->created_by }}@endif</td></tr>@endforeach</tbody>
+            </table></div>
+            @endif
+        </div></div>
+    </div>
+
+    <div class="col-12">
         <form method="post" action="{{ route('admin.subscriptions.update', $tenant) }}" class="card radius-10"><div class="card-body row g-3">
             @csrf @method('PUT')
             <h5 class="mb-0">Plano e situação</h5>
@@ -64,6 +87,11 @@
                     <div class="form-check mt-1"><input class="form-check-input" type="checkbox" id="ou-{{ $key }}" name="unlimited[{{ $key }}]" value="1" @checked($has && $ovl[$key] === null)><label class="form-check-label" for="ou-{{ $key }}">ilimitado</label></div>
                 </div>
             @endforeach
+            <div class="col-12 col-sm-6 col-lg-3">
+                <label class="form-label" for="ol-wa">Limite pós-pago dos avisos do WhatsApp (R$)</label>
+                <input class="form-control" id="ol-wa" name="limits[wa_credit_limit]" inputmode="decimal" value="{{ array_key_exists('wa_credit_limit_cents', $ovl) ? $cents($ovl['wa_credit_limit_cents']) : '' }}" placeholder="plano: {{ $cents($planLimits['wa_credit_limit_cents'] ?? 0) ?: '0,00' }}">
+                <div class="form-text">0 = pré-pago só desta empresa. Em branco = o do plano.</div>
+            </div>
 
             <div class="col-12"><div class="fw-bold mb-1">Recursos</div>
                 <div class="row g-2">

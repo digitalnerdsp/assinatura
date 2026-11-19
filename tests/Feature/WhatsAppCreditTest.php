@@ -33,7 +33,7 @@ function wcUse(Tenant $t, string $id, float $meta = 0.04, bool $billable = true)
 it('o pré-pago é o padrão e começa com saldo zero', function () {
     $t = wcTenant()->refresh();
 
-    expect($t->wa_billing_mode)->toBe('prepaid')
+    expect(app(WhatsAppCredit::class)->isPostpaid($t))->toBeFalse()
         ->and(app(WhatsAppCredit::class)->balance($t))->toBe(0.0)
         ->and(app(WhatsAppCredit::class)->canAfford($t, 0.05))->toBeFalse();
 });
@@ -62,7 +62,8 @@ it('mensagem que a Meta não cobra não debita nada', function () {
 });
 
 it('o pós-pago pode ficar negativo até o limite e a quitação zera a dívida', function () {
-    $t = wcTenant(['wa_billing_mode' => 'postpaid', 'wa_credit_limit' => 0.10]);
+    $t = wcTenant();
+    wcPostpaid($t, 0.10);
     $c = app(WhatsAppCredit::class);
 
     expect($c->canAfford($t, 0.05))->toBeTrue()->and($c->canAfford($t, 0.11))->toBeFalse();
@@ -108,3 +109,9 @@ it('valores inválidos de lançamento são recusados', function () {
     expect(fn () => app(WhatsAppCredit::class)->topUp($t, 0.0, 'x'))->toThrow(InvalidArgumentException::class);
     expect(fn () => app(WhatsAppCredit::class)->topUp($t, -3.0, 'x'))->toThrow(InvalidArgumentException::class);
 });
+
+/** Pós-pago só desta empresa: sobrescrita da assinatura (o plano é quem normalmente define). */
+function wcPostpaid(Tenant $t, float $limit): void
+{
+    app(\App\Plans\PlanService::class)->subscriptionFor($t)->forceFill(['overrides' => ['limits' => ['wa_credit_limit_cents' => (int) round($limit * 100)]]])->save();
+}

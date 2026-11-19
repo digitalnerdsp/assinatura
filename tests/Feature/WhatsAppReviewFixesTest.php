@@ -181,12 +181,10 @@ it('dinheiro: "1.000" é mil reais, texto inválido no limite é erro e valor gi
     $u = wnUser();
     $super = wbSuper();
 
-    $this->actingAs($super)->post(route('admin.notifications.credit'), ['tenant_id' => $u->tenant_id, 'kind' => 'topup', 'amount' => '1.000', 'note' => 'Pix'])->assertRedirect();
+    $this->actingAs($super)->post(route('admin.subscriptions.wa-credit', $u->tenant), ['kind' => 'topup', 'amount' => '1.000', 'note' => 'Pix'])->assertRedirect();
     expect(app(WhatsAppCredit::class)->balance($u->tenant))->toBe(1005.0); // 5 da recarga do helper + 1.000
 
-    $this->actingAs($super)->put(route('admin.notifications.billing', $u->tenant), ['wa_billing_mode' => 'postpaid', 'wa_credit_limit' => 'abc'])->assertSessionHasErrors('wa_credit_limit');
-    $this->actingAs($super)->post(route('admin.notifications.credit'), ['tenant_id' => $u->tenant_id, 'kind' => 'topup', 'amount' => '99999999999', 'note' => 'x'])->assertSessionHasErrors('amount');
-    expect($u->tenant->refresh()->wa_billing_mode)->toBe('prepaid');
+    $this->actingAs($super)->post(route('admin.subscriptions.wa-credit', $u->tenant), ['kind' => 'topup', 'amount' => '99999999999', 'note' => 'x'])->assertSessionHasErrors('amount');
 });
 
 // 9 — estado dos modelos

@@ -48,8 +48,49 @@ final class SubscriptionController extends Controller
             'plans' => Plan::query()->where('active', true)->orWhere('id', $sub->plan_id)->orderBy('position')->orderBy('name')->get(),
             'effective' => $this->plans->effective($sub),
             'usage' => Entitlements::for($tenant)->usage(),
+            'wa' => $this->waPanel($tenant),
             'entries' => UsageEntry::query()->where('tenant_id', $tenant->getKey())->latest('occurred_at')->limit(50)->get(),
         ]);
+    }
+
+    /** @return array{balance:float,reserved:float,limit:float,postpaid:bool,entries:\Illuminate\Support\Collection} */
+    private function waPanel(Tenant $tenant): array
+    {
+        $credit = app(\App\Assistant\Metering\WhatsAppCredit::class);
+
+        return [
+            'balance' => $credit->balance($tenant), 'reserved' => $credit->reserved($tenant), 'limit' => $credit->limit($tenant), 'postpaid' => $credit->isPostpaid($tenant),
+            'entries' => $credit->entries($tenant, 20),
+        ];
+    }
+
+    /** Lançamento no saldo dos avisos do WhatsApp: recarga, ajuste (+/−) ou quitação do pós-pago. Só super administrador; sempre com nota. */
+    public function waCredit(Request $request, Tenant $tenant): RedirectResponse
+    {
+        $d = $request->validate([
+            'kind' => ['required', 'in:topup,adjust,settle'],
+            'amount' => ['required', 'string', 'max:20'],
+            'note' => ['required', 'string', 'max:190'],
+        ], ['note.required' => 'Escreva uma nota: ela fica registrada no lançamento.']);
+
+        $amount = \App\Support\Money::reais($d['amount']);
+        if ($amount === null || abs($amount) < 0.01 || ($d['kind'] !== 'adjust' && $amount < 0)) {
+            return back()->withErrors(['amount' => $d['kind'] === 'adjust' ? 'Informe um valor diferente de zero (ex.: -2,50).' : 'Informe um valor maior que zero (ex.: 20,00).'])->withInput();
+        }
+        if (abs($amount) > 1000000) {
+            return back()->withErrors(['amount' => 'O valor máximo por lançamento é R$ 1.000.000,00.'])->withInput();
+        }
+
+        $credit = app(\App\Assistant\Metering\WhatsAppCredit::class);
+        $note = trim($d['note']);
+        $by = $request->user()->email;
+        match ($d['kind']) {
+            'topup' => $credit->topUp($tenant, $amount, $note, $by),
+            'settle' => $credit->settle($tenant, $amount, $note, $by),
+            default => $credit->adjust($tenant, $amount, $note, $by),
+        };
+
+        return back()->with('status', 'Lançamento registrado no saldo dos avisos.');
     }
 
     public function update(Request $request, Tenant $tenant): RedirectResponse

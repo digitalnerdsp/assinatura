@@ -152,11 +152,11 @@ it('empresa suspensa não recebe', function () {
 it('o pós-pago dentro do limite recebe mesmo sem saldo; acima do limite não', function () {
     wnApprove();
     $u = wnUser(['credit' => false]);
-    $u->tenant->forceFill(['wa_billing_mode' => 'postpaid', 'wa_credit_limit' => 0.04])->save();
+    wcPostpaid($u->tenant, 0.04);
 
     expect(wnNotify($u->fresh(), dedupe: 'p1'))->toBe('no_balance'); // custo 0,05 > limite 0,04
 
-    $u->tenant->forceFill(['wa_credit_limit' => 1.0])->save();
+    wcPostpaid($u->tenant, 1.0);
     expect(wnNotify($u->fresh(), dedupe: 'p2'))->toBe('sent_queued');
 });
 

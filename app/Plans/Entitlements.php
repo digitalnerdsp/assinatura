@@ -46,6 +46,12 @@ final class Entitlements
         return (bool) ($this->effective['features'][$key] ?? false);
     }
 
+    /** Teto do pós-pago dos avisos do WhatsApp, em reais. 0 = pré-pago. Em dinheiro, "sem valor" nunca quer dizer ilimitado. */
+    public function waCreditLimit(): float
+    {
+        return max(0, (int) ($this->effective['limits']['wa_credit_limit_cents'] ?? 0)) / 100;
+    }
+
     /** Limite numérico; null = ilimitado. */
     public function limit(string $key): ?int
     {
