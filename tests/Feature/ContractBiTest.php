@@ -51,7 +51,7 @@ it('conta cada faixa nos limites e o menu leva à tela', function () {
     expect($res->viewData('counts'))->toMatchArray(['overdue' => 1, 'd30' => 2, 'd60' => 2, 'd90' => 2, 'valid' => 2, 'soon' => 3]);
 });
 
-it('o padrão a vencer mostra vencidos e a janela de 30 dias, ampliada pelo aviso escolhido', function () {
+it('a faixa "a vencer" mostra vencidos e a janela de 30 dias, ampliada pelo aviso escolhido', function () {
     $u = wzOwner();
     ctDue($u, -3, 'Vencido');
     ctDue($u, 10, 'Em 10 dias');
@@ -60,9 +60,20 @@ it('o padrão a vencer mostra vencidos e a janela de 30 dias, ampliada pelo avis
     ctDue($u, 80, 'Em 80, aviso 90', 90);
     ctDue($u, 200, 'Longe');
 
-    $titles = ctTitles($this->actingAs($u)->get('/contratos')->assertOk());
+    $titles = ctTitles($this->actingAs($u)->get('/contratos?faixa=avencer')->assertOk());
 
     expect($titles)->toBe(['Vencido', 'Em 10 dias', 'Em 45, aviso 60', 'Em 80, aviso 90']);
+});
+
+it('ao abrir a tela, o filtro já vem em "Todos" e lista todos os contratos monitorados', function () {
+    $u = wzOwner();
+    ctDue($u, -3, 'Vencido');
+    ctDue($u, 10, 'Em 10 dias');
+    ctDue($u, 200, 'Longe');
+
+    $r = $this->actingAs($u)->get('/contratos')->assertOk();
+
+    expect(ctTitles($r))->toBe(['Vencido', 'Em 10 dias', 'Longe'])->and($r->viewData('filters')['faixa'])->toBe('todos');
 });
 
 it('cada faixa filtra a lista e a ordem é pela data de vencimento', function (string $faixa, array $expected) {

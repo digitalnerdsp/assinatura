@@ -85,7 +85,7 @@ final class ContractController extends Controller
             'q' => ['nullable', 'string', 'max:100'],
         ]);
 
-        return ['faixa' => $data['faixa'] ?? 'avencer'] + array_filter(['folder' => $data['folder'] ?? null, 'tag' => $data['tag'] ?? null, 'q' => $data['q'] ?? null], fn ($v) => $v !== null && $v !== '');
+        return ['faixa' => $data['faixa'] ?? 'todos'] + array_filter(['folder' => $data['folder'] ?? null, 'tag' => $data['tag'] ?? null, 'q' => $data['q'] ?? null], fn ($v) => $v !== null && $v !== '');
     }
 
     /** Monitorados da empresa + pasta (e subpastas), etiqueta e busca. @return Builder<Envelope> */
