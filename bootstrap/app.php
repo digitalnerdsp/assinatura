@@ -27,6 +27,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // Atrás do proxy do Coolify (Traefik): sem isto request->ip() devolve o IP do proxy
         // e a trilha de evidências gravaria o IP errado. Não exponha o contêiner direto à internet.
         $middleware->trustProxies(at: '*');
+
+        // A Meta chama o webhook sem o token de CSRF; a assinatura do corpo é a proteção.
+        $middleware->validateCsrfTokens(except: ['webhooks/meta/*']);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         \Sentry\Laravel\Integration::handles($exceptions);

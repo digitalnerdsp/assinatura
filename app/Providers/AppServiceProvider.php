@@ -15,6 +15,9 @@ class AppServiceProvider extends ServiceProvider
             \App\Messaging\MessageSender::class,
             fn () => config('messaging.driver') === 'twilio' ? new \App\Messaging\TwilioSender() : new \App\Messaging\LogSender(),
         );
+
+        // Tratador das mensagens do WhatsApp: troca-se quando o vínculo e o orquestrador existirem.
+        $this->app->bind(\App\Assistant\Channel\InboundHandler::class, \App\Assistant\Channel\NullInboundHandler::class);
     }
 
     /**

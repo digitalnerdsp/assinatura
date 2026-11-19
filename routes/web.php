@@ -197,6 +197,10 @@ Route::prefix('assinar/{token}')->middleware('throttle:60,1,sign')->group(functi
     Route::post('/recusar', [SigningController::class, 'refuse'])->name('sign.refuse');
 });
 
+// Webhook da Meta (WhatsApp): sem login e sem CSRF; a segurança é a assinatura HMAC do corpo
+Route::get('/webhooks/meta/whatsapp', [\App\Http\Controllers\Webhooks\MetaWebhookController::class, 'verify'])->middleware('throttle:60,1,meta-verify')->name('meta.webhook.verify');
+Route::post('/webhooks/meta/whatsapp', [\App\Http\Controllers\Webhooks\MetaWebhookController::class, 'receive'])->middleware('throttle:1200,1,meta-webhook')->name('meta.webhook');
+
 // Referência pública da API
 Route::get('/api/docs', [\App\Http\Controllers\Api\V1\DocsController::class, 'page'])->name('api.docs');
 

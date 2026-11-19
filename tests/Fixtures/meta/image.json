@@ -1,0 +1,41 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "WABA1",
+      "changes": [
+        {
+          "field": "messages",
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": {
+              "display_phone_number": "5511900000000",
+              "phone_number_id": "PNID123"
+            },
+            "contacts": [
+              {
+                "profile": {
+                  "name": "Ana"
+                },
+                "wa_id": "5511999990000"
+              }
+            ],
+            "messages": [
+              {
+                "from": "5511999990000",
+                "id": "wamid.I1",
+                "timestamp": "1796000000",
+                "type": "image",
+                "image": {
+                  "id": "MEDIA8",
+                  "mime_type": "image/jpeg",
+                  "sha256": "abc"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

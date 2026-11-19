@@ -1,0 +1,33 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "WABA1",
+      "changes": [
+        {
+          "field": "messages",
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": {
+              "display_phone_number": "5511900000000",
+              "phone_number_id": "PNID123"
+            },
+            "statuses": [
+              {
+                "id": "wamid.OUT2",
+                "status": "delivered",
+                "timestamp": "1796000101",
+                "recipient_id": "5511999990000",
+                "pricing": {
+                  "billable": false,
+                  "pricing_model": "PMP",
+                  "category": "service"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

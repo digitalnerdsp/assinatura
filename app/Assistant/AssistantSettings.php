@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Assistant;
 
 use App\Models\Setting;
+use Illuminate\Contracts\Encryption\DecryptException;
+use Illuminate\Support\Facades\Crypt;
 
 /** Configurações da plataforma para o assistente (o super administrador salva; os padrões vêm de config/assistant.php). */
 final class AssistantSettings
@@ -63,6 +65,125 @@ final class AssistantSettings
     public function purchaseValidityMonths(): int
     {
         return max(1, (int) $this->float('assistant.purchase_validity_months', (float) config('assistant.purchase_validity_months')));
+    }
+
+    // ---------- credenciais da Meta (cifradas com a APP_KEY; segredo em branco ao salvar mantém o anterior) ----------
+
+    private const META_SECRETS = ['access_token', 'app_secret', 'verify_token'];
+    private const META_PLAIN = ['phone_number_id', 'graph_version', 'waba_id'];
+
+    /** @param array<string,?string> $in */
+    public function saveMeta(array $in): void
+    {
+        $stored = json_decode((string) Setting::get('assistant.meta', '{}'), true);
+        $stored = is_array($stored) ? $stored : [];
+
+        foreach (self::META_SECRETS as $key) {
+            $value = trim((string) ($in[$key] ?? ''));
+            if ($value !== '') {
+                $stored[$key] = Crypt::encryptString($value);
+            }
+        }
+        foreach (self::META_PLAIN as $key) {
+            $value = trim((string) ($in[$key] ?? ''));
+            if ($value !== '') {
+                $stored[$key] = mb_substr($value, 0, 80);
+            }
+        }
+
+        Setting::put('assistant.meta', json_encode($stored));
+    }
+
+    public function metaAccessToken(): string
+    {
+        return $this->metaSecret('access_token');
+    }
+
+    public function metaAppSecret(): string
+    {
+        return $this->metaSecret('app_secret');
+    }
+
+    public function metaVerifyToken(): string
+    {
+        return $this->metaSecret('verify_token');
+    }
+
+    public function metaPhoneNumberId(): string
+    {
+        return $this->metaPlain('phone_number_id');
+    }
+
+    public function graphVersion(): string
+    {
+        return $this->metaPlain('graph_version') ?: 'v21.0';
+    }
+
+    /** Tem o necessário para enviar mensagens (token e número)? */
+    public function metaConfigured(): bool
+    {
+        return $this->metaAccessToken() !== '' && $this->metaPhoneNumberId() !== '';
+    }
+
+    /** Quais segredos já estão salvos (a tela mostra só "configurado", nunca o valor). @return array<string,bool> */
+    public function metaStatus(): array
+    {
+        return [
+            'access_token' => $this->metaAccessToken() !== '', 'app_secret' => $this->metaAppSecret() !== '', 'verify_token' => $this->metaVerifyToken() !== '',
+            'phone_number_id' => $this->metaPhoneNumberId() !== '',
+        ];
+    }
+
+    /**
+     * Preço por categoria (a Meta informa a categoria e se cobra, mas não o valor; o valor vem desta tabela da plataforma,
+     * conferida todo mês com a fatura real). @return array<string,float>
+     */
+    public function metaRates(): array
+    {
+        $raw = json_decode((string) Setting::get('assistant.meta_rates', '{}'), true);
+        $out = [];
+        foreach (is_array($raw) ? $raw : [] as $category => $amount) {
+            if (is_string($category) && is_numeric($amount) && (float) $amount >= 0) {
+                $out[$category] = (float) $amount;
+            }
+        }
+
+        return $out;
+    }
+
+    /** Preço da categoria; null = a plataforma ainda não cadastrou (a mensagem fica para conciliar). */
+    public function rateFor(string $category): ?float
+    {
+        return $this->metaRates()[$category] ?? null;
+    }
+
+    public function currency(): string
+    {
+        $c = strtoupper(trim((string) Setting::get('assistant.currency', 'BRL')));
+
+        return preg_match('/^[A-Z]{3}$/', $c) ? $c : 'BRL';
+    }
+
+    private function metaSecret(string $key): string
+    {
+        $stored = json_decode((string) Setting::get('assistant.meta', '{}'), true);
+        $cipher = is_array($stored) ? (string) ($stored[$key] ?? '') : '';
+        if ($cipher === '') {
+            return '';
+        }
+
+        try {
+            return Crypt::decryptString($cipher);
+        } catch (DecryptException) {
+            return ''; // APP_KEY mudou: salvar de novo
+        }
+    }
+
+    private function metaPlain(string $key): string
+    {
+        $stored = json_decode((string) Setting::get('assistant.meta', '{}'), true);
+
+        return is_array($stored) ? (string) ($stored[$key] ?? '') : '';
     }
 
     private function float(string $key, float $default): float
