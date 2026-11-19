@@ -76,6 +76,9 @@ Route::middleware(['auth', 'tenant.active', 'platform'])->prefix('admin')->name(
         Route::put('/avisos-whatsapp/{key}', [\App\Http\Controllers\Admin\WhatsAppNotificationsController::class, 'update'])->middleware('throttle:60,1,admin-notifications')->name('notifications.update');
         Route::post('/avisos-whatsapp/{key}/enviar', [\App\Http\Controllers\Admin\WhatsAppNotificationsController::class, 'submit'])->middleware('throttle:20,1,admin-notifications-submit')->name('notifications.submit');
         Route::post('/avisos-whatsapp-status', [\App\Http\Controllers\Admin\WhatsAppNotificationsController::class, 'sync'])->middleware('throttle:20,1,admin-notifications-sync')->name('notifications.sync');
+        Route::put('/avisos-whatsapp-config', [\App\Http\Controllers\Admin\WhatsAppNotificationsController::class, 'settings'])->middleware('throttle:30,1,admin-notifications-config')->name('notifications.settings');
+        Route::put('/avisos-whatsapp-empresa/{tenant}', [\App\Http\Controllers\Admin\WhatsAppNotificationsController::class, 'billing'])->middleware('throttle:60,1,admin-notifications-billing')->name('notifications.billing');
+        Route::post('/avisos-whatsapp-credito', [\App\Http\Controllers\Admin\WhatsAppNotificationsController::class, 'credit'])->middleware('throttle:60,1,admin-notifications-credit')->name('notifications.credit');
         Route::get('/configuracoes', [\App\Http\Controllers\Admin\SettingsController::class, 'edit'])->name('settings');
         Route::put('/configuracoes', [\App\Http\Controllers\Admin\SettingsController::class, 'update'])->name('settings.update');
     });
@@ -178,7 +181,8 @@ Route::middleware(['auth', 'tenant.active'])->group(function () {
     Route::put('/perfil/assinatura', [\App\Http\Controllers\Web\ProfileController::class, 'updateSignature'])->middleware('throttle:20,1,profile-signature')->name('profile.signature.update');
     Route::delete('/perfil/assinatura', [\App\Http\Controllers\Web\ProfileController::class, 'destroySignature'])->name('profile.signature.destroy');
     Route::post('/perfil/whatsapp/codigo', [\App\Http\Controllers\Web\ProfileController::class, 'whatsappCode'])->middleware('throttle:5,1,profile-whatsapp')->name('profile.whatsapp.code');
-    Route::delete('/perfil/whatsapp', [\App\Http\Controllers\Web\ProfileController::class, 'whatsappUnlink'])->name('profile.whatsapp.unlink');
+    Route::put('/perfil/whatsapp/avisos', [\App\Http\Controllers\Web\ProfileController::class, 'whatsappNotices'])->middleware('throttle:20,1,profile-whatsapp-notices')->name('profile.whatsapp.notices');
+    Route::delete('/perfil/whatsapp',[\App\Http\Controllers\Web\ProfileController::class, 'whatsappUnlink'])->name('profile.whatsapp.unlink');
     Route::delete('/perfil/foto', [\App\Http\Controllers\Web\ProfileController::class, 'destroyPhoto'])->name('profile.photo.destroy');
     Route::get('/perfil/foto/{user}', [\App\Http\Controllers\Web\ProfileController::class, 'photo'])->name('profile.photo');
 

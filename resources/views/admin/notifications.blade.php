@@ -51,4 +51,66 @@
     </div>
 @endforeach
 </div>
+
+@php $m = fn ($v) => number_format((float) $v, 2, ',', '.'); @endphp
+<div class="card radius-10">
+    <div class="card-header"><h6 class="mb-0"><i class="bx bx-time-five me-1"></i> Documento parado</h6></div>
+    <div class="card-body">
+        <form method="post" action="{{ route('admin.notifications.settings') }}" class="row g-2 align-items-end">
+            @csrf @method('PUT')
+            <div class="col-md-4"><label class="form-label" for="s-days">Avisar quando ficar sem nova assinatura por (dias)</label><input id="s-days" class="form-control" name="stalled_days" inputmode="numeric" value="{{ old('stalled_days', $stalledDays) }}">@error('stalled_days')<div class="text-danger small">{{ $message }}</div>@enderror</div>
+            <div class="col-md-2"><button class="btn btn-primary">Salvar</button></div>
+        </form>
+    </div>
+</div>
+
+<div class="card radius-10">
+    <div class="card-header"><h6 class="mb-0"><i class="bx bx-wallet me-1"></i> Cobrança dos avisos por empresa</h6></div>
+    <div class="card-body">
+        <p class="text-secondary small">O que a Meta cobra por aviso, com o acréscimo, sai do saldo da empresa. <strong>Pré-pago:</strong> só envia com saldo. <strong>Pós-pago:</strong> envia até o limite e o valor é somado à mensalidade; depois de cobrar, lance a <em>quitação</em>. A empresa de um super administrador não é cobrada.</p>
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead><tr><th>Empresa</th><th>Modo</th><th>Limite (pós-pago)</th><th class="text-end">Saldo</th><th></th></tr></thead>
+                <tbody>
+                @foreach ($tenants as $t)
+                    @php $bal = (float) ($balances[$t->id] ?? 0); @endphp
+                    <tr>
+                        <td>{{ $t->name }}</td>
+                            <td><select class="form-select form-select-sm" form="bf-{{ $t->id }}" name="wa_billing_mode" aria-label="Modo de cobrança de {{ $t->name }}"><option value="prepaid" @selected($t->wa_billing_mode === 'prepaid')>Pré-pago</option><option value="postpaid" @selected($t->wa_billing_mode === 'postpaid')>Pós-pago</option></select></td>
+                            <td><input class="form-control form-control-sm" form="bf-{{ $t->id }}" name="wa_credit_limit" inputmode="decimal" value="{{ $t->wa_credit_limit !== null ? $m($t->wa_credit_limit) : '' }}" placeholder="0,00" aria-label="Limite de {{ $t->name }}"></td>
+                            <td class="text-end {{ $bal < 0 ? 'text-danger' : '' }}">R$ {{ $m($bal) }}</td>
+                            <td class="text-end"><form id="bf-{{ $t->id }}" method="post" action="{{ route('admin.notifications.billing', $t) }}">@csrf @method('PUT')<button class="btn btn-outline-primary btn-sm">Salvar</button></form></td>
+                    </tr>
+                @endforeach
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="card radius-10">
+    <div class="card-header"><h6 class="mb-0"><i class="bx bx-receipt me-1"></i> Lançamento no saldo</h6></div>
+    <div class="card-body">
+        <form method="post" action="{{ route('admin.notifications.credit') }}" class="row g-2 align-items-end">
+            @csrf
+            <div class="col-md-4"><label class="form-label" for="c-tenant">Empresa</label><select id="c-tenant" class="form-select" name="tenant_id" required>@foreach ($tenants as $t)<option value="{{ $t->id }}">{{ $t->name }}</option>@endforeach</select>@error('tenant_id')<div class="text-danger small">{{ $message }}</div>@enderror</div>
+            <div class="col-md-3"><label class="form-label" for="c-kind">Tipo</label><select id="c-kind" class="form-select" name="kind"><option value="topup">Recarga</option><option value="settle">Quitação do pós-pago</option><option value="adjust">Ajuste (+/−)</option></select></div>
+            <div class="col-md-2"><label class="form-label" for="c-amount">Valor (R$)</label><input id="c-amount" class="form-control" name="amount" inputmode="decimal" placeholder="20,00">@error('amount')<div class="text-danger small">{{ $message }}</div>@enderror</div>
+            <div class="col-md-8"><label class="form-label" for="c-note">Nota (obrigatória)</label><input id="c-note" class="form-control" name="note" maxlength="190" required>@error('note')<div class="text-danger small">{{ $message }}</div>@enderror</div>
+            <div class="col-md-2"><button class="btn btn-outline-primary">Lançar</button></div>
+        </form>
+        @if ($entries->isNotEmpty())
+            <div class="table-responsive mt-3">
+                <table class="table table-sm align-middle mb-0">
+                    <thead><tr><th>Quando</th><th>Empresa</th><th>Tipo</th><th class="text-end">Valor</th><th>Nota</th></tr></thead>
+                    <tbody>
+                    @foreach ($entries as $e)
+                        <tr><td>{{ $e->created_at->timezone('America/Sao_Paulo')->format('d/m/Y H:i') }}</td><td>{{ $tenants->firstWhere('id', $e->tenant_id)?->name }}</td><td>{{ ['topup' => 'Recarga', 'settle' => 'Quitação', 'adjust' => 'Ajuste'][$e->kind] ?? $e->kind }}</td><td class="text-end">R$ {{ $m($e->amount) }}</td><td class="text-secondary small">{{ $e->note }}@if ($e->created_by) · {{ $e->created_by }}@endif</td></tr>
+                    @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
+    </div>
+</div>
 @endsection

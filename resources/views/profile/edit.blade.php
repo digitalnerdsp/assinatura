@@ -76,6 +76,15 @@
                 <h5 class="card-title mb-3">Assistente no WhatsApp</h5>
                 @if ($whatsapp['linked'])
                     <p class="mb-2">Número vinculado: <strong>{{ $whatsapp['masked'] }}</strong>. Pelo WhatsApp você consulta seus documentos e verifica assinaturas.</p>
+                    <form method="post" action="{{ route('profile.whatsapp.notices') }}" class="mb-3">
+                        @csrf @method('PUT')
+                        <h6 class="mt-3">Avisos no WhatsApp</h6>
+                        <p class="text-secondary small mb-2">Escolha o que você quer receber sobre os documentos que você enviou.</p>
+                        @foreach ($whatsapp['catalog'] as $key => $def)
+                            <div class="form-check"><input class="form-check-input" type="checkbox" name="notices[]" value="{{ $key }}" id="wn-{{ $key }}" @checked(in_array($key, $whatsapp['notices'], true))><label class="form-check-label" for="wn-{{ $key }}">{{ $def['label'] }}</label></div>
+                        @endforeach
+                        <button class="btn btn-primary btn-sm mt-2">Salvar avisos</button>
+                    </form>
                     <form method="post" action="{{ route('profile.whatsapp.unlink') }}" data-confirm="Desvincular este número do WhatsApp? O assistente deixa de responder a ele.">@csrf @method('DELETE')<button class="btn btn-outline-danger btn-sm">Desvincular</button></form>
                 @else
                     <p class="text-secondary">Vincule o seu WhatsApp para consultar documentos conversando. Gere um código e envie-o, pelo próprio WhatsApp, para o número da plataforma{{ $whatsapp['platformPhone'] !== '' ? ': +'.$whatsapp['platformPhone'] : '' }}.</p>

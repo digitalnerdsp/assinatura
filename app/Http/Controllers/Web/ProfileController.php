@@ -30,6 +30,8 @@ final class ProfileController extends Controller
             'masked' => $user->whatsapp_phone !== null ? '+'.substr($user->whatsapp_phone, 0, 2).' •••••'.substr($user->whatsapp_phone, -4) : null,
             'code' => session('whatsapp_code'), // aparece uma vez só (flash)
             'platformPhone' => app(\App\Assistant\AssistantSettings::class)->displayPhone(),
+            'catalog' => \App\Assistant\Notifications\NotificationCatalog::all(),
+            'notices' => $user->whatsapp_notifications ?? array_keys(\App\Assistant\Notifications\NotificationCatalog::all()),
         ]]);
     }
 
@@ -40,6 +42,18 @@ final class ProfileController extends Controller
         abort_unless(\App\Plans\Entitlements::for($user->tenant)->feature('assistant'), 403);
 
         return redirect()->route('profile.edit')->with('whatsapp_code', app(\App\Assistant\Linking\WhatsAppLinker::class)->start($user));
+    }
+
+    /** Quais avisos o usuário quer receber no WhatsApp. Tudo desmarcado = nenhum aviso. */
+    public function whatsappNotices(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'notices' => ['nullable', 'array'],
+            'notices.*' => ['string', \Illuminate\Validation\Rule::in(array_keys(\App\Assistant\Notifications\NotificationCatalog::all()))],
+        ]);
+        $request->user()->forceFill(['whatsapp_notifications' => array_values(array_unique((array) ($data['notices'] ?? [])))])->save();
+
+        return redirect()->route('profile.edit')->with('status', 'Avisos do WhatsApp salvos.');
     }
 
     public function whatsappUnlink(Request $request): RedirectResponse

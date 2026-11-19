@@ -43,7 +43,25 @@ final class AssistantController extends Controller
             'currency' => app(\App\Assistant\AssistantSettings::class)->currency(),
             'markup' => app(\App\Assistant\AssistantSettings::class)->markupPercent(),
             'period' => $period,
+            'credit' => $this->creditPanel($tenant, $period),
         ]);
+    }
+
+    /** @return array{balance:float,postpaid:bool,limit:float,month:array{topups:float,usage:float,messages:int},noBalance:bool} */
+    private function creditPanel(\App\Models\Tenant $tenant, string $period): array
+    {
+        $credit = app(\App\Assistant\Metering\WhatsAppCredit::class);
+        $settings = app(\App\Assistant\AssistantSettings::class);
+        $rate = $settings->rateFor('utility') ?? 0.0;
+        $oneMessage = max(0.01, round($rate * (1 + $settings->markupPercent() / 100), 6));
+
+        return [
+            'balance' => $credit->balance($tenant),
+            'postpaid' => $tenant->wa_billing_mode === 'postpaid',
+            'limit' => (float) $tenant->wa_credit_limit,
+            'month' => $credit->monthSummary($tenant, $period),
+            'noBalance' => ! $credit->canAfford($tenant, $oneMessage),
+        ];
     }
 
     public function update(Request $request): RedirectResponse

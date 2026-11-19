@@ -48,7 +48,18 @@
                 <div>{{ $metaTotal['count'] }} mensagem(ns)</div>
                 <div class="text-secondary small mt-2">Valor da Meta: {{ $currency }} {{ $m($metaTotal['meta']) }}</div>
                 <div>Valor a cobrar na fatura seguinte: <strong>{{ $currency }} {{ $m($metaTotal['charged']) }}</strong></div>
-                <p class="text-secondary small mt-2 mb-0">O custo das mensagens do WhatsApp é repassado com acréscimo de {{ rtrim(rtrim(number_format($markup, 2, ',', ''), '0'), ',') }}% e cobrado na fatura seguinte ao uso.</p>
+                <p class="text-secondary small mt-2 mb-0">O custo das mensagens do WhatsApp é repassado com acréscimo de {{ rtrim(rtrim(number_format($markup, 2, ',', ''), '0'), ',') }}%.</p>
+            </div>
+        </div>
+        <div class="card radius-10 mt-3">
+            <div class="card-header"><h6 class="mb-0"><i class="bx bx-wallet me-1"></i> Saldo para avisos no WhatsApp</h6></div>
+            <div class="card-body">
+                @if ($credit['noBalance'])
+                    <div class="alert alert-warning border-0">Sem saldo: os avisos no WhatsApp estão parados. {{ $credit['postpaid'] ? 'O limite do pós-pago acabou; fale com o suporte.' : 'Fale com o suporte para recarregar.' }}</div>
+                @endif
+                <div class="mb-2"><div class="text-secondary small">Saldo</div><div class="fs-4 {{ $credit['balance'] < 0 ? 'text-danger' : '' }}">R$ {{ $m($credit['balance']) }}</div></div>
+                <div class="text-secondary small">Modo: <strong>{{ $credit['postpaid'] ? 'pós-pago (somado à mensalidade, limite de R$ '.$m($credit['limit']).')' : 'pré-pago' }}</strong></div>
+                <div class="text-secondary small">Gasto no mês: R$ {{ $m($credit['month']['usage']) }} em {{ $credit['month']['messages'] }} mensagem(ns)</div>
             </div>
         </div>
     </div>

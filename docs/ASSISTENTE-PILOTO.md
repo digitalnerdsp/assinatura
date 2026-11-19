@@ -37,3 +37,9 @@ O código do Plano 1 (consultas) está pronto e coberto por testes automáticos,
 
 ## Ainda não existe (Plano 2)
 Criar e enviar documentos pelo WhatsApp, mensagens de modelo fora da janela de 24 h e cobrança automática (a compra de pacote e o repasse são lançados à mão em Admin ▸ Assistente).
+
+## Teste dos avisos (modelos de mensagem)
+1. Admin ▸ Assistente WhatsApp: preencha o **WABA** e a tabela de preços (`utility=…`). Admin ▸ Avisos do WhatsApp: **Enviar para aprovação** cada modelo e **Atualizar status** até ficarem aprovados; ligue-os.
+2. Com uma empresa de teste (não a do super administrador), faça uma **recarga** em Admin ▸ Avisos do WhatsApp e vincule o seu número no perfil.
+3. Envie um documento, assine/recuse com outra pessoa: o aviso deve chegar no WhatsApp. Confira em Admin que o saldo cai **uma vez por mensagem** depois que a Meta avisa a cobrança (a categoria e o valor da fatura da Meta devem bater com a tabela).
+4. Zere o saldo: os avisos param e o painel da empresa mostra "Sem saldo". Teste também o pós-pago com limite pequeno.
