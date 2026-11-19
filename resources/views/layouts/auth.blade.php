@@ -18,7 +18,7 @@
             <div class="col-12 col-xl-5 col-xxl-4 auth-cover-right align-items-center justify-content-center">
                 <div class="card rounded-0 m-3 shadow-none bg-transparent mb-0">
                     <div class="card-body p-sm-5">
-                        <div class="mb-3 text-center"><span class="brand-badge" style="width:56px;height:56px;font-size:30px"><i class="bx bx-pen"></i></span></div>
+                        <div class="mb-3 text-center"><img src="{{ asset('assets/images/logo-assinaja.svg') }}" alt="{{ config('app.name') }}" width="190" height="44" style="height:44px;width:auto"></div>
                         <div class="text-center mb-4">
                             <h5>{{ config('app.name') }}</h5>
                             <p class="mb-0">@yield('subtitle')</p>

@@ -116,6 +116,35 @@ html body :is(.btn-success:hover) { background-color: color-mix(in srgb, var(--a
 
 @media (prefers-reduced-motion: reduce) { html body * { scroll-behavior: auto; } }
 
+/* ---------- Tema W3 CRM: o mesmo visual (menu azul-noturno, sem sombras, pesos e textos) ---------- */
+html body[data-layout] { font-weight: var(--aj-w-text); color: var(--aj-ink-2); background-color: var(--aj-bg); }
+html body[data-layout] #main-wrapper :is(h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6, .card-title, .modal-title) { font-weight: var(--aj-w-medium); color: var(--aj-ink-1); }
+html body[data-layout] #main-wrapper :is(strong, b, .fw-bold) { font-weight: var(--aj-w-strong); }
+html body[data-layout] #main-wrapper :is(th, label, .btn, .badge, .w3-btn, .nav-link) { font-weight: var(--aj-w-medium); }
+html body[data-layout] #main-wrapper :is(.text-secondary, .text-muted, small, .small) { color: var(--aj-ink-3) !important; }
+html body[data-layout] #main-wrapper :is(.card, .w3-card, .widget-stat, .header, .nav-header, .deznav, [class*="shadow"]) { box-shadow: none !important; }
+html body[data-layout] #main-wrapper .card { border: 1px solid var(--aj-border); }
+html body[data-layout] #main-wrapper .card-header { background: transparent; border-bottom: 1px solid var(--aj-border); }
+html body[data-layout] #main-wrapper .card .card { border: 0; background: transparent; }
+html body[data-layout] #main-wrapper .content-body { background: var(--aj-bg); }
+
+html body[data-layout] #main-wrapper :is(.header, .nav-header) { background: var(--aj-navy); border: 0; }
+html body[data-layout] #main-wrapper .deznav { background: var(--aj-navy); border-right: 0; }
+html body[data-layout] #main-wrapper .deznav .menu-title { color: var(--aj-menu-caption); font-weight: var(--aj-w-medium); }
+html body[data-layout] #main-wrapper .deznav .metismenu a { color: var(--aj-menu-text); font-weight: var(--aj-w-text); border-radius: 8px; background: transparent; }
+html body[data-layout] #main-wrapper .deznav .metismenu a i { color: var(--aj-menu-caption); }
+html body[data-layout] #main-wrapper .deznav .metismenu a:hover { background: rgba(255, 255, 255, .07); color: #fff; }
+html body[data-layout] #main-wrapper .deznav .metismenu a:hover i { color: #fff; }
+html body[data-layout] #main-wrapper .deznav .metismenu .sub-menu { background: transparent; }
+html body[data-layout] #main-wrapper .deznav .metismenu .sub-menu a { color: var(--aj-menu-text); }
+html body[data-layout] #main-wrapper .deznav .metismenu > li.mm-active > a,
+html body[data-layout] #main-wrapper .deznav .metismenu > li.active-no-child > a,
+html body[data-layout] #main-wrapper .deznav .metismenu .sub-menu a.mm-active { background: var(--aj-blue-dark); color: #fff; font-weight: var(--aj-w-medium); }
+html body[data-layout] #main-wrapper .deznav .metismenu > li.mm-active > a i,
+html body[data-layout] #main-wrapper .deznav .metismenu > li.active-no-child > a i { color: #fff; }
+/* item pai aberto (tem filho ativo): só um leve destaque */
+html body[data-layout] #main-wrapper .deznav .metismenu > li.mm-active:has(> .sub-menu) > a { background: rgba(255, 255, 255, .07); }
+
 /* ---------- Avisos e confirmações próprios (assinaja-ui.js) ---------- */
 .aj-toasts { position: fixed; top: 16px; right: 16px; z-index: 3000; display: flex; flex-direction: column; gap: 8px; width: min(380px, calc(100vw - 32px)); }
 .aj-toast { display: flex; align-items: flex-start; gap: 10px; background: #fff; color: var(--aj-ink-2); border: 1px solid var(--aj-border); border-left: 4px solid var(--aj-blue); border-radius: 10px; padding: 12px 14px; box-shadow: 0 8px 24px rgba(15, 23, 42, .12); font-size: 14px; line-height: 1.45; }

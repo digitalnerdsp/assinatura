@@ -27,7 +27,7 @@
             @if ($brand['logo_url'])
                 <img src="{{ $brand['logo_url'] }}" alt="" class="w3-brand-img">
             @else
-                <span class="w3-brand-mark" aria-hidden="true">{{ mb_strtoupper(mb_substr($brand['name'], 0, 1)) }}</span>
+                <span class="w3-brand-mark" aria-hidden="true"><img src="{{ asset('assets/images/logo-assinaja-mark.svg') }}" alt="" width="30" height="24"></span>
             @endif
             <span class="w3-brand-name">{{ $brand['name'] }}</span>
         </a>
