@@ -27,6 +27,9 @@ final class OpenAiClient implements LlmClient
         }
 
         $body = ['model' => $model, 'messages' => $messages, 'max_completion_tokens' => (int) config('assistant.max_output_tokens')];
+        if (($effort = $this->settings->reasoningEffort()) !== '') {
+            $body['reasoning_effort'] = $effort;
+        }
         if ($toolSpecs !== []) {
             $body['tools'] = $toolSpecs;
             $body['tool_choice'] = 'auto';
@@ -48,6 +51,13 @@ final class OpenAiClient implements LlmClient
                 return $this->parse($response);
             }
             $status = $response->status();
+            // Modelo que não conhece o campo de raciocínio: repete uma vez sem ele.
+            if ($status === 400 && isset($body['reasoning_effort']) && preg_match('/unsupported parameter|unrecognized request argument|unknown parameter/i', $this->reason($response)) === 1 && stripos($this->reason($response), 'reasoning_effort') !== false) {
+                unset($body['reasoning_effort']);
+                $attempt--;
+
+                continue;
+            }
             $last = new LlmUnavailable('A IA recusou a chamada (HTTP '.$status.'): '.$this->reason($response), $status);
             if ($status !== 429 && $status < 500) {
                 break; // erro do pedido ou da chave: repetir não adianta

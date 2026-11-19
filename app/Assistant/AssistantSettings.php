@@ -148,6 +148,17 @@ final class AssistantSettings
         return is_array($raw) && isset($raw['message']) ? ['message' => (string) $raw['message'], 'at' => $raw['at'] ?? null] : null;
     }
 
+    public const REASONING_EFFORTS = ['none', 'minimal', 'low', 'medium', 'high'];
+
+    /** Esforço de raciocínio enviado à OpenAI. Modelos que raciocinam só aceitam funções com "none". Vazio = não envia o campo. */
+    public function reasoningEffort(): string
+    {
+        $v = Setting::get('assistant.reasoning_effort');
+        $v = $v === null ? (string) config('assistant.reasoning_effort', 'none') : (string) $v;
+
+        return in_array($v, self::REASONING_EFFORTS, true) ? $v : '';
+    }
+
     public function openAiBaseUrl(): string
     {
         return rtrim((string) config('assistant.openai_url'), '/');

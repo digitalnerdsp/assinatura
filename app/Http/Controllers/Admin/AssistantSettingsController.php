@@ -50,6 +50,7 @@ final class AssistantSettingsController extends Controller
             'overrun_cap' => ['required', 'integer', 'between:0,1000000000'], 'output_factor' => ['required', 'numeric', 'between:0,100'],
             'cached_factor' => ['required', 'numeric', 'between:0,1'], 'purchase_validity_months' => ['required', 'integer', 'between:1,60'],
             'currency' => ['required', 'regex:/^[A-Za-z]{3}$/'],
+            'reasoning_effort' => ['nullable', 'in:none,minimal,low,medium,high'],
         ], [
             'markup_percent.between' => 'O acréscimo deve ficar entre 0% e 500%.', 'currency.regex' => 'A moeda tem 3 letras (ex.: BRL).',
             'display_phone.regex' => 'Use só números, espaço, +, ( ) e -.', 'graph_version.regex' => 'Use o formato v21.0.',
@@ -71,6 +72,9 @@ final class AssistantSettingsController extends Controller
         Setting::put('assistant.cached_factor', (string) $d['cached_factor']);
         Setting::put('assistant.purchase_validity_months', (string) $d['purchase_validity_months']);
         Setting::put('assistant.currency', strtoupper($d['currency']));
+        if ($request->has('reasoning_effort')) {
+            Setting::put('assistant.reasoning_effort', (string) ($d['reasoning_effort'] ?? '')); // vazio = não enviar
+        }
 
         app(\App\Assistant\Channel\StatusReconciler::class)->run(); // avisos que esperavam preço
 

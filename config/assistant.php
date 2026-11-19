@@ -7,6 +7,9 @@ return [
     // Modelo da OpenAI (Luna). O identificador exato precisa ser confirmado na conta da OpenAI antes do piloto.
     'model' => env('ASSISTANT_MODEL', 'gpt-5.6-luna'),
 
+    // Esforço de raciocínio enviado à OpenAI ("none" deixa modelos que raciocinam usarem chamada de funções; vazio = não envia).
+    'reasoning_effort' => env('ASSISTANT_REASONING_EFFORT', 'none'),
+
     // Pacote de tokens equivalentes que o plano inclui por mês quando o plano não define o próprio.
     'default_package_tokens' => (int) env('ASSISTANT_DEFAULT_PACKAGE_TOKENS', 50000),
 

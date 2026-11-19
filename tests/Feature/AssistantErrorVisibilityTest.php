@@ -51,3 +51,50 @@ it('a mensagem de erro é cortada e nunca grava o texto de uma chave', function 
 
     expect(mb_strlen(app(AssistantSettings::class)->lastError('openai')['message']))->toBeLessThanOrEqual(300);
 });
+
+// ------------------------------------------------------------------ esforço de raciocínio (modelos que raciocinam + funções)
+
+it('manda reasoning_effort "none" por padrão, para modelos que raciocinam poderem usar funções', function () {
+    Http::fake(['api.openai.com/*' => Http::response(['choices' => [['message' => ['content' => 'ok']]], 'usage' => []])]);
+
+    app(OpenAiClient::class)->chat([['role' => 'user', 'content' => 'oi']], [['type' => 'function', 'function' => ['name' => 'x', 'description' => 'd', 'parameters' => ['type' => 'object', 'properties' => new stdClass]]]], 'gpt-5.6-luna');
+
+    Http::assertSent(fn ($r) => ($r->data()['reasoning_effort'] ?? null) === 'none');
+});
+
+it('o esforço configurado vale; em branco não envia o campo', function () {
+    Http::fake(['api.openai.com/*' => Http::response(['choices' => [['message' => ['content' => 'ok']]], 'usage' => []])]);
+
+    Setting::put('assistant.reasoning_effort', 'low');
+    app(OpenAiClient::class)->chat([['role' => 'user', 'content' => 'oi']], [], 'm');
+    Http::assertSent(fn ($r) => ($r->data()['reasoning_effort'] ?? null) === 'low');
+
+    Setting::put('assistant.reasoning_effort', '');
+    Http::fake(['api.openai.com/*' => Http::response(['choices' => [['message' => ['content' => 'ok']]], 'usage' => []])]);
+    app(OpenAiClient::class)->chat([['role' => 'user', 'content' => 'oi']], [], 'm');
+    Http::assertSent(fn ($r) => ! array_key_exists('reasoning_effort', $r->data()));
+});
+
+it('modelo que não aceita o campo: repete sem ele, uma vez', function () {
+    Http::fake(['api.openai.com/*' => Http::sequence()
+        ->push(['error' => ['message' => "Unsupported parameter: 'reasoning_effort' is not supported with this model."]], 400)
+        ->push(['choices' => [['message' => ['content' => 'ok']]], 'usage' => []])]);
+
+    $r = app(OpenAiClient::class)->chat([['role' => 'user', 'content' => 'oi']], [], 'gpt-4o-mini');
+
+    expect($r->text)->toBe('ok');
+    Http::assertSentCount(2);
+    $sent = Http::recorded();
+    expect($sent[0][0]->data())->toHaveKey('reasoning_effort')->and($sent[1][0]->data())->not->toHaveKey('reasoning_effort');
+});
+
+it('a tela salva o esforço de raciocínio e recusa valor inventado', function () {
+    $super = \App\Models\User::create(['tenant_id' => \App\Models\Tenant::create(['name' => 'P'])->id, 'name' => 'S', 'email' => 's2@e.test', 'password' => 'senha-muito-forte', 'role' => 'owner']);
+    $super->forceFill(['platform_role' => 'super_admin'])->save();
+    $base = ['markup_percent' => '10', 'default_package_tokens' => '1000', 'overrun_cap' => '10', 'output_factor' => '4', 'cached_factor' => '0.1', 'purchase_validity_months' => '12', 'currency' => 'BRL'];
+
+    $this->actingAs($super)->put(route('admin.assistant.update'), $base + ['reasoning_effort' => 'low'])->assertRedirect();
+    expect(app(AssistantSettings::class)->reasoningEffort())->toBe('low');
+
+    $this->actingAs($super)->put(route('admin.assistant.update'), $base + ['reasoning_effort' => 'nuclear'])->assertSessionHasErrors('reasoning_effort');
+});
