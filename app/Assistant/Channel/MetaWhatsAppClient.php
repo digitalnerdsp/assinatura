@@ -185,6 +185,7 @@ final class MetaWhatsAppClient
             throw new MetaException('Falha de rede ao falar com a Meta.', 0, null, $e);
         }
         $this->throwIfFailed($response);
+        $this->settings->clearError('meta');
 
         return (array) ($response->json() ?? []);
     }
@@ -201,6 +202,8 @@ final class MetaWhatsAppClient
         }
         $err = (array) ($r->json('error') ?? []);
         $detail = (string) ($err['message'] ?? 'HTTP '.$r->status());
+
+        $this->settings->recordError('meta', 'A Meta recusou a chamada: '.$detail);
 
         throw new MetaException('A Meta recusou a chamada: '.mb_substr($detail, 0, 300), $r->status(), isset($err['code']) ? (int) $err['code'] : null);
     }

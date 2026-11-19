@@ -43,16 +43,29 @@ final class OpenAiClient implements LlmClient
             }
 
             if ($response->successful()) {
+                $this->settings->clearError('openai');
+
                 return $this->parse($response);
             }
             $status = $response->status();
-            $last = new LlmUnavailable('A IA recusou a chamada (HTTP '.$status.').', $status);
+            $last = new LlmUnavailable('A IA recusou a chamada (HTTP '.$status.'): '.$this->reason($response), $status);
             if ($status !== 429 && $status < 500) {
                 break; // erro do pedido ou da chave: repetir não adianta
             }
         }
 
-        throw $last ?? new LlmUnavailable('A IA não respondeu.');
+        $last ??= new LlmUnavailable('A IA não respondeu.');
+        $this->settings->recordError('openai', $last->getMessage());
+
+        throw $last;
+    }
+
+    /** O motivo que a OpenAI devolveu (sem a chave), para o log e a tela. */
+    private function reason(Response $r): string
+    {
+        $msg = (string) ($r->json('error.message') ?? $r->json('error.code') ?? '');
+
+        return str_replace($this->settings->openAiApiKey(), '***', mb_substr(trim($msg) !== '' ? $msg : 'sem detalhe', 0, 250));
     }
 
     private function parse(Response $response): LlmResponse

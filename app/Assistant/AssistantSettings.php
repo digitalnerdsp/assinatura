@@ -126,6 +126,28 @@ final class AssistantSettings
         }
     }
 
+    /** Último erro de um serviço externo ('openai' ou 'meta'), para a tela da plataforma. Sem segredos, cortado em 300 caracteres. */
+    public function recordError(string $service, string $message): void
+    {
+        $message = str_replace([$this->openAiApiKey(), $this->metaAccessToken()], '***', $message);
+        Setting::put('assistant.last_error.'.$service, json_encode(['message' => mb_substr(trim($message), 0, 300), 'at' => now()->toIso8601String()]));
+    }
+
+    public function clearError(string $service): void
+    {
+        if (Setting::get('assistant.last_error.'.$service) !== null) {
+            Setting::query()->where('key', 'assistant.last_error.'.$service)->delete();
+        }
+    }
+
+    /** @return array{message:string,at:?string}|null */
+    public function lastError(string $service): ?array
+    {
+        $raw = json_decode((string) Setting::get('assistant.last_error.'.$service, ''), true);
+
+        return is_array($raw) && isset($raw['message']) ? ['message' => (string) $raw['message'], 'at' => $raw['at'] ?? null] : null;
+    }
+
     public function openAiBaseUrl(): string
     {
         return rtrim((string) config('assistant.openai_url'), '/');

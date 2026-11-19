@@ -5,6 +5,11 @@
 @php
     $ok = fn (bool $v) => $v ? '<span class="badge bg-success">configurado</span>' : '<span class="badge bg-secondary">não configurado</span>';
 @endphp
+@foreach (['meta' => 'Meta (WhatsApp)', 'openai' => 'OpenAI (IA)'] as $svc => $svcName)
+    @if ($err = $s->lastError($svc))
+        <div class="alert alert-danger border-0"><strong>Último erro da {{ $svcName }}:</strong> {{ $err['message'] }}@if ($err['at']) <span class="text-secondary small">({{ \Carbon\Carbon::parse($err['at'])->timezone('America/Sao_Paulo')->format('d/m/Y H:i') }})</span>@endif<div class="small">Some quando uma chamada seguinte dá certo.</div></div>
+    @endif
+@endforeach
 <div class="alert alert-info border-0">
     Endereço do webhook para colar no painel da Meta (WhatsApp ▸ Configuração): <strong class="text-break">{{ $webhookUrl }}</strong><br>
     Os segredos ficam cifrados e <strong>nunca</strong> são mostrados de novo: deixar o campo em branco mantém o valor salvo.
