@@ -18,7 +18,7 @@ final class AssistantPruner
 {
     public const KEEP_DAYS = 90;
 
-    /** @return array{conversations:int,inbounds:int,codes:int,attempts:int,status_events:int} */
+    /** @return array{conversations:int,inbounds:int,codes:int,attempts:int,status_events:int,flows:int} */
     public function run(): array
     {
         $cut = now()->subDays(self::KEEP_DAYS);
@@ -28,6 +28,7 @@ final class AssistantPruner
             'inbounds' => WhatsAppInbound::query()->where('created_at', '<', $cut)->delete(),
             'codes' => WhatsAppLinkCode::query()->where(fn ($q) => $q->where('expires_at', '<', now()->subDay())->orWhereNotNull('used_at'))->delete(),
             'attempts' => WhatsAppLinkAttempt::query()->where('updated_at', '<', now()->subDays(7))->where(fn ($q) => $q->whereNull('blocked_until')->orWhere('blocked_until', '<', now()))->delete(),
+            'flows' => \App\Models\WhatsAppFlow::query()->where('expires_at', '<', now()->subDay())->delete(), // conversas de envio abandonadas (o rascunho continua no site)
             // avisos já cobrados (90 dias) e avisos sem empresa, que nunca serão cobrados de ninguém (30 dias)
             'status_events' => WhatsAppStatusEvent::query()->where(fn ($q) => $q->where(fn ($a) => $a->whereNotNull('processed_at')->where('processed_at', '<', $cut))
                 ->orWhere(fn ($b) => $b->whereNull('tenant_id')->where('created_at', '<', now()->subDays(30))))->delete(),

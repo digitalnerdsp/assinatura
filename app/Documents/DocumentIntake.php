@@ -30,14 +30,23 @@ final class DocumentIntake
      */
     public function fromUpload(UploadedFile $file): array
     {
-        $bytes = (string) file_get_contents($file->getRealPath());
-        $name = $file->getClientOriginalName();
+        return $this->fromBytes((string) file_get_contents($file->getRealPath()), $file->getClientOriginalName());
+    }
 
+    /**
+     * Mesma regra para arquivo que não veio de um upload de formulário (ex.: baixado do WhatsApp).
+     *
+     * @return array{pdf:string,name:string,source_sha256:?string,source_name:?string}
+     *
+     * @throws FlowException
+     */
+    public function fromBytes(string $bytes, string $name): array
+    {
         if (str_starts_with($bytes, '%PDF')) {
             return ['pdf' => $bytes, 'name' => $name, 'source_sha256' => null, 'source_name' => null];
         }
 
-        if (! str_starts_with($bytes, 'PK') || strtolower($file->getClientOriginalExtension()) !== 'docx') {
+        if (! str_starts_with($bytes, 'PK') || strtolower(pathinfo($name, PATHINFO_EXTENSION)) !== 'docx') {
             throw FlowException::because('invalid_document', 'Envie um arquivo PDF ou DOCX.');
         }
 

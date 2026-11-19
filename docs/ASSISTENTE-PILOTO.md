@@ -43,3 +43,10 @@ Criar e enviar documentos pelo WhatsApp, mensagens de modelo fora da janela de 2
 2. Com uma empresa de teste (não a do super administrador), faça uma **recarga** em Admin ▸ Assinaturas ▸ (a empresa) ▸ Saldo dos avisos no WhatsApp e vincule o seu número no perfil.
 3. Envie um documento, assine/recuse com outra pessoa: o aviso deve chegar no WhatsApp. Confira em Admin que o saldo cai **uma vez por mensagem** depois que a Meta avisa a cobrança (a categoria e o valor da fatura da Meta devem bater com a tabela).
 4. Zere o saldo: os avisos param e o painel da empresa mostra "Sem saldo". Teste também o pós-pago com limite pequeno.
+
+## Teste do envio de documento pelo WhatsApp
+1. Em Assistente da empresa ▸ Ações permitidas, confira que "Enviar documentos para assinatura" está ligado. A política de assinatura do remetente não pode ser "sempre assina".
+2. Mande um PDF pelo WhatsApp. O assistente deve perguntar o título; toque em **Manter o nome** ou escreva outro.
+3. Mande "Maria Souza maria@email.com" (use um e-mail seu), depois **Pronto**, confira a revisão e toque em **Enviar agora**.
+4. Confirme: o e-mail chegou com o link, o documento aparece em Documentos como "Enviado", e ao assinar você recebe o aviso no WhatsApp.
+5. Teste também: cancelar no meio, mandar um segundo arquivo durante o fluxo, um arquivo Word, dois toques seguidos em Enviar agora e esperar 30 minutos sem responder.

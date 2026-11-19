@@ -390,14 +390,14 @@ it('limita as mensagens por usuário por hora', function () {
     expect(count($llm->calls))->toBe(3)->and($reply->text)->toContain('muitas mensagens');
 });
 
-it('documento ou mídia recebidos ainda não são tratados: aviso fixo, sem IA', function () {
+it('mídia que não é documento (imagem, áudio) recebe aviso fixo, sem IA; documento agora vai para o envio guiado', function () {
     $u = aoUser();
     [$orch, $llm] = aoOrch([LlmResponse::text('não deveria')]);
 
     $a = $orch->handle($u, new InboundMessage('wamid.D', '5511999990000', 'document', null, mediaId: 'M1', mime: 'application/pdf', filename: 'x.pdf'));
     $b = $orch->handle($u, new InboundMessage('wamid.I', '5511999990000', 'other'));
 
-    expect($llm->calls)->toBe([])->and($a->text)->toContain('texto')->and($b->text)->toContain('texto');
+    expect($llm->calls)->toBe([])->and($a->text)->toContain('arquivo')->and($b->text)->toContain('texto'); // o documento entra no fluxo de envio (aqui a Meta não está configurada)
 });
 
 it('escolha numa lista chega à IA como texto, com o identificador do item', function () {

@@ -127,6 +127,13 @@ Veja `loadtest/README.md` (k6). O limite de PDF é conferido no app (`SIGNING_MA
 - **Cobrança:** a medição existe (tokens por modelo, mensagens da Meta com categoria e acréscimo), mas a **fatura automática não**: pacote comprado, ajuste e repasse são lançados à mão em Admin ▸ Assistente no WhatsApp ▸ Lançamento manual.
 - **Roteiro do piloto:** `docs/ASSISTENTE-PILOTO.md`.
 
+## Enviar documento pelo WhatsApp (Fase 2)
+Plano e decisões: `docs/superpowers/plans/2026-11-20-enviar-documento-pelo-whatsapp.md`.
+- **Como funciona:** o usuário vinculado manda um **PDF ou Word (DOCX)** no WhatsApp (ou escreve "enviar documento"). Conversa guiada com botões, **sem IA e sem gastar tokens**: título → signatários (nome e e-mail, um por mensagem; só o nome busca nos contatos da empresa) → revisão (ordem: todos juntos ou um por vez) → **Enviar agora**. Os links saem por e-mail e o documento é o mesmo rascunho/envio do site (mesmo plano, mesma cobrança, mesma trilha de evidências); aparece em Documentos.
+- **Limites e regras:** vale o plano da empresa (documentos, armazenamento, tamanho do PDF, empresa suspensa). Empresa com política de assinatura do remetente **"sempre assina"** é orientada a enviar pelo site. A empresa liga ou desliga em Assistente ▸ Ações permitidas o grupo **"Enviar documentos para assinatura"** (padrão ligado). Um envio em andamento por usuário, que expira em 30 minutos sem resposta (o rascunho continua no site); cancelar manda o rascunho para a lixeira.
+- **Não faz (ainda):** posicionar a assinatura no PDF (sai no padrão do sistema), o remetente assinar, selfie/código por signatário, testemunhas e observadores, e envio do link ao signatário pelo WhatsApp. Para qualquer ajuste, abra o rascunho no site.
+- **Word (DOCX):** depende do LibreOffice no selador (ver seção de DOCX acima); arquivo grande ou conversão lenta pode falhar com mensagem pedindo o PDF.
+
 ## Avisos no WhatsApp (modelos, saldo em reais, pré e pós-pago)
 Plano e decisões: `docs/superpowers/plans/2026-11-20-avisos-whatsapp.md`.
 - **O que envia:** ao usuário vinculado que criou o documento: assinado por todos, alguém assinou, recusa, contrato perto de vencer e documento parado (`documents:notify-stalled`, diário às 12:00 UTC). Cada usuário liga/desliga cada aviso no perfil. Super administrador e a empresa dele não recebem nem são cobrados.

@@ -68,6 +68,11 @@ final class AssistantOrchestrator
             return new AssistantReply('Você enviou muitas mensagens em pouco tempo. Tente de novo daqui a pouco.');
         }
 
+        // Envio de documento pelo WhatsApp: conversa guiada, sem IA e sem gastar tokens.
+        if (($reply = app(\App\Assistant\Flow\SendDocumentFlow::class)->handle($user, $message)) !== null) {
+            return $reply;
+        }
+
         if ($message->payloadId !== null && isset(FixedMenu::ACTIONS[$message->payloadId])) {
             return $this->menu($user, FixedMenu::ACTIONS[$message->payloadId], $registry, $allowed);
         }
