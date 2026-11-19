@@ -25,6 +25,12 @@ class Tenant extends Model
         return $this->suspended_at !== null;
     }
 
+    /** Empresa de um super administrador ativo da plataforma: não usa plano e não é cobrada (a plataforma absorve). */
+    public function isPlatformOwned(): bool
+    {
+        return $this->users()->whereNull('deactivated_at')->whereNull('invite_token_hash')->get()->contains(fn (User $u) => $u->isSuperAdmin());
+    }
+
     public function users(): HasMany
     {
         return $this->hasMany(User::class);

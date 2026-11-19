@@ -39,17 +39,11 @@ final class Entitlements
 
     public function feature(string $key): bool
     {
-        if ($key === 'assistant' && $this->hostsSuperAdmin()) {
+        if ($key === 'assistant' && $this->tenant->isPlatformOwned()) {
             return true; // a empresa do super administrador da plataforma não usa plano: o assistente vem liberado
         }
 
         return (bool) ($this->effective['features'][$key] ?? false);
-    }
-
-    private function hostsSuperAdmin(): bool
-    {
-        return \App\Models\User::query()->where('tenant_id', $this->tenant->getKey())->whereNull('deactivated_at')->whereNull('invite_token_hash')
-            ->get()->contains(fn (\App\Models\User $u) => $u->isSuperAdmin());
     }
 
     /** Limite numérico; null = ilimitado. */

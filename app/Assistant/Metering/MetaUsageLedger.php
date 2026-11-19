@@ -25,8 +25,9 @@ final class MetaUsageLedger
         $markup = $this->settings->markupPercent();
         $now = now();
 
-        MetaMessageUsage::query()->insertOrIgnore([[
-            'id' => (string) Str::uuid(),
+        $id = (string) Str::uuid();
+        $inserted = MetaMessageUsage::query()->insertOrIgnore([[
+            'id' => $id,
             'tenant_id' => $tenant->getKey(),
             'wa_message_id' => $waMessageId,
             'category' => mb_substr($category, 0, 32),
@@ -40,6 +41,10 @@ final class MetaUsageLedger
             'created_at' => $now,
             'updated_at' => $now,
         ]]);
+
+        if ($inserted > 0 && $billable && ($usage = MetaMessageUsage::query()->find($id)) !== null) {
+            app(WhatsAppCredit::class)->debitUsage($tenant, $usage); // um débito por mensagem
+        }
     }
 
     /** @return array{meta:float,charged:float,count:int} */
