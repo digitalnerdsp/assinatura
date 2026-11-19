@@ -38,7 +38,7 @@ final class StatusProcessor
             'occurred_at' => CarbonImmutable::createFromTimestampUTC((int) ($status['timestamp'] ?? time())),
         ];
 
-        $tenant = $this->tenantFor($event['recipient_phone']);
+        $tenant = $this->tenantFor($id, $event['recipient_phone']);
         if ($tenant === null || ! $this->charge($tenant, $id, $event)) {
             // Sem empresa na hora: era mensagem da própria plataforma (orientação, vínculo) e nunca é cobrada de quem vincula depois.
             // Com empresa mas sem preço cadastrado: espera o preço (assistant:reconcile).
@@ -76,8 +76,13 @@ final class StatusProcessor
         return true;
     }
 
-    private function tenantFor(string $phone): ?Tenant
+    /** Aviso que nós enviamos: a empresa gravada no envio paga, mesmo que o número tenha mudado de dono. Senão, quem tem o número agora. */
+    private function tenantFor(string $waMessageId, string $phone): ?Tenant
     {
+        $sent = \App\Models\WhatsAppNotification::query()->where('wa_message_id', $waMessageId)->first();
+        if ($sent !== null) {
+            return Tenant::query()->find($sent->tenant_id);
+        }
         if ($phone === '') {
             return null;
         }

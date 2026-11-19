@@ -42,8 +42,10 @@ final class MetaUsageLedger
             'updated_at' => $now,
         ]]);
 
-        if ($inserted > 0 && $billable && ($usage = MetaMessageUsage::query()->find($id)) !== null) {
-            app(WhatsAppCredit::class)->debitUsage($tenant, $usage); // um débito por mensagem
+        // Um débito por mensagem. Mesmo quando o uso já existia (aviso repetido), tenta debitar: se uma queda anterior
+        // gravou o uso sem o débito, ele é refeito aqui (o índice único de `source_id` impede o dobro).
+        if ($billable && ($usage = MetaMessageUsage::query()->where('wa_message_id', $waMessageId)->first()) !== null) {
+            app(WhatsAppCredit::class)->debitUsage($tenant, $usage);
         }
     }
 

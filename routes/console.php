@@ -69,3 +69,10 @@ Artisan::command('documents:notify-stalled', function (\App\Assistant\Notificati
     $this->info($stalled->run().' aviso(s) de documento parado enfileirado(s).');
 })->purpose('Avisa no WhatsApp sobre documentos parados');
 Schedule::command('documents:notify-stalled')->dailyAt('12:00')->timezone('UTC')->withoutOverlapping();
+
+// Faxina dos avisos do WhatsApp: reenvia o que ficou na fila e dá por interrompido o que ficou "enviando".
+Artisan::command('whatsapp:notify-janitor', function (\App\Assistant\Notifications\NotificationJanitor $janitor) {
+    $r = $janitor->run();
+    $this->info("{$r['requeued']} reenviado(s), {$r['interrupted']} interrompido(s).");
+})->purpose('Destrava avisos do WhatsApp presos');
+Schedule::command('whatsapp:notify-janitor')->everyTenMinutes()->withoutOverlapping();

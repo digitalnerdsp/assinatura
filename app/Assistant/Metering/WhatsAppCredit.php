@@ -26,7 +26,20 @@ final class WhatsAppCredit
     {
         $limit = $tenant->wa_billing_mode === 'postpaid' ? max(0.0, (float) $tenant->wa_credit_limit) : 0.0;
 
-        return round(max(0.0, $this->balance($tenant) + $limit), 6);
+        return round(max(0.0, $this->balance($tenant) + $limit - $this->reserved($tenant)), 6);
+    }
+
+    /**
+     * Custo estimado dos avisos já enfileirados ou enviados que a Meta ainda não cobrou. Conta por até 3 dias
+     * (depois disso, sem aviso de cobrança, o aviso era gratuito ou se perdeu) e some quando o uso real chega.
+     */
+    public function reserved(Tenant $tenant): float
+    {
+        return round((float) \Illuminate\Support\Facades\DB::table('whatsapp_notifications as n')
+            ->where('n.tenant_id', $tenant->getKey())->whereIn('n.status', ['queued', 'sending', 'sent'])->where('n.reserved_amount', '>', 0)
+            ->where('n.created_at', '>', now()->subDays(3))
+            ->whereNotExists(fn ($q) => $q->from('meta_message_usages as u')->whereColumn('u.wa_message_id', 'n.wa_message_id'))
+            ->sum('n.reserved_amount'), 6);
     }
 
     public function canAfford(Tenant $tenant, float $amount): bool
@@ -62,7 +75,7 @@ final class WhatsAppCredit
     public function debitUsage(Tenant $tenant, MetaMessageUsage $usage): void
     {
         $amount = (float) $usage->charged_amount;
-        if (! $usage->billable || $amount <= 0 || $tenant->isPlatformOwned()) {
+        if (! $usage->billable || $amount <= 0 || $usage->tenant_id !== $tenant->getKey() || $tenant->isPlatformOwned()) {
             return;
         }
 

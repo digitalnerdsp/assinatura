@@ -42,11 +42,12 @@ final class WhatsAppNotificationsController extends Controller
     /** Modo de cobrança da empresa: pré-pago (só com saldo) ou pós-pago (até o limite, quitado na mensalidade). */
     public function billing(Request $request, \App\Models\Tenant $tenant): RedirectResponse
     {
-        $request->merge(['wa_credit_limit' => $this->money((string) $request->input('wa_credit_limit', ''))]);
+        $raw = trim((string) $request->input('wa_credit_limit', ''));
+        $request->merge(['wa_credit_limit' => $raw === '' ? null : ($this->money($raw) ?? 'inválido')]);
         $d = $request->validate([
             'wa_billing_mode' => ['required', 'in:prepaid,postpaid'],
             'wa_credit_limit' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
-        ], ['wa_billing_mode.in' => 'Escolha pré-pago ou pós-pago.', 'wa_credit_limit.min' => 'O limite não pode ser negativo.']);
+        ], ['wa_billing_mode.in' => 'Escolha pré-pago ou pós-pago.', 'wa_credit_limit.min' => 'O limite não pode ser negativo.', 'wa_credit_limit.numeric' => 'Informe o limite em reais (ex.: 50,00).', 'wa_credit_limit.max' => 'O limite máximo é R$ 1.000.000,00.']);
 
         $tenant->forceFill(['wa_billing_mode' => $d['wa_billing_mode'], 'wa_credit_limit' => $d['wa_billing_mode'] === 'postpaid' ? ($d['wa_credit_limit'] ?? 0) : null])->save();
 
@@ -67,6 +68,9 @@ final class WhatsAppNotificationsController extends Controller
         if ($amount === null || abs($amount) < 0.01 || ($d['kind'] !== 'adjust' && $amount < 0)) {
             throw ValidationException::withMessages(['amount' => $d['kind'] === 'adjust' ? 'Informe um valor diferente de zero (ex.: -2,50).' : 'Informe um valor maior que zero (ex.: 20,00).']);
         }
+        if (abs($amount) > 1000000) {
+            throw ValidationException::withMessages(['amount' => 'O valor máximo por lançamento é R$ 1.000.000,00.']);
+        }
 
         $tenant = \App\Models\Tenant::query()->findOrFail($d['tenant_id']);
         $credit = app(\App\Assistant\Metering\WhatsAppCredit::class);
@@ -83,7 +87,11 @@ final class WhatsAppNotificationsController extends Controller
     private function money(string $v): ?float
     {
         $v = trim(str_replace(['R$', ' '], '', $v));
-        $v = str_contains($v, ',') ? str_replace(['.', ','], ['', '.'], $v) : $v;
+        if (str_contains($v, ',')) {
+            $v = str_replace(['.', ','], ['', '.'], $v); // 1.250,50
+        } elseif (preg_match('/^-?\d{1,3}(\.\d{3})+$/', $v) === 1) {
+            $v = str_replace('.', '', $v); // 1.000 = mil
+        }
 
         return is_numeric($v) ? round((float) $v, 6) : null;
     }
@@ -101,6 +109,9 @@ final class WhatsAppNotificationsController extends Controller
         ]);
         if (($problem = NotificationCatalog::validateBody($key, $d['body'])) !== null) {
             throw ValidationException::withMessages(['body' => $problem]);
+        }
+        if (\App\Models\WhatsAppTemplate::query()->where('meta_name', $d['meta_name'])->where('language', $d['language'])->where('key', '!=', $key)->exists()) {
+            throw ValidationException::withMessages(['meta_name' => 'Outra situação já usa este nome de modelo neste idioma.']);
         }
 
         app(TemplateStore::class)->update($key, $d + ['enabled' => $request->boolean('enabled')]);

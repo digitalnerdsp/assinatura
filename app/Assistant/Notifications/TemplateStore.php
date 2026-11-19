@@ -71,8 +71,11 @@ final class TemplateStore
     /** Envia o modelo para a Meta aprovar. Lança MetaException se faltar configuração ou a Meta recusar. */
     public function submit(WhatsAppTemplate $t): void
     {
+        if (! in_array($t->status, ['rascunho', 'rejeitado'], true)) {
+            throw new \App\Assistant\Channel\MetaException('Só modelo em rascunho ou rejeitado vai para aprovação (este está '.$t->status.').');
+        }
         $def = NotificationCatalog::all()[$t->key];
-        $result = $this->client->createTemplate($t->meta_name, $t->language, $t->category, $t->body, $def['example']);
+        $result =$this->client->createTemplate($t->meta_name, $t->language, $t->category, $t->body, $def['example']);
 
         $t->forceFill(['status' => 'enviado', 'meta_template_id' => $result['id'], 'rejected_reason' => null, 'enabled' => false])->save();
     }

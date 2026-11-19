@@ -47,7 +47,7 @@
                 <div class="text-secondary small">Mensagens da Meta no mês</div>
                 <div>{{ $metaTotal['count'] }} mensagem(ns)</div>
                 <div class="text-secondary small mt-2">Valor da Meta: {{ $currency }} {{ $m($metaTotal['meta']) }}</div>
-                <div>Valor a cobrar na fatura seguinte: <strong>{{ $currency }} {{ $m($metaTotal['charged']) }}</strong></div>
+                <div>Valor cobrado do seu saldo no mês: <strong>{{ $currency }} {{ $m($metaTotal["charged"]) }}</strong></div>
                 <p class="text-secondary small mt-2 mb-0">O custo das mensagens do WhatsApp é repassado com acréscimo de {{ rtrim(rtrim(number_format($markup, 2, ',', ''), '0'), ',') }}%.</p>
             </div>
         </div>

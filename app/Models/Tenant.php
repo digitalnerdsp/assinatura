@@ -28,7 +28,10 @@ class Tenant extends Model
     /** Empresa de um super administrador ativo da plataforma: não usa plano e não é cobrada (a plataforma absorve). */
     public function isPlatformOwned(): bool
     {
-        return $this->users()->whereNull('deactivated_at')->whereNull('invite_token_hash')->get()->contains(fn (User $u) => $u->isSuperAdmin());
+        // Uma consulta só (sem carregar os usuários): super administrador ativo, por papel ou por e-mail da configuração.
+        return $this->users()->whereNull('deactivated_at')->whereNull('invite_token_hash')
+            ->where(fn ($q) => $q->where('platform_role', 'super_admin')->orWhereIn(\Illuminate\Support\Facades\DB::raw('lower(email)'), array_map('mb_strtolower', (array) config('platform.super_admins', []))))
+            ->exists();
     }
 
     public function users(): HasMany
