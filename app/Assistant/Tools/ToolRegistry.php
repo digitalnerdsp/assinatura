@@ -18,6 +18,12 @@ final class ToolRegistry
         }
     }
 
+    /** Cópia só com as ferramentas de nome permitido. @param list<string> $names */
+    public function only(array $names): self
+    {
+        return new self(array_values(array_filter($this->tools, fn (Tool $t) => in_array($t->name(), $names, true))));
+    }
+
     public function get(string $name): ?Tool
     {
         return $this->tools[$name] ?? null;

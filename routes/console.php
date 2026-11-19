@@ -37,3 +37,10 @@ Artisan::command('contracts:send-alerts', function (\App\Contracts\ContractAlert
     $this->info($alerts->send().' aviso(s) de vencimento enviado(s).');
 })->purpose('Envia por e-mail os avisos de vencimento de contratos');
 Schedule::command('contracts:send-alerts')->dailyAt('11:00')->timezone('UTC')->withoutOverlapping();
+
+// Assistente no WhatsApp: apaga conversas e mensagens recebidas com mais de 90 dias (não toca no registro financeiro).
+Artisan::command('assistant:prune', function (\App\Assistant\AssistantPruner $pruner) {
+    $r = $pruner->run();
+    $this->info("{$r['conversations']} conversa(s), {$r['inbounds']} mensagem(ns) recebida(s) e {$r['codes']} código(s) removido(s).");
+})->purpose('Apaga dados de conversa do assistente com mais de 90 dias');
+Schedule::command('assistant:prune')->dailyAt('04:10')->withoutOverlapping();

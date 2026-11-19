@@ -19,7 +19,7 @@ class Plan extends Model
     public const FEATURE_LABELS = ['assistant' => 'Assistente no WhatsApp', 'whatsapp' => 'WhatsApp e SMS', 'api' => 'API', 'webhooks' => 'Webhooks', 'templates' => 'Modelos', 'positioning' => 'Posicionamento da assinatura', 'ordered_signers' => 'Signatários em ordem', 'selfie' => 'Selfie e foto do documento', 'timestamp' => 'Carimbo de tempo', 'reports' => 'Relatórios', 'white_label' => 'Marca própria (logo e cores)'];
 
     /** Recursos que o sistema já barra de verdade quando desligados; os demais ainda são só informativos. */
-    public const FEATURES_ENFORCED = ['api', 'webhooks', 'templates', 'reports', 'white_label'];
+    public const FEATURES_ENFORCED = ['api', 'webhooks', 'templates', 'reports', 'white_label', 'assistant'];
 
     public const LIMITS = ['documents', 'users', 'storage_mb', 'max_pdf_mb', 'assistant_tokens'];
 

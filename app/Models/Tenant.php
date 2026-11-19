@@ -17,7 +17,7 @@ class Tenant extends Model
 
     protected function casts(): array
     {
-        return ['suspended_at' => 'datetime'];
+        return ['suspended_at' => 'datetime', 'assistant_enabled' => 'boolean', 'assistant_tools' => 'array'];
     }
 
     public function isSuspended(): bool

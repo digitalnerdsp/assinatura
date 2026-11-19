@@ -48,6 +48,7 @@ final class MenuBuilder
             $item('Calendário', 'calendar', route('calendar.index'), $is('calendar.*')),
             $item('Contratos', 'templates', route('contracts.index'), $is('contracts.*')),
             $item('Relatórios', 'reports', route('reports.index'), $is('reports.*')),
+            ...($user->role === 'owner' && \App\Plans\Entitlements::for($user->tenant)->feature('assistant') ? [$item('Assistente', 'assistant', route('assistant.index'), $is('assistant.*'))] : []),
             $item('Configurações', 'settings', '#', $is('profile.*', 'company.*', 'api-keys.*', 'webhooks.*', 'team.*', 'brand.*', 'plan-usage.*'), $cfg),
             $item('Verificar documento', 'verify', route('verify.index'), false, [], null, true),
         ];

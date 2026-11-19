@@ -85,6 +85,7 @@ class User extends Authenticatable
             'deactivated_at' => 'datetime',
             'invite_expires_at' => 'datetime',
             'platform_granted_at' => 'datetime',
+            'assistant_enabled' => 'boolean',
             'password' => 'hashed',
         ];
     }

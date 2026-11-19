@@ -69,6 +69,9 @@ Route::middleware(['auth', 'tenant.active', 'platform'])->prefix('admin')->name(
         Route::put('/email', [\App\Http\Controllers\Admin\MailController::class, 'update'])->name('mail.update');
         Route::post('/email/teste', [\App\Http\Controllers\Admin\MailController::class, 'test'])->middleware('throttle:10,1,admin-mail-test')->name('mail.test');
         Route::delete('/email', [\App\Http\Controllers\Admin\MailController::class, 'reset'])->name('mail.reset');
+        Route::get('/assistente', [\App\Http\Controllers\Admin\AssistantSettingsController::class, 'edit'])->name('assistant');
+        Route::put('/assistente', [\App\Http\Controllers\Admin\AssistantSettingsController::class, 'update'])->middleware('throttle:30,1,admin-assistant')->name('assistant.update');
+        Route::post('/assistente/lancamentos', [\App\Http\Controllers\Admin\AssistantSettingsController::class, 'entry'])->middleware('throttle:30,1,admin-assistant-entry')->name('assistant.entries');
         Route::get('/configuracoes', [\App\Http\Controllers\Admin\SettingsController::class, 'edit'])->name('settings');
         Route::put('/configuracoes', [\App\Http\Controllers\Admin\SettingsController::class, 'update'])->name('settings.update');
     });
@@ -177,6 +180,9 @@ Route::middleware(['auth', 'tenant.active'])->group(function () {
 
     Route::get('/configuracoes/assinatura-da-empresa', [\App\Http\Controllers\Web\CompanySigningController::class, 'edit'])->name('company.signing.edit');
     Route::put('/configuracoes/assinatura-da-empresa', [\App\Http\Controllers\Web\CompanySigningController::class, 'update'])->middleware('throttle:20,1,company-signing')->name('company.signing.update');
+
+    Route::get('/assistente', [\App\Http\Controllers\Web\AssistantController::class, 'index'])->middleware('owner')->middleware('feature:assistant')->name('assistant.index');
+    Route::put('/assistente', [\App\Http\Controllers\Web\AssistantController::class, 'update'])->middleware('throttle:30,1,assistant-settings')->middleware('owner')->middleware('feature:assistant')->name('assistant.update');
 
     Route::get('/api-keys', [ApiKeyController::class, 'index'])->middleware('owner')->name('api-keys.index');
     Route::post('/api-keys', [ApiKeyController::class, 'store'])->middleware('owner')->name('api-keys.store');

@@ -118,3 +118,11 @@ Veja `loadtest/README.md` (k6). O limite de PDF é conferido no app (`SIGNING_MA
 - O LibreOffice roda com ambiente mínimo (sem o token nem os certificados do selador), em grupo próprio de processos, com limite de memória (`SEALER_CONVERT_MAX_MB`, padrão 3072) e de CPU (`SEALER_CONVERT_MAX_CPU`, padrão 120 s). No tempo limite o grupo inteiro é encerrado. Sem vaga livre (`SEALER_CONVERT_SLOTS`), a conversão é recusada na hora.
 - Limite que ainda **não** existe: o conversor roda no mesmo contêiner do selador, com acesso à rede e ao mesmo usuário. Antes de aceitar DOCX de qualquer cliente desconhecido, o ideal é movê-lo para um contêiner próprio, sem rede e sem os certificados (por exemplo o Gotenberg).
 - `SIGNING_MAIL_ATTACHMENT_MB` (padrão 15): teto de anexos por e-mail de cópia. O que não couber vai pelo link.
+
+## Assistente no WhatsApp (Plano 1: consultas)
+- **Processos:** além do `web`, precisa de um **worker de fila** (`php artisan queue:work`) e do **agendador** (`schedule:work`). O webhook da Meta responde rápido e a conversa roda na fila; sem worker, ninguém recebe resposta.
+- **Webhook:** `POST/GET {APP_URL}/webhooks/meta/whatsapp` (sem login e sem CSRF; a proteção é a assinatura HMAC-SHA256 do corpo com o segredo do app, conferida antes de qualquer processamento). O endereço aparece em Admin ▸ Assistente no WhatsApp.
+- **Credenciais** (token da Meta, segredo do app, token de verificação, chave da OpenAI): salvas **cifradas no banco** pela tela da plataforma, nunca em variável de ambiente nem no repositório. Os padrões de modelo, pacote, excesso e acréscimo podem vir de `ASSISTANT_*` (ver `config/assistant.php`); o que for salvo na tela vale mais.
+- **Dados de conversa:** guardados por 90 dias (`assistant:prune`, diário). Lançamentos de tokens e uso da Meta não são apagados (registro financeiro). O modelo de IA recebe só texto, títulos e nomes; **nunca** o PDF.
+- **Cobrança:** a medição existe (tokens por modelo, mensagens da Meta com categoria e acréscimo), mas a **fatura automática não**: pacote comprado, ajuste e repasse são lançados à mão em Admin ▸ Assistente no WhatsApp ▸ Lançamento manual.
+- **Roteiro do piloto:** `docs/ASSISTENTE-PILOTO.md`.

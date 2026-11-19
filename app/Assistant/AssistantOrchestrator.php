@@ -53,12 +53,20 @@ final class AssistantOrchestrator
         if (! Entitlements::for($tenant)->feature('assistant')) {
             return new AssistantReply('O assistente no WhatsApp não está incluído no plano da sua empresa. Fale com o administrador para ativar.');
         }
+        if ($tenant->assistant_enabled === false) { // nulo (modelo recém-criado) conta como ligado: o padrão do banco é ligado
+            return new AssistantReply('O assistente está desativado na sua empresa. Fale com o administrador.');
+        }
+        if ($user->assistant_enabled === false) {
+            return new AssistantReply('O assistente está desativado para o seu usuário. Fale com o administrador da sua empresa.');
+        }
+        $allowed = ToolGroups::allowedNames($tenant);
+        $registry = $allowed === null ? $this->tools : $this->tools->only($allowed);
         if (! RateLimiter::attempt('assistant:'.$user->getKey(), max(1, (int) config('assistant.messages_per_hour')), fn () => true, 3600)) {
             return new AssistantReply('Você enviou muitas mensagens em pouco tempo. Tente de novo daqui a pouco.');
         }
 
         if ($message->payloadId !== null && isset(FixedMenu::ACTIONS[$message->payloadId])) {
-            return $this->menu($user, FixedMenu::ACTIONS[$message->payloadId]);
+            return $this->menu($user, FixedMenu::ACTIONS[$message->payloadId], $registry, $allowed);
         }
         if (! in_array($message->type, ['text', 'button', 'list'], true)) {
             return new AssistantReply('Por enquanto eu só entendo mensagens de texto. Escreva o que você precisa sobre seus documentos.');
@@ -66,15 +74,16 @@ final class AssistantOrchestrator
 
         $this->wallet->ensurePlanPackage($tenant);
         if (! $this->wallet->canStart($tenant)) {
-            return new AssistantReply('Seus tokens do assistente acabaram. Peça ao administrador da sua empresa para comprar mais pacotes. Enquanto isso, use as consultas rápidas abaixo.', FixedMenu::buttons());
+            return new AssistantReply('Seus tokens do assistente acabaram. Peça ao administrador da sua empresa para comprar mais pacotes. Enquanto isso, use as consultas rápidas abaixo.', FixedMenu::buttons($allowed));
         }
 
-        return $this->converse($user, $message);
+        return $this->converse($user, $message, $registry, $allowed);
     }
 
     // ---------------------------------------------------------------- conversa com a IA
 
-    private function converse(User $user, InboundMessage $message): AssistantReply
+    /** @param list<string>|null $allowed */
+    private function converse(User $user, InboundMessage $message, ToolRegistry $registry, ?array $allowed): AssistantReply
     {
         $tenant = $user->tenant;
         $conversation = $this->currentConversation($user);
@@ -89,11 +98,11 @@ final class AssistantOrchestrator
 
         for ($round = 1; $round <= self::MAX_ROUNDS; $round++) {
             try {
-                $response = $this->llm->chat($messages, $toolRuns >= self::MAX_TOOL_CALLS ? [] : $this->tools->specs(), $model);
+                $response = $this->llm->chat($messages, $toolRuns >= self::MAX_TOOL_CALLS ? [] : $registry->specs(), $model);
             } catch (LlmUnavailable $e) {
                 report($e);
 
-                return new AssistantReply('O assistente está indisponível no momento. Use as consultas rápidas abaixo.', FixedMenu::buttons());
+                return new AssistantReply('O assistente está indisponível no momento. Use as consultas rápidas abaixo.', FixedMenu::buttons($allowed));
             }
 
             $this->wallet->debit($tenant, $model, $response->usage['input'], $response->usage['cached'], $response->usage['output'], $conversation->getKey());
@@ -114,7 +123,7 @@ final class AssistantOrchestrator
                     $content = 'Limite de consultas desta mensagem atingido. Responda com o que já tem.';
                 } else {
                     $toolRuns++;
-                    [$content, $toolList] = $this->runTool($user, $call);
+                    [$content, $toolList] = $this->runTool($user, $call, $registry);
                     $list = $toolList ?? $list;
                 }
                 $toolMessage = ['role' => 'tool', 'tool_call_id' => $call['id'], 'content' => $content];
@@ -134,9 +143,9 @@ final class AssistantOrchestrator
     }
 
     /** @param array{id:string,name:string,arguments:string} $call @return array{0:string,1:?array} */
-    private function runTool(User $user, array $call): array
+    private function runTool(User $user, array $call, ToolRegistry $registry): array
     {
-        $tool = $this->tools->get($call['name']);
+        $tool = $registry->get($call['name']);
         if ($tool === null || $tool->needsConfirmation()) {
             return [$this->asData("A ferramenta \"{$call['name']}\" não existe."), null];
         }
@@ -169,12 +178,12 @@ final class AssistantOrchestrator
 
     // ---------------------------------------------------------------- menu fixo (sem IA)
 
-    /** @param array{tool:string,args:array<string,mixed>} $action */
-    private function menu(User $user, array $action): AssistantReply
+    /** @param array{tool:string,args:array<string,mixed>} $action @param list<string>|null $allowed */
+    private function menu(User $user, array $action, ToolRegistry $registry, ?array $allowed): AssistantReply
     {
-        $tool = $this->tools->get($action['tool']);
+        $tool = $registry->get($action['tool']);
         if ($tool === null || $tool->needsConfirmation()) {
-            return new AssistantReply('Essa consulta está indisponível agora.', FixedMenu::buttons());
+            return new AssistantReply('Essa consulta está indisponível agora.', FixedMenu::buttons($allowed));
         }
 
         try {
@@ -182,10 +191,10 @@ final class AssistantOrchestrator
         } catch (Throwable $e) {
             report($e);
 
-            return new AssistantReply('Essa consulta está indisponível agora.', FixedMenu::buttons());
+            return new AssistantReply('Essa consulta está indisponível agora.', FixedMenu::buttons($allowed));
         }
 
-        return new AssistantReply($result->text, $result->list === null ? FixedMenu::buttons() : [], $result->list);
+        return new AssistantReply($result->text, $result->list === null ? FixedMenu::buttons($allowed) : [], $result->list);
     }
 
     // ---------------------------------------------------------------- histórico

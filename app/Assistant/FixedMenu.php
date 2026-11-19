@@ -14,9 +14,16 @@ final class FixedMenu
         'menu_contratos' => ['tool' => 'list_contracts_due', 'args' => ['within_days' => 30]],
     ];
 
-    /** @return list<array{id:string,title:string}> */
-    public static function buttons(): array
+    /**
+     * Botões do menu; com `$allowedTools` (empresa que limitou as ações), só os cujas consultas estão liberadas.
+     *
+     * @param  list<string>|null  $allowedTools
+     * @return list<array{id:string,title:string}>
+     */
+    public static function buttons(?array $allowedTools = null): array
     {
-        return [['id' => 'menu_pendentes', 'title' => 'Pendentes'], ['id' => 'menu_concluidos', 'title' => 'Concluídos'], ['id' => 'menu_contratos', 'title' => 'Contratos']];
+        $all = [['id' => 'menu_pendentes', 'title' => 'Pendentes'], ['id' => 'menu_concluidos', 'title' => 'Concluídos'], ['id' => 'menu_contratos', 'title' => 'Contratos']];
+
+        return $allowedTools === null ? $all : array_values(array_filter($all, fn ($b) => in_array(self::ACTIONS[$b['id']]['tool'], $allowedTools, true)));
     }
 }
