@@ -37,6 +37,23 @@
             <div class="col-6"><label class="form-label" for="l-users">Usuários</label><input class="form-control" id="l-users" name="limits[users]" inputmode="numeric" value="{{ $o('limits.users', $lim['users'] ?? '') }}"></div>
             <div class="col-6"><label class="form-label" for="l-sto">Armazenamento (MB)</label><input class="form-control" id="l-sto" name="limits[storage_mb]" inputmode="numeric" value="{{ $o('limits.storage_mb', $lim['storage_mb'] ?? '') }}"><div class="form-text">1 GB = 1024 MB</div></div>
             <div class="col-6"><label class="form-label" for="l-ast">Tokens do assistente por mês</label><input class="form-control" id="l-ast" name="limits[assistant_tokens]" inputmode="numeric" value="{{ $o('limits.assistant_tokens', $lim['assistant_tokens'] ?? '') }}"><div class="form-text">Só vale com o recurso "Assistente no WhatsApp". Em branco = pacote padrão da plataforma. 0 = sem pacote.</div></div>
+            @php
+                $astPricing = app(\App\Assistant\Pricing\AssistantPricing::class);
+                $astTokens = (int) ($lim['assistant_tokens'] ?? app(\App\Assistant\AssistantSettings::class)->defaultPackageTokens());
+                $astCost = $plan->exists ? $astPricing->franchiseCostBrl($astTokens) : null;
+                $astMonth = isset($prices['month']) ? $prices['month']->amount_cents : null;
+                $astPct = $astCost !== null && $astMonth ? $astCost / ($astMonth / 100) * 100 : null;
+            @endphp
+            @if ($plan->exists)
+                <div class="col-12 text-secondary small">
+                    @if ($astCost === null)
+                        Salve a tabela de preços em Economia dos tokens para ver o custo da franquia.
+                    @else
+                        Custo máximo da franquia ({{ number_format($astTokens, 0, ',', '.') }} tokens): <strong>R$ {{ number_format($astCost, 2, ',', '.') }}</strong> por empresa por mês, se usar tudo{{ $astPct !== null ? ' — '.number_format($astPct, 0, ',', '.').'% da mensalidade (R$ '.number_format($astMonth / 100, 2, ',', '.').')' : '' }}.
+                        @if ($astPct !== null && $astPct > $astPricing->franchiseAlertPercent())<span class="text-danger fw-semibold">Atenção: acima de {{ number_format($astPricing->franchiseAlertPercent(), 0, ',', '.') }}% da mensalidade.</span>@endif
+                    @endif
+                </div>
+            @endif
             <div class="col-6"><label class="form-label" for="l-wa">Limite pós-pago dos avisos do WhatsApp (R$)</label><input class="form-control" id="l-wa" name="limits[wa_credit_limit]" inputmode="decimal" value="{{ $o('limits.wa_credit_limit', isset($lim['wa_credit_limit_cents']) ? $cents($lim['wa_credit_limit_cents']) : '') }}" placeholder="0,00"><div class="form-text">Em branco ou 0 = <strong>pré-pago</strong> (só envia com saldo). Com valor = <strong>pós-pago</strong>: envia até esse limite e o gasto é somado à mensalidade.</div></div>
             <div class="col-6"><label class="form-label" for="l-pdf">Tamanho máximo do PDF (MB)</label><input class="form-control" id="l-pdf" name="limits[max_pdf_mb]" inputmode="numeric" value="{{ $o('limits.max_pdf_mb', $lim['max_pdf_mb'] ?? '') }}"><div class="form-text">O teto do servidor ({{ (int) config('signing.max_pdf_mb') }} MB) vale primeiro.</div></div>
         </div></div>

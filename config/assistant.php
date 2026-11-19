@@ -10,6 +10,9 @@ return [
     // Esforço de raciocínio enviado à OpenAI ("none" deixa modelos que raciocinam usarem chamada de funções; vazio = não envia).
     'reasoning_effort' => env('ASSISTANT_REASONING_EFFORT', 'none'),
 
+    // Tokens equivalentes de uma conversa quando ainda não há conversas medidas (a tela troca pela média real a partir de 5).
+    'est_tokens_per_conversation' => (int) env('ASSISTANT_EST_TOKENS_PER_CONVERSATION', 8000),
+
     // Pacote de tokens equivalentes que o plano inclui por mês quando o plano não define o próprio.
     'default_package_tokens' => (int) env('ASSISTANT_DEFAULT_PACKAGE_TOKENS', 50000),
 

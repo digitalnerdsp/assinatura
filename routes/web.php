@@ -73,6 +73,8 @@ Route::middleware(['auth', 'tenant.active', 'platform'])->prefix('admin')->name(
         Route::put('/assistente', [\App\Http\Controllers\Admin\AssistantSettingsController::class, 'update'])->middleware('throttle:30,1,admin-assistant')->name('assistant.update');
         Route::post('/assistente/lancamentos', [\App\Http\Controllers\Admin\AssistantSettingsController::class, 'entry'])->middleware('throttle:30,1,admin-assistant-entry')->name('assistant.entries');
         Route::post('/assinaturas/{tenant}/saldo-whatsapp', [\App\Http\Controllers\Admin\SubscriptionController::class, 'waCredit'])->whereUuid('tenant')->middleware('throttle:30,1,admin-wa-credit')->name('subscriptions.wa-credit');
+        Route::get('/economia-tokens', [\App\Http\Controllers\Admin\TokenEconomyController::class, 'edit'])->name('economy');
+        Route::put('/economia-tokens', [\App\Http\Controllers\Admin\TokenEconomyController::class, 'update'])->middleware('throttle:30,1,admin-economy')->name('economy.update');
         Route::get('/avisos-whatsapp', [\App\Http\Controllers\Admin\WhatsAppNotificationsController::class, 'edit'])->name('notifications');
         Route::put('/avisos-whatsapp/{key}', [\App\Http\Controllers\Admin\WhatsAppNotificationsController::class, 'update'])->middleware('throttle:60,1,admin-notifications')->name('notifications.update');
         Route::post('/avisos-whatsapp/{key}/enviar', [\App\Http\Controllers\Admin\WhatsAppNotificationsController::class, 'submit'])->middleware('throttle:20,1,admin-notifications-submit')->name('notifications.submit');

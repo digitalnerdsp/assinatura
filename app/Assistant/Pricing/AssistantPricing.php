@@ -127,6 +127,22 @@ final class AssistantPricing
         return ['cost_brl' => $cost, 'sale_brl' => round($cost * (1 + $this->marginPercent() / 100) * (1 + $this->feePercent() / 100), 6)];
     }
 
+    /** Custo máximo, em reais, de uma franquia de tokens equivalentes (se a empresa gastar tudo). Null sem tabela de preços. */
+    public function franchiseCostBrl(int $tokens): ?float
+    {
+        $per = $this->perMillion();
+
+        return $per === null ? null : round(max(0, $tokens) / 1_000_000 * $per['cost_brl'], 6);
+    }
+
+    /** Percentual da mensalidade acima do qual a franquia gera alerta no cadastro do plano (padrão 10%). */
+    public function franchiseAlertPercent(): float
+    {
+        $v = Setting::get('assistant.franchise_alert_percent');
+
+        return is_numeric($v) && (float) $v > 0 ? (float) $v : 10.0;
+    }
+
     /**
      * Salva a tabela. Mudar o preço de um modelo cria uma versão nova (a de antes continua valendo para o passado);
      * modelo que não veio no formulário é mantido. Lança InvalidArgumentException com a explicação em português.
